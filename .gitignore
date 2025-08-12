@@ -1,0 +1,27 @@
+# SO/Editor
+.DS_Store
+Thumbs.db
+desktop.ini
+.vscode/
+.idea/
+
+# Dependências
+node_modules/
+vendor/
+
+# Logs
+logs/*.log
+!logs/.gitkeep
+
+# Temporários
+*.tmp
+*.swp
+*.swo
+
+# Builds
+/dist/
+/build/
+
+# Ambiente
+.env
+.env.*
