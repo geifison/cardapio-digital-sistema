@@ -1,0 +1,446 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Painel Administrativo - Cardápio Digital</title>
+    
+    <!-- CSS Externo -->
+    <link rel="stylesheet" href="assets/css/admin.css?v=20250810">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+    <!-- Login Modal -->
+    <div class="login-overlay" id="loginOverlay">
+        <div class="login-modal">
+            <div class="login-header">
+                <h2><i class="fas fa-lock"></i> Acesso Administrativo</h2>
+            </div>
+            <form id="loginForm" class="login-form">
+                <div class="form-group">
+                    <label for="email">Email:</label>
+                    <input type="email" id="email" name="email" required>
+                </div>
+                <div class="form-group">
+                    <label for="password">Senha:</label>
+                    <input type="password" id="password" name="password" required>
+                </div>
+                <button type="submit" class="login-btn">
+                    <i class="fas fa-sign-in-alt"></i>
+                    Entrar
+                </button>
+                <div class="login-info">
+                    <small>
+                        <strong>Credenciais padrão:</strong><br>
+                        Email: admin@cardapio.com<br>
+                        Senha: admin123
+                    </small>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="admin-header">
+        <div class="header-content">
+            <div class="logo">
+                <i class="fas fa-utensils"></i>
+                <h1>Painel Administrativo</h1>
+            </div>
+            <div class="header-actions">
+                <div class="user-info">
+                    <i class="fas fa-user-circle"></i>
+                    <span id="userName">Administrador</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    Sair
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Navigation -->
+    <nav class="admin-nav">
+        <div class="nav-content">
+            <button class="nav-item active" onclick="showSection('orders')">
+                <i class="fas fa-clipboard-list"></i>
+                Gestão de Pedidos
+            </button>
+            <button class="nav-item" onclick="showSection('pizza')">
+                <i class="fas fa-pizza-slice"></i>
+                Pizzas
+            </button>
+            <button class="nav-item" onclick="showSection('products')">
+                <i class="fas fa-box"></i>
+                Produtos
+            </button>
+            <button class="nav-item" onclick="showSection('reports')">
+                <i class="fas fa-chart-bar"></i>
+                Relatórios
+            </button>
+        </div>
+    </nav>
+
+    <!-- Main Content -->
+    <main class="admin-main">
+        <!-- Orders Section -->
+        <section id="ordersSection" class="admin-section active">
+            <div class="section-header">
+                <h2><i class="fas fa-clipboard-list"></i> Gestão de Pedidos</h2>
+                <div class="section-actions">
+                    <button class="refresh-btn" onclick="refreshOrders()">
+                        <i class="fas fa-sync-alt"></i>
+                        Atualizar
+                    </button>
+                </div>
+            </div>
+
+            <div class="orders-board">
+                <!-- Coluna 1: Novos Pedidos -->
+                <div class="orders-column new-orders">
+                    <div class="column-header">
+                        <h3><i class="fas fa-bell"></i> Novos Pedidos</h3>
+                        <span class="order-count" id="newOrdersCount">0</span>
+                    </div>
+                    <div class="orders-list" id="newOrdersList">
+                        <!-- Pedidos serão carregados dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Coluna 2: Em Produção -->
+                <div class="orders-column production-orders">
+                    <div class="column-header">
+                        <h3><i class="fas fa-fire"></i> Em Produção</h3>
+                        <span class="order-count" id="productionOrdersCount">0</span>
+                    </div>
+                    <div class="orders-list" id="productionOrdersList">
+                        <!-- Pedidos serão carregados dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Coluna 3: Em Entrega -->
+                <div class="orders-column delivery-orders">
+                    <div class="column-header">
+                        <h3><i class="fas fa-truck"></i> Em Entrega</h3>
+                        <span class="order-count" id="deliveryOrdersCount">0</span>
+                    </div>
+                    <div class="orders-list" id="deliveryOrdersList">
+                        <!-- Pedidos serão carregados dinamicamente -->
+                    </div>
+                </div>
+
+                <!-- Coluna 4: Finalizados -->
+                <div class="orders-column completed-orders">
+                    <div class="column-header">
+                        <h3><i class="fas fa-check-circle"></i> Finalizados</h3>
+                        <span class="order-count" id="completedOrdersCount">0</span>
+                    </div>
+                    <div class="orders-list" id="completedOrdersList">
+                        <!-- Pedidos serão carregados dinamicamente -->
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Pizza Section -->
+        <section id="pizzaSection" class="admin-section">
+            <div class="section-header">
+                <h2><i class="fas fa-pizza-slice"></i> Gerenciar Pizzas</h2>
+                <div class="header-info">
+                    <span class="info-text">Configure tamanhos, sabores, adicionais e preços das pizzas</span>
+                </div>
+            </div>
+            
+            <div class="pizza-tabs">
+                <button class="pizza-tab-item active" onclick="showPizzaTab('sizes')">
+                    <i class="fas fa-ruler-combined"></i>
+                    <span>Tamanhos</span>
+                    <small id="sizesCount">0 itens</small>
+                </button>
+                <button class="pizza-tab-item" onclick="showPizzaTab('flavors')">
+                    <i class="fas fa-pizza-slice"></i>
+                    <span>Sabores</span>
+                    <small id="flavorsCount">0 itens</small>
+                </button>
+                <button class="pizza-tab-item" onclick="showPizzaTab('extras')">
+                    <i class="fas fa-plus-circle"></i>
+                    <span>Adicionais</span>
+                    <small id="extrasCount">0 itens</small>
+                </button>
+            </div>
+
+            <div class="pizza-tab-content">
+                <!-- Sizes Tab -->
+                <div id="pizzaSizesTab" class="pizza-tab-pane active">
+                    <div class="tab-header">
+                        <div class="tab-title">
+                            <h3><i class="fas fa-ruler-combined"></i> Tamanhos de Pizza</h3>
+                            <p>Configure os tamanhos disponíveis (fatias e quantidade de sabores)</p>
+                        </div>
+                        <button class="btn-add-new" onclick="showPizzaSizeModal()">
+                            <i class="fas fa-plus"></i> Novo Tamanho
+                        </button>
+                    </div>
+                    
+                    <div class="pizza-table-container">
+                        <table class="pizza-table" id="pizzaSizesTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-tag"></i> Nome</th>
+                                    <th><i class="fas fa-cut"></i> Fatias</th>
+                                    <th><i class="fas fa-pizza-slice"></i> Max Sabores</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Preço Base</th>
+                                    <th><i class="fas fa-info-circle"></i> Descrição</th>
+                                    <th><i class="fas fa-toggle-on"></i> Status</th>
+                                    <th><i class="fas fa-cogs"></i> Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pizzaSizesTableBody">
+                                <!-- Content loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Flavors Tab -->
+                <div id="pizzaFlavorsTab" class="pizza-tab-pane">
+                    <div class="tab-header">
+                        <div class="tab-title">
+                            <h3><i class="fas fa-pizza-slice"></i> Sabores de Pizza</h3>
+                            <p>Gerencie todos os sabores disponíveis e suas características</p>
+                        </div>
+                        <button class="btn-add-new" onclick="showPizzaFlavorModal()">
+                            <i class="fas fa-plus"></i> Novo Sabor
+                        </button>
+                    </div>
+                    
+                    <div class="pizza-filters">
+                        <div class="filter-item">
+                            <label>Categoria:</label>
+                            <select id="flavorCategoryFilter" onchange="filterFlavors()">
+                                <option value="">Todas</option>
+                                <option value="Tradicional">Tradicional</option>
+                                <option value="Especial">Especial</option>
+                                <option value="Vegetariana">Vegetariana</option>
+                                <option value="Vegana">Vegana</option>
+                                <option value="Doce">Doce</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>Status:</label>
+                            <select id="flavorStatusFilter" onchange="filterFlavors()">
+                                <option value="">Todos</option>
+                                <option value="1">Ativos</option>
+                                <option value="0">Pausados</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="pizza-table-container">
+                        <table class="pizza-table" id="pizzaFlavorsTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-tag"></i> Nome</th>
+                                    <th><i class="fas fa-list"></i> Categoria</th>
+                                    <th><i class="fas fa-leaf"></i> Características</th>
+                                    <th><i class="fas fa-align-left"></i> Descrição</th>
+                                    <th><i class="fas fa-toggle-on"></i> Status</th>
+                                    <th><i class="fas fa-cogs"></i> Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pizzaFlavorsTableBody">
+                                <!-- Content loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Extras Tab -->
+                <div id="pizzaExtrasTab" class="pizza-tab-pane">
+                    <div class="tab-header">
+                        <div class="tab-title">
+                            <h3><i class="fas fa-plus-circle"></i> Adicionais para Pizza</h3>
+                            <p>Configure ingredientes extras com preços individuais</p>
+                        </div>
+                        <button class="btn-add-new" onclick="showPizzaExtraModal()">
+                            <i class="fas fa-plus"></i> Novo Adicional
+                        </button>
+                    </div>
+                    
+                    <div class="pizza-filters">
+                        <div class="filter-item">
+                            <label>Categoria:</label>
+                            <select id="extraCategoryFilter" onchange="filterExtras()">
+                                <option value="">Todas</option>
+                                <option value="Queijos">Queijos</option>
+                                <option value="Carnes">Carnes</option>
+                                <option value="Vegetais">Vegetais</option>
+                                <option value="Molhos">Molhos</option>
+                                <option value="Outros">Outros</option>
+                            </select>
+                        </div>
+                        <div class="filter-item">
+                            <label>Status:</label>
+                            <select id="extraStatusFilter" onchange="filterExtras()">
+                                <option value="">Todos</option>
+                                <option value="1">Ativos</option>
+                                <option value="0">Pausados</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="pizza-table-container">
+                        <table class="pizza-table" id="pizzaExtrasTable">
+                            <thead>
+                                <tr>
+                                    <th><i class="fas fa-tag"></i> Nome</th>
+                                    <th><i class="fas fa-list"></i> Categoria</th>
+                                    <th><i class="fas fa-dollar-sign"></i> Preço</th>
+                                    <th><i class="fas fa-sort-numeric-up"></i> Ordem</th>
+                                    <th><i class="fas fa-toggle-on"></i> Status</th>
+                                    <th><i class="fas fa-cogs"></i> Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="pizzaExtrasTableBody">
+                                <!-- Content loaded dynamically -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Products Section -->
+        <section id="productsSection" class="admin-section">
+            <!-- Header exatamente como em testes/index.php -->
+            <div class="produtos-main-header">
+                <h1 class="produtos-header-title">Gerenciar Produtos & Categorias</h1>
+                <div class="produtos-header-actions">
+                    <button class="btn btn-primary" id="produtos-btn-criar-categoria" onclick="showCategoryModal()">
+                        <i class="fa-solid fa-plus"></i> Criar Categoria
+                    </button>
+                    <button class="btn btn-secondary" id="produtos-btn-criar-produto" onclick="showAddProductModal()">
+                        <i class="fa-solid fa-tag"></i> Criar Novo Produto
+                    </button>
+                </div>
+            </div>
+
+            <!-- Filtros exatamente como em testes/index.php -->
+            <div class="produtos-filter-container">
+                <div class="filter-group">
+                    <input type="text" id="produtos-filter-name" placeholder="Buscar por nome do produto ou categoria...">
+                </div>
+                <div class="filter-group">
+                    <select id="produtos-filter-category">
+                        <option value="all">Todas as Categorias</option>
+                    </select>
+                </div>
+                <div class="filter-group">
+                    <select id="produtos-filter-status">
+                        <option value="all">Todos os Status</option>
+                        <option value="active">Ativos</option>
+                        <option value="inactive">Pausados</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Container principal exatamente como em testes/index.php -->
+            <main class="produtos-main-container" id="produtos-accordion-container">
+                <div class="loading-spinner">
+                    <i class="fas fa-spinner fa-spin"></i>
+                    <p>Carregando produtos e categorias...</p>
+                </div>
+            </main>
+        </section>
+
+        <!-- Produtos & Categorias Section -->
+        <section id="produtosCategoriasSection" class="admin-section">
+            <div class="section-header">
+                <h2><i class="fas fa-tags"></i> Gerenciar Produtos & Categorias</h2>
+                <div class="section-actions">
+                    <button class="btn-primary" onclick="openProdutosCategorias()">
+                        <i class="fas fa-external-link-alt"></i>
+                        Abrir Página Completa
+                    </button>
+                </div>
+            </div>
+            <div class="produtos-categorias-content">
+                <div class="info-card">
+                    <div class="info-icon">
+                        <i class="fas fa-info-circle"></i>
+                    </div>
+                    <div class="info-content">
+                        <h3>Gerenciamento Avançado</h3>
+                        <p>Esta página oferece uma interface completa para gerenciar produtos e categorias com:</p>
+                        <ul>
+                            <li>Visualização em acordeão por categoria</li>
+                            <li>Filtros avançados por nome, categoria e status</li>
+                            <li>Ativação/desativação rápida com switches</li>
+                            <li>Menu de ações para cada item (editar, apagar)</li>
+                            <li>Interface responsiva e moderna</li>
+                        </ul>
+                        <button class="btn-secondary" onclick="openProdutosCategorias()">
+                            <i class="fas fa-external-link-alt"></i>
+                            Acessar Página Completa
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Reports Section -->
+        <section id="reportsSection" class="admin-section">
+            <div class="section-header">
+                <h2><i class="fas fa-chart-bar"></i> Relatórios</h2>
+            </div>
+            <div class="reports-content">
+                <div class="stats-cards">
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-shopping-cart"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayOrdersCount">0</h3>
+                            <p>Pedidos Hoje</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="todayRevenue">R$ 0,00</h3>
+                            <p>Faturamento Hoje</p>
+                        </div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="stat-icon">
+                            <i class="fas fa-clock"></i>
+                        </div>
+                        <div class="stat-info">
+                            <h3 id="avgDeliveryTime">0 min</h3>
+                            <p>Tempo Médio</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+
+    <!-- Include dos Modais -->
+    <div id="modals-container">
+        <!-- Os modais serão carregados aqui -->
+    </div>
+
+    <!-- JavaScript Externo -->
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="assets/js/config.js?v=20250810"></script>
+    <script src="assets/js/utils.js?v=20250810"></script>
+    <script src="assets/js/modals-loader.js?v=20250810"></script>
+    <script src="assets/js/admin.js?v=20250810"></script>
+    <script src="assets/js/produtos-admin.js?v=20250810"></script>
+</body>
+</html>
