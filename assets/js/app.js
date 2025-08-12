@@ -1009,6 +1009,8 @@ function showSuccess(message) {
 const pizzaBuilderState = {
     currentStep: 1,
     selectedSize: null,
+    // Mantém compatibilidade: armazenaremos cada seleção como { id, name, description, category }
+    // e controlaremos "partes" por sabor via contador separado
     selectedFlavors: [],
     selectedBorder: null,
     selectedExtras: [],
@@ -1020,6 +1022,13 @@ const pizzaBuilderState = {
     maxFlavors: 1,
     currentProduct: null // Produto pizza atual sendo personalizado
 };
+
+// Controle de partes por sabor (ex.: { [flavorId]: count })
+let flavorPartsMap = {};
+// Flag para evitar auto-avançar ao voltar para Step 2
+let partsChangedInThisStep = false;
+// Controle para não duplicar handler de clique da barra de progresso
+let pizzaProgressHandlersAttached = false;
 
 // Cores para o círculo da pizza
 const PIZZA_COLORS = [
@@ -1046,6 +1055,9 @@ function openPizzaBuilder(product = null) {
         titleElement.textContent = '🍕 Monte Sua Pizza';
     }
     
+    // Habilitar clique na barra de progresso para voltar em passos concluídos
+    setupPizzaProgressClicks();
+
     // Carregar dados se ainda não foram carregados
     if (pizzaBuilderState.sizes.length === 0) {
         loadPizzaData();
@@ -1257,6 +1269,8 @@ function nextPizzaStep() {
 function previousPizzaStep() {
     if (pizzaBuilderState.currentStep > 1) {
         pizzaBuilderState.currentStep--;
+        // Evita auto-avançar ao retornar ao Step 2
+        if (pizzaBuilderState.currentStep === 2) partsChangedInThisStep = false;
         updatePizzaStep();
     }
 }
@@ -1322,10 +1336,11 @@ function renderPizzaStep2() {
 
     renderPizzaFlavors();
     renderPizzaCircle();
-    // Atualiza info de seleção ao entrar no passo
     updateSelectedFlavorsInfo();
-    // Atualizar estado do botão de continuar
-    updateContinueButton();
+    syncPartsCounters();
+    // Ao entrar no passo, só auto-avança se o usuário mudar algo
+    partsChangedInThisStep = false;
+    updateContinueByParts();
 }
 
 /**
@@ -1365,11 +1380,15 @@ function renderFlavorCardsOptimized(container, flavors, sizeId) {
     flavors.forEach(flavor => {
         const id = String(flavor.id);
         let card = container.querySelector(`.flavor-card[data-flavor-id="${id}"]`);
-        const price = getFlavorPrice(flavor.id, sizeId);
         const html = `
             <div class="flavor-name">${flavor.name}</div>
             <div class="flavor-description">${flavor.description}</div>
-            <div class="flavor-price">R$ ${price.toFixed(2)}</div>
+            <div class="flavor-controls">
+                <button type="button" class="flavor-decrease btn-circle btn-muted" data-flavor-id="${id}" aria-label="Diminuir">-</button>
+                <span class="flavor-parts" data-flavor-id="${id}">0</span>
+                <button type="button" class="flavor-increase btn-circle btn-muted" data-flavor-id="${id}" aria-label="Aumentar">+</button>
+                <button type="button" class="flavor-remove btn-circle btn-danger-outline" data-flavor-id="${id}" aria-label="Remover" style="display:none;">×</button>
+            </div>
         `;
         if (!card) {
             card = document.createElement('div');
@@ -1385,6 +1404,11 @@ function renderFlavorCardsOptimized(container, flavors, sizeId) {
         }
     });
     if (fragment.childNodes.length > 0) container.appendChild(fragment);
+
+    // Listeners dos controles
+    container.querySelectorAll('.flavor-increase').forEach(btn => btn.addEventListener('click', onIncreaseFlavorPart));
+    container.querySelectorAll('.flavor-decrease').forEach(btn => btn.addEventListener('click', onDecreaseFlavorPart));
+    container.querySelectorAll('.flavor-remove').forEach(btn => btn.addEventListener('click', onRemoveFlavor));
 }
 
 /**
@@ -1398,50 +1422,16 @@ function getFlavorPrice(flavorId, sizeId) {
  * Seleciona um sabor
  */
 function selectPizzaFlavor(flavor) {
-    const flavorCard = document.querySelector(`[data-flavor-id="${flavor.id}"]`);
-    if (!flavorCard) return;
-    if (flavorCard.classList.contains('disabled')) return;
-    
-    // Calcular total de sabores já selecionados
-    const totalSelectedFlavors = pizzaBuilderState.selectedFlavors.length;
-    
-    // Verificar se o sabor já está selecionado
-    const existingFlavorIndex = pizzaBuilderState.selectedFlavors.findIndex(f => f.id === flavor.id);
-    
-    if (existingFlavorIndex !== -1) {
-        // Sabor já selecionado - adicionar mais uma quantidade se possível
-        if (totalSelectedFlavors < pizzaBuilderState.maxFlavors) {
-            pizzaBuilderState.selectedFlavors.push(flavor);
-            updateFlavorCounter(flavorCard, flavor.id);
-        } else {
-            showError(`Este tamanho permite no máximo ${pizzaBuilderState.maxFlavors} sabor${pizzaBuilderState.maxFlavors > 1 ? 'es' : ''}`);
-            return;
-        }
-    } else {
-        // Novo sabor
-        if (totalSelectedFlavors >= pizzaBuilderState.maxFlavors) {
-            showError(`Este tamanho permite no máximo ${pizzaBuilderState.maxFlavors} sabor${pizzaBuilderState.maxFlavors > 1 ? 'es' : ''}`);
-            return;
-        }
-        
-        flavorCard.classList.add('selected');
-        pizzaBuilderState.selectedFlavors.push(flavor);
-        updateFlavorCounter(flavorCard, flavor.id);
-    }
-    
-    // Atualiza visual e informação de sabores selecionados
-    updateFlavorSelectionUI();
-    renderPizzaCircle();
-    updateSelectedFlavorsInfo();
-    
-    // Mostrar/esconder botão de continuar
-    updateContinueButton();
-    
-    // Avançar automaticamente quando atingir o limite permitido
-    if (pizzaBuilderState.selectedFlavors.length === pizzaBuilderState.maxFlavors) {
-        pizzaBuilderState.currentStep = 3;
-        updatePizzaStep();
-    }
+    // Não usado diretamente; controles +/− cuidam da seleção proporcional por partes
+    // Mantemos por compatibilidade caso seja chamado: incrementa 1 parte
+    if (!pizzaBuilderState.selectedSize) return;
+    const max = pizzaBuilderState.selectedSize.max_flavors;
+    const used = getUsedParts();
+    if (used >= max) return;
+    flavorPartsMap[flavor.id] = (flavorPartsMap[flavor.id] || 0) + 1;
+    ensureFlavorInSelection(flavor);
+    partsChangedInThisStep = true;
+    onPartsChange();
 }
 
 /**
@@ -1491,8 +1481,8 @@ function updateFlavorCounter(flavorCard, flavorId) {
 
 // Atualiza UI dos cards de sabor (numeração e bloqueio quando atingir limite)
 function updateFlavorSelectionUI() {
-    const max = pizzaBuilderState.maxFlavors;
-    const selectedIds = pizzaBuilderState.selectedFlavors.map(f => f.id);
+    const max = pizzaBuilderState.selectedSize ? pizzaBuilderState.selectedSize.max_flavors : pizzaBuilderState.maxFlavors;
+    const selectedIds = Object.keys(flavorPartsMap).filter(id => flavorPartsMap[id] > 0).map(id => parseInt(id, 10));
     
     // Atualiza cada card
     document.querySelectorAll('.flavor-card').forEach(card => {
@@ -1515,7 +1505,7 @@ function updateFlavorSelectionUI() {
     });
     
     // Bloquear não selecionados quando atingir o limite
-    const reachedMax = pizzaBuilderState.selectedFlavors.length >= max;
+    const reachedMax = getUsedParts() >= max;
     document.querySelectorAll('.flavor-card').forEach(card => {
         if (card.classList.contains('selected')) {
             card.classList.remove('disabled');
@@ -1544,30 +1534,24 @@ function updateSelectedFlavorsInfo() {
 function renderPizzaCircle() {
     const pizzaCircle = document.getElementById('pizzaCircle');
     
-    if (pizzaBuilderState.selectedFlavors.length === 0) {
+    const totalParts = getUsedParts();
+    if (totalParts === 0) {
         pizzaCircle.style.background = '#f8f9fa';
         return;
     }
-    
-    if (pizzaBuilderState.selectedFlavors.length === 1) {
-        pizzaCircle.style.background = PIZZA_COLORS[0];
-    } else {
-        const segments = pizzaBuilderState.selectedFlavors.length;
-        const anglePerSegment = 360 / segments;
-        
-        let gradient = 'conic-gradient(';
-        pizzaBuilderState.selectedFlavors.forEach((flavor, index) => {
-            const startAngle = index * anglePerSegment;
-            const endAngle = (index + 1) * anglePerSegment;
-            const color = PIZZA_COLORS[index % PIZZA_COLORS.length];
-            
-            gradient += `${color} ${startAngle}deg ${endAngle}deg`;
-            if (index < segments - 1) gradient += ', ';
-        });
-        gradient += ')';
-        
-        pizzaCircle.style.background = gradient;
-    }
+    let gradient = 'conic-gradient(';
+    let currentAngle = 0;
+    const partsEntries = Object.entries(flavorPartsMap).filter(([, count]) => count > 0);
+    partsEntries.forEach(([flavorId, count], idx) => {
+        const proportion = count / totalParts;
+        const angle = proportion * 360;
+        const color = PIZZA_COLORS[idx % PIZZA_COLORS.length];
+        gradient += `${color} ${currentAngle}deg ${currentAngle + angle}deg`;
+        currentAngle += angle;
+        if (idx < partsEntries.length - 1) gradient += ', ';
+    });
+    gradient += ')';
+    pizzaCircle.style.background = gradient;
 }
 
 /**
@@ -1650,7 +1634,7 @@ async function renderPizzaStep5() {
     await calculatePizzaPrice();
     
     document.getElementById('summarySize').textContent = pizzaBuilderState.selectedSize.name;
-    document.getElementById('summaryFlavors').textContent = getFormattedFlavorsText(pizzaBuilderState.selectedFlavors);
+    document.getElementById('summaryFlavors').textContent = getFormattedFlavorsTextByParts();
     
     if (pizzaBuilderState.selectedExtras.length > 0) {
         document.getElementById('summaryExtrasContainer').style.display = 'block';
@@ -1673,10 +1657,10 @@ async function calculatePizzaPrice() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({
+                body: JSON.stringify({
                 size_id: pizzaBuilderState.selectedSize.id,
                 flavor_ids: pizzaBuilderState.selectedFlavors.map(f => f.id),
-                border_id: pizzaBuilderState.selectedBorder.id,
+                border_id: pizzaBuilderState.selectedBorder ? pizzaBuilderState.selectedBorder.id : null,
                 extra_ids: pizzaBuilderState.selectedExtras.map(e => e.id)
             })
         });
@@ -1705,9 +1689,8 @@ function calculatePizzaPriceLocally() {
     if (pizzaBuilderState.selectedSize && pizzaBuilderState.selectedSize.price) {
         totalPrice += parseFloat(pizzaBuilderState.selectedSize.price);
     }
-    
-
-    
+    // 2. Adicional proporcional por sabor (placeholder: se houver tabelas futuras)
+    // Mantemos compatível com a lógica atual: sem acréscimos por sabor por padrão
     // 3. Preço da borda (se selecionada)
     if (pizzaBuilderState.selectedBorder && pizzaBuilderState.selectedBorder.price) {
         totalPrice += parseFloat(pizzaBuilderState.selectedBorder.price);
@@ -1729,30 +1712,24 @@ function calculatePizzaPriceLocally() {
 function renderPizzaPreview() {
     const pizzaPreview = document.getElementById('pizzaPreview');
     
-    if (pizzaBuilderState.selectedFlavors.length === 0) {
+    const totalParts = getUsedParts();
+    if (totalParts === 0) {
         pizzaPreview.style.background = '#f8f9fa';
         return;
     }
-    
-    if (pizzaBuilderState.selectedFlavors.length === 1) {
-        pizzaPreview.style.background = PIZZA_COLORS[0];
-    } else {
-        const segments = pizzaBuilderState.selectedFlavors.length;
-        const anglePerSegment = 360 / segments;
-        
-        let gradient = 'conic-gradient(';
-        pizzaBuilderState.selectedFlavors.forEach((flavor, index) => {
-            const startAngle = index * anglePerSegment;
-            const endAngle = (index + 1) * anglePerSegment;
-            const color = PIZZA_COLORS[index % PIZZA_COLORS.length];
-            
-            gradient += `${color} ${startAngle}deg ${endAngle}deg`;
-            if (index < segments - 1) gradient += ', ';
-        });
-        gradient += ')';
-        
-        pizzaPreview.style.background = gradient;
-    }
+    let gradient = 'conic-gradient(';
+    let currentAngle = 0;
+    const partsEntries = Object.entries(flavorPartsMap).filter(([, count]) => count > 0);
+    partsEntries.forEach(([flavorId, count], idx) => {
+        const proportion = count / totalParts;
+        const angle = proportion * 360;
+        const color = PIZZA_COLORS[idx % PIZZA_COLORS.length];
+        gradient += `${color} ${currentAngle}deg ${currentAngle + angle}deg`;
+        currentAngle += angle;
+        if (idx < partsEntries.length - 1) gradient += ', ';
+    });
+    gradient += ')';
+    pizzaPreview.style.background = gradient;
 }
 
 /**
@@ -1769,7 +1746,14 @@ function addPizzaToCart() {
             : 'Monte Sua Pizza';
         
         const productName = `${baseProductName} - ${pizzaBuilderState.selectedSize.name}`;
-        const notes = `Sabores: ${getFormattedFlavorsText(pizzaBuilderState.selectedFlavors)}${pizzaBuilderState.selectedExtras.length > 0 ? ` | Adicionais: ${pizzaBuilderState.selectedExtras.map(e => e.name).join(', ')}` : ''}`;
+        const observations = (document.getElementById('pizzaObservations')?.value || '').trim();
+        const prefs = Array.from(document.querySelectorAll('.pizza-pref:checked')).map(el => el.value);
+        const notesParts = [];
+        notesParts.push(`Sabores: ${getFormattedFlavorsTextByParts()}`);
+        if (pizzaBuilderState.selectedExtras.length > 0) notesParts.push(`Adicionais: ${pizzaBuilderState.selectedExtras.map(e => e.name).join(', ')}`);
+        if (prefs.length > 0) notesParts.push(`Preferências: ${prefs.join(', ')}`);
+        if (observations) notesParts.push(`Observações: ${observations}`);
+        const notes = notesParts.join(' | ');
 
         const cartItem = {
             product: {
@@ -1786,9 +1770,8 @@ function addPizzaToCart() {
         updateCartDisplay();
         showCartAnimation();
 
-        // Fecha o modal após adicionar
-        closePizzaBuilder();
-        showSuccess('Pizza personalizada adicionada ao carrinho!');
+        // Mostra modal de sucesso central para pizza
+        showPizzaAddSuccessModal();
     } catch (error) {
         showError('Erro ao adicionar ao carrinho. Tente novamente.');
     }
@@ -1836,6 +1819,7 @@ function resetPizzaBuilder() {
     pizzaBuilderState.currentPrice = 0;
     pizzaBuilderState.maxFlavors = 1;
     pizzaBuilderState.currentProduct = null;
+    flavorPartsMap = {};
     
     // Esconder botão de continuar
     const continueBtn = document.getElementById('flavorsContinue');
@@ -1844,5 +1828,140 @@ function resetPizzaBuilder() {
     }
     
     updatePizzaStep();
+}
+
+// ======= Helpers de Partes e Controles =======
+function getUsedParts() {
+    return Object.values(flavorPartsMap).reduce((sum, n) => sum + (parseInt(n, 10) || 0), 0);
+}
+
+function ensureFlavorInSelection(flavor) {
+    if (!pizzaBuilderState.selectedFlavors.some(f => f.id === flavor.id)) {
+        pizzaBuilderState.selectedFlavors.push({ id: flavor.id, name: flavor.name, description: flavor.description, category: flavor.category });
+    }
+}
+
+function syncPartsCounters() {
+    const used = getUsedParts();
+    const max = pizzaBuilderState.selectedSize ? pizzaBuilderState.selectedSize.max_flavors : 0;
+    const usedEl = document.getElementById('usedPartsCounter');
+    const totalEl = document.getElementById('totalPartsCounter');
+    if (usedEl) usedEl.textContent = String(used);
+    if (totalEl) totalEl.textContent = String(max);
+    // Atualiza spans nos cards
+    document.querySelectorAll('.flavor-parts').forEach(span => {
+        const id = parseInt(span.dataset.flavorId, 10);
+        span.textContent = String(flavorPartsMap[id] || 0);
+    });
+    // Mostra/esconde botão remover
+    document.querySelectorAll('.flavor-remove').forEach(btn => {
+        const id = parseInt(btn.dataset.flavorId, 10);
+        btn.style.display = (flavorPartsMap[id] || 0) > 0 ? 'inline-flex' : 'none';
+    });
+}
+
+function onPartsChange() {
+    // Remover sabores com 0 partes do array de seleção
+    pizzaBuilderState.selectedFlavors = pizzaBuilderState.selectedFlavors.filter(f => (flavorPartsMap[f.id] || 0) > 0);
+    updateFlavorSelectionUI();
+    renderPizzaCircle();
+    renderPizzaPreview();
+    updateSelectedFlavorsInfo();
+    syncPartsCounters();
+    updateContinueByParts();
+}
+
+function onIncreaseFlavorPart(e) {
+    e.stopPropagation();
+    const id = parseInt(e.currentTarget.dataset.flavorId, 10);
+    const flavor = (pizzaBuilderState.flavors || []).find(f => f.id === id);
+    if (!flavor || !pizzaBuilderState.selectedSize) return;
+    const max = pizzaBuilderState.selectedSize.max_flavors;
+    if (getUsedParts() >= max) return;
+    flavorPartsMap[id] = (flavorPartsMap[id] || 0) + 1;
+    ensureFlavorInSelection(flavor);
+    partsChangedInThisStep = true;
+    onPartsChange();
+}
+
+function onDecreaseFlavorPart(e) {
+    e.stopPropagation();
+    const id = parseInt(e.currentTarget.dataset.flavorId, 10);
+    if (!flavorPartsMap[id]) return;
+    flavorPartsMap[id] = Math.max(0, (flavorPartsMap[id] || 0) - 1);
+    onPartsChange();
+}
+
+function onRemoveFlavor(e) {
+    e.stopPropagation();
+    const id = parseInt(e.currentTarget.dataset.flavorId, 10);
+    flavorPartsMap[id] = 0;
+    onPartsChange();
+}
+
+function updateContinueByParts() {
+    const max = pizzaBuilderState.selectedSize ? pizzaBuilderState.selectedSize.max_flavors : 0;
+    const used = getUsedParts();
+    // Avanço imediato ao completar as partes
+    if (used === max && max > 0 && partsChangedInThisStep) {
+        pizzaBuilderState.currentStep = 3;
+        updatePizzaStep();
+        partsChangedInThisStep = false;
+    }
+}
+
+function getFormattedFlavorsTextByParts() {
+    const partsEntries = Object.entries(flavorPartsMap).filter(([, count]) => count > 0);
+    if (partsEntries.length === 0) return '-';
+    const byName = partsEntries.map(([id, count]) => {
+        const fl = (pizzaBuilderState.flavors || []).find(f => f.id === parseInt(id, 10));
+        if (!fl) return null;
+        return `${fl.name} (${count}x)`;
+    }).filter(Boolean);
+    return byName.join(', ');
+}
+
+// ===== Modal de Sucesso Pizza =====
+function showPizzaAddSuccessModal() {
+    const overlay = document.getElementById('pizzaAddSuccess');
+    if (!overlay) return;
+    overlay.classList.add('show');
+    // Botões
+    const continueBtn = document.getElementById('btnContinueShopping');
+    const goToCartBtn = document.getElementById('btnGoToCart');
+    if (continueBtn) {
+        continueBtn.onclick = () => {
+            overlay.classList.remove('show');
+            // Fechar builder e manter fluxo normal
+            closePizzaBuilder();
+        };
+    }
+    if (goToCartBtn) {
+        goToCartBtn.onclick = () => {
+            overlay.classList.remove('show');
+            closePizzaBuilder();
+            if (!appState.isCartOpen) toggleCart();
+        };
+    }
+}
+
+// Permite clicar em passos concluídos da barra de progresso para voltar
+function setupPizzaProgressClicks() {
+    if (pizzaProgressHandlersAttached) return;
+    const container = document.querySelector('.pizza-progress');
+    if (!container) return;
+    container.addEventListener('click', (e) => {
+        const stepEl = e.target.closest('.progress-step');
+        if (!stepEl) return;
+        const targetStep = parseInt(stepEl.dataset.step, 10);
+        if (Number.isNaN(targetStep)) return;
+        // Só permite voltar para passos anteriores já concluídos
+        if (stepEl.classList.contains('completed') && targetStep < pizzaBuilderState.currentStep) {
+            pizzaBuilderState.currentStep = targetStep;
+            partsChangedInThisStep = false;
+            updatePizzaStep();
+        }
+    });
+    pizzaProgressHandlersAttached = true;
 }
 

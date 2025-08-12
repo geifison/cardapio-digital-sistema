@@ -185,3 +185,14 @@ function getApiEndpoint(category, action) {
 if (typeof module !== 'undefined' && module.exports) {
     module.exports = { ADMIN_CONFIG, getConfig, setConfig, getApiUrl, getApiEndpoint };
 }
+
+// Compatibilidade: alias global para código legado que usa CONFIG
+// Garante que referências a CONFIG.API_BASE_URL continuem funcionando
+if (typeof window !== 'undefined') {
+    window.ADMIN_CONFIG = window.ADMIN_CONFIG || ADMIN_CONFIG;
+    window.CONFIG = window.ADMIN_CONFIG;
+    // Compat: expor CONFIG.API_BASE_URL além de CONFIG.API.BASE_URL
+    if (!window.CONFIG.API_BASE_URL && window.ADMIN_CONFIG && window.ADMIN_CONFIG.API && window.ADMIN_CONFIG.API.BASE_URL) {
+        window.CONFIG.API_BASE_URL = window.ADMIN_CONFIG.API.BASE_URL;
+    }
+}

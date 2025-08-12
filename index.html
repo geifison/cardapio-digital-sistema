@@ -304,6 +304,9 @@
                         <div class="step-header">
                             <h4>Escolha os Sabores</h4>
                             <p id="flavorsInfo">Selecione até <span id="maxFlavors">1</span> sabor</p>
+                            <div class="parts-info" style="margin-top:8px;font-size:13px;color:#666;">
+                                Partes usadas: <strong><span id="usedPartsCounter">0</span></strong> / <strong><span id="totalPartsCounter">0</span></strong>
+                            </div>
                         </div>
                         
                         <div class="flavors-container">
@@ -407,6 +410,21 @@
                                     <h5>Preço Total</h5>
                                     <p class="price" id="summaryPrice">R$ 0,00</p>
                                 </div>
+
+                                <!-- Observações e Preferências (inspirado no fluxo mobile) -->
+                                <div class="summary-item" style="margin-top:16px;">
+                                    <h5>Observações (Opcional)</h5>
+                                    <textarea id="pizzaObservations" rows="3" placeholder="Ex: Sem cebola, bem passada, etc..." style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;"></textarea>
+                                </div>
+                                <div class="summary-item" style="margin-top:12px;">
+                                    <h5>Preferências de Preparo</h5>
+                                    <div class="prefs-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;">
+                                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Bem passada"> Bem passada</label>
+                                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Queijo extra"> Queijo extra</label>
+                                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Borda crocante"> Borda crocante</label>
+                                        <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Sem cebola"> Sem cebola</label>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                         
@@ -426,6 +444,19 @@
 
     <!-- Cart Overlay (for mobile) -->
     <div class="cart-overlay" id="cartOverlay" onclick="toggleCart()"></div>
+
+    <!-- Modal de sucesso (Pizza adicionada) -->
+    <div class="pizza-add-success-overlay" id="pizzaAddSuccess">
+        <div class="pizza-add-success-modal">
+            <div style="font-size:56px; margin-bottom: 8px;">🎉</div>
+            <div class="title">Pizza Adicionada!</div>
+            <div class="desc">Sua deliciosa pizza foi adicionada ao carrinho com sucesso.</div>
+            <div class="pizza-add-success-actions">
+                <button type="button" class="btn-outline" id="btnContinueShopping">Continuar comprando</button>
+                <button type="button" class="btn-emerald" id="btnGoToCart">Ir para o carrinho</button>
+            </div>
+        </div>
+    </div>
 
     <script src="assets/js/app.js"></script>
 </body>

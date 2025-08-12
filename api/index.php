@@ -380,6 +380,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
                 $controller->createFlavor($input);
             } elseif ($resource === 'extras') {
                 $controller->createExtra($input);
+            } elseif ($resource === 'calculate-price') {
+                $controller->calculatePrice($input);
             // === ENDPOINT REMOVIDO: setFlavorPrices() ===
             // Sabores não têm preços próprios - removido
             } else {

@@ -72,13 +72,21 @@ class ProdutosAdminManager {
     async loadData() {
         try {
             console.log('📡 Usando dados de appState...');
-            
-            if (typeof appState === 'undefined' || !appState.categories || !appState.products) {
-                throw new Error('Estado da aplicação (appState) não está pronto ou não contém os dados necessários.');
+
+            const needsLoad = !window.appState ||
+                !Array.isArray(appState.categories) || !Array.isArray(appState.products) ||
+                appState.categories.length === 0 || appState.products.length === 0;
+
+            if (needsLoad && typeof loadCategories === 'function' && typeof loadProducts === 'function') {
+                try {
+                    await Promise.allSettled([loadCategories(), loadProducts()]);
+                } catch (_) {
+                    // segue usando o que houver
+                }
             }
 
-            this.categories = appState.categories;
-            this.products = appState.products;
+            this.categories = Array.isArray(appState?.categories) ? appState.categories : [];
+            this.products = Array.isArray(appState?.products) ? appState.products : [];
 
             // Agrupar produtos por categoria
             this.filteredData = this.categories.map(category => ({
@@ -89,11 +97,13 @@ class ProdutosAdminManager {
             // Preencher select de categorias
             this.populateCategoryFilter();
 
-            console.log(`✅ Dados do appState carregados: ${this.categories.length} categorias, ${this.products.length} produtos`);
+            console.log(`✅ Dados carregados: ${this.categories.length} categorias, ${this.products.length} produtos`);
 
         } catch (error) {
-            console.error('❌ Erro ao carregar dados do appState:', error);
-            this.showError('Erro ao carregar dados. Verifique se o appState está correto.');
+            console.error('❌ Erro ao carregar dados:', error);
+            this.categories = [];
+            this.products = [];
+            this.filteredData = [];
         }
     }
 
@@ -407,6 +417,7 @@ class ProdutosAdminManager {
             console.error('Erro ao alterar status do produto:', error);
             this.showError('Erro ao alterar status do produto');
         }
+    }
 
     updateCategoryCountsUI(categoryId) {
         try {
@@ -421,7 +432,6 @@ class ProdutosAdminManager {
         } catch (_) {
             // silencioso
         }
-    }
     }
 
     updateCategoryUI(id, active) {
@@ -514,17 +524,18 @@ class ProdutosAdminManager {
     }
 
     async deleteProduct(id) {
-        const product = this.products.find(p => p.id === id);
+        const numericId = parseInt(id, 10);
+        const product = this.products.find(p => parseInt(p.id, 10) === numericId);
         if (!product) return;
 
         if (confirm(`Tem certeza que deseja excluir o produto "${product.name}"?`)) {
             try {
-                const response = await fetch(`${getApiUrl('products')}/${id}`, {
+                const response = await fetch(`${getApiUrl('products')}/${numericId}`, {
                     method: 'DELETE'
                 });
 
                 if (response.ok) {
-                    this.products = this.products.filter(p => p.id != id);
+                    this.products = this.products.filter(p => parseInt(p.id, 10) !== numericId);
                     this.updateFilteredData();
                     this.renderCategories();
                     this.showSuccess('Produto excluído com sucesso!');

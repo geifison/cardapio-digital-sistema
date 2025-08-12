@@ -253,7 +253,9 @@ class CategoryController {
     }
     
     /**
-     * Exclui uma categoria (soft delete)
+     * Exclui uma categoria definitivamente (hard delete)
+     * Regras:
+     * - Só permite exclusão se NÃO houver nenhum produto (ativo ou inativo) associado
      */
     public function delete($id) {
         try {
@@ -272,24 +274,24 @@ class CategoryController {
                 return;
             }
             
-            // Verifica se há produtos associados à categoria
-            $products_query = "SELECT COUNT(*) as count FROM products WHERE category_id = :id AND active = 1";
+            // Verifica se há QUALQUER produto associado (independente do status)
+            $products_query = "SELECT COUNT(*) as count FROM products WHERE category_id = :id";
             $products_stmt = $this->db->prepare($products_query);
             $products_stmt->bindParam(':id', $id, PDO::PARAM_INT);
             $products_stmt->execute();
-            $products_count = $products_stmt->fetch(PDO::FETCH_ASSOC)['count'];
+            $products_count = (int) ($products_stmt->fetch(PDO::FETCH_ASSOC)['count'] ?? 0);
             
             if ($products_count > 0) {
                 http_response_code(400);
                 echo json_encode([
                     'success' => false,
-                    'message' => 'Não é possível excluir categoria com produtos associados'
+                    'message' => 'Não é possível excluir a categoria: remova ou reclassifique todos os produtos primeiro'
                 ]);
                 return;
             }
             
-            // Soft delete - marca como inativa
-            $query = "UPDATE categories SET active = 0, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+            // Hard delete da categoria
+            $query = "DELETE FROM categories WHERE id = :id";
             $stmt = $this->db->prepare($query);
             $stmt->bindParam(':id', $id, PDO::PARAM_INT);
             

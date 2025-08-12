@@ -4523,20 +4523,26 @@ body {
 }
 
 .produtos-dropdown-menu.show {
-    display: block;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.5rem;
 }
 
 .produtos-dropdown-item {
-    display: block;
-    width: 100%;
-    padding: 0.75rem 1rem;
+    display: inline-flex;
+    width: auto;
+    padding: 0.5rem 0.75rem;
     background: none;
     border: none;
-    text-align: left;
+    text-align: center;
     cursor: pointer;
     font-size: 0.9rem;
     color: var(--gray-800);
     transition: background-color 0.2s;
+    align-items: center;
+    border-radius: 8px;
 }
 
 .produtos-dropdown-item:hover {

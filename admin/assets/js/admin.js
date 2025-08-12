@@ -1082,16 +1082,13 @@ function showSection(sectionName) {
  */
 async function initProductsSection() {
     try {
-        // Garantir que os dados do appState estão carregados antes de inicializar produtos admin
-        if (appState.categories.length === 0 || appState.products.length === 0) {
-            console.log('🔄 Carregando dados para seção de produtos...');
-            await Promise.all([
-                loadProducts(),
-                loadCategories()
-            ]);
+        const ready = await waitForAppStateData(10, 300);
+
+        if (!ready && (appState.categories.length === 0 || appState.products.length === 0)) {
+            console.warn('Dados de produtos/categorias não carregados; tentando forçar carregamento...');
+            await Promise.all([loadProducts(), loadCategories()]);
         }
-        
-        // Inicializar a nova seção de produtos com interface do testes/index.php
+
         if (typeof initProdutosAdmin === 'function') {
             await initProdutosAdmin();
         } else {
@@ -1100,6 +1097,29 @@ async function initProductsSection() {
     } catch (error) {
         console.error('Erro ao inicializar seção de produtos:', error);
     }
+}
+
+// Aguarda dados de categorias e produtos ficarem disponíveis em appState
+async function waitForAppStateData(maxAttempts = 10, delayMs = 300) {
+    for (let i = 0; i < maxAttempts; i++) {
+        const categoriesReady = Array.isArray(appState.categories) && appState.categories.length > 0;
+        const productsReady = Array.isArray(appState.products) && appState.products.length > 0;
+        if (categoriesReady && productsReady) {
+            return true;
+        }
+
+        // Na primeira iteração, dispara carregamento em paralelo
+        if (i === 0) {
+            try {
+                await Promise.allSettled([loadCategories(), loadProducts()]);
+            } catch (_) {
+                // silencioso
+            }
+        }
+
+        await new Promise((resolve) => setTimeout(resolve, delayMs));
+    }
+    return false;
 }
 
 /**
@@ -1741,7 +1761,7 @@ function updateFilterCount() {
 /**
  * Mostra modal para adicionar produto
  */
-function showAddProductModal() {
+async function showAddProductModal() {
     // Verificar se productsState existe
     if (typeof productsState === 'undefined') {
         showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
@@ -1767,6 +1787,14 @@ function showAddProductModal() {
     document.getElementById('productGlutenFree').checked = false;
     document.getElementById('productSpicy').checked = false;
     
+    // Garantir que o select de categorias exista e esteja populado
+    if (!document.getElementById('productCategory')) {
+        if (typeof loadModals === 'function') {
+            try { await loadModals(); } catch (_) {}
+        }
+    }
+    try { await loadCategoriesForProducts(); } catch (_) {}
+
     // Reset tipo de produto para comum
     document.getElementById('productType').value = 'comum';
     toggleProductTypeFields();
@@ -2060,6 +2088,8 @@ async function editProduct(productId) {
         
         if (data.success) {
             productsState.editingProduct = data.data;
+            // Garantir categorias carregadas e select populado antes de preencher o formulário
+            try { await loadCategoriesForProducts(); } catch (_) {}
             populateProductForm(data.data);
             document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Produto';
             document.getElementById('productModal').style.display = 'flex';
@@ -4011,17 +4041,30 @@ async function deleteCategory(categoryId) {
     
     // Verificar quantos produtos estão nesta categoria
     try {
+        // Garantir que o modal de exclusão está carregado
+        let modal = document.getElementById('deleteCategoryModal');
+        if (!modal && typeof loadModals === 'function') {
+            try { await loadModals(); } catch (_) {}
+            // pequena espera para o DOM atualizar
+            await new Promise(r => setTimeout(r, 100));
+            modal = document.getElementById('deleteCategoryModal');
+        }
+
         const response = await fetch(CONFIG.API_BASE_URL + `products?category_id=${categoryId}`);
         const data = await response.json();
         
         if (data.success) {
             const productsCount = data.data.length;
             
-            const modal = document.getElementById('deleteCategoryModal');
             const nameElement = document.getElementById('deleteCategoryName');
             const countContainer = document.getElementById('categoryProductsCount');
             const productsCountElement = document.getElementById('productsInCategory');
             
+            if (!modal || !nameElement || !countContainer || !productsCountElement) {
+                showError('Modal de exclusão não carregado. Recarregue a página e tente novamente.');
+                return;
+            }
+
             nameElement.textContent = category.name;
             
             if (productsCount > 0) {
