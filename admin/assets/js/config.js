@@ -101,7 +101,11 @@ const ADMIN_CONFIG = {
         KITCHEN_TEMPLATE: 'kitchen',
         CUSTOMER_TEMPLATE: 'customer',
         PAGE_SIZE: 'A4',
-        MARGIN: '10mm'
+        MARGIN: '10mm',
+        // URL da logo para impressão (altere o caminho do arquivo conforme desejar)
+        LOGO_URL: '',
+        // Nome do estabelecimento (usado quando não houver logo)
+        BUSINESS_NAME: 'Seu Estabelecimento'
     },
 
     // Configurações de tema

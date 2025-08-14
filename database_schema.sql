@@ -152,3 +152,75 @@ CREATE INDEX idx_orders_created_at ON orders(created_at);
 CREATE INDEX idx_products_category ON products(category_id);
 CREATE INDEX idx_products_active ON products(active);
 CREATE INDEX idx_order_items_order ON order_items(order_id);
+
+-- =============================
+-- Horários de Funcionamento (Configurações)
+-- =============================
+CREATE TABLE IF NOT EXISTS settings_business_hours (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    weekday ENUM('sunday','monday','tuesday','wednesday','thursday','friday','saturday') UNIQUE NOT NULL,
+    closed TINYINT(1) NOT NULL DEFAULT 0,
+    open_time TIME NOT NULL DEFAULT '00:00:00',
+    close_time TIME NOT NULL DEFAULT '00:00:00',
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+);
+
+INSERT INTO settings_business_hours (weekday, closed, open_time, close_time) VALUES
+('monday',    0, '09:00:00', '18:00:00'),
+('tuesday',   0, '09:00:00', '18:00:00'),
+('wednesday', 0, '09:00:00', '18:00:00'),
+('thursday',  0, '09:00:00', '18:00:00'),
+('friday',    0, '09:00:00', '18:00:00'),
+('saturday',  0, '10:00:00', '14:00:00'),
+('sunday',    1, '00:00:00', '00:00:00')
+ON DUPLICATE KEY UPDATE
+closed = VALUES(closed), open_time = VALUES(open_time), close_time = VALUES(close_time);
+
+-- =============================
+-- Flags de Configuração (pausa global, etc.)
+-- =============================
+CREATE TABLE IF NOT EXISTS `settings_flags` (
+    `flag_key` VARCHAR(100) NOT NULL PRIMARY KEY,
+    `flag_value` VARCHAR(10) NOT NULL DEFAULT '0',
+    `extra` TEXT NULL,
+    `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =============================
+-- Configurações de Entrega e Cache de Cotações
+-- =============================
+CREATE TABLE IF NOT EXISTS settings_delivery (
+    id INT PRIMARY KEY DEFAULT 1,
+    origin_address TEXT NOT NULL,
+    origin_lat DECIMAL(10, 8) NOT NULL,
+    origin_lng DECIMAL(11, 8) NOT NULL,
+    price_per_km DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    min_delivery_fee DECIMAL(10, 2) NOT NULL DEFAULT 0.00,
+    expose_public_key TINYINT(1) NOT NULL DEFAULT 0,
+    mapbox_api_key VARCHAR(255) NOT NULL,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- Linha inicial (mantém somente uma configuração)
+INSERT INTO settings_delivery (id, origin_address, origin_lat, origin_lng, price_per_km, min_delivery_fee, expose_public_key, mapbox_api_key)
+VALUES (1, '', 0, 0, 0.00, 0.00, 0, '')
+ON DUPLICATE KEY UPDATE id = VALUES(id);
+
+-- Cache de cotações por endereço normalizado
+CREATE TABLE IF NOT EXISTS delivery_quote_cache (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    address_hash CHAR(64) NOT NULL UNIQUE,
+    zip VARCHAR(16) NOT NULL,
+    street VARCHAR(255) NOT NULL,
+    number VARCHAR(32) NOT NULL,
+    neighborhood VARCHAR(255) NOT NULL,
+    city VARCHAR(255) NOT NULL,
+    address_text TEXT NOT NULL,
+    client_lat DECIMAL(10, 8) DEFAULT NULL,
+    client_lng DECIMAL(11, 8) DEFAULT NULL,
+    distance_m INT NOT NULL,
+    distance_km DECIMAL(10, 3) NOT NULL,
+    fee DECIMAL(10, 2) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

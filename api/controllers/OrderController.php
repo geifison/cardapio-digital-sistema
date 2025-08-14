@@ -15,7 +15,8 @@ class OrderController {
      */
     public function getAll() {
         try {
-            $query = "SELECT * FROM orders ORDER BY created_at DESC";
+            // Listar do mais antigo para o mais novo
+            $query = "SELECT * FROM orders ORDER BY created_at ASC";
             $stmt = $this->db->prepare($query);
             $stmt->execute();
             
@@ -86,7 +87,8 @@ class OrderController {
      */
     public function getByDate($date) {
         try {
-            $query = "SELECT * FROM orders WHERE DATE(created_at) = :date ORDER BY created_at DESC";
+            // Listar do mais antigo para o mais novo
+            $query = "SELECT * FROM orders WHERE DATE(created_at) = :date ORDER BY created_at ASC";
             $stmt = $this->db->prepare($query);
             $stmt->bindParam(':date', $date);
             $stmt->execute();
@@ -163,8 +165,24 @@ class OrderController {
      */
     public function create($data) {
         try {
+            // Antes de qualquer coisa, verifica se pedidos estão pausados
+            $pause = $this->getGlobalPauseState();
+            if ($pause['paused'] === true) {
+                http_response_code(503);
+                echo json_encode([
+                    'error' => true,
+                    'message' => $pause['message'] !== '' ? $pause['message'] : 'Os pedidos estão temporariamente pausados.'
+                ]);
+                return;
+            }
+
             // Validação dos dados obrigatórios
-            $required_fields = ['customer_name', 'customer_phone', 'customer_address', 'payment_method', 'items'];
+            $order_type = isset($data['order_type']) ? $data['order_type'] : 'delivery';
+            $required_fields = ['customer_name', 'customer_phone', 'payment_method', 'items'];
+            if ($order_type === 'delivery') {
+                $required_fields[] = 'customer_address';
+                // Validação de CEP (quando vier no endereço montado, opcionalmente podemos checar padrão)
+            }
             foreach ($required_fields as $field) {
                 if (empty($data[$field])) {
                     http_response_code(400);
@@ -196,6 +214,9 @@ class OrderController {
                 // Calcula valores
                 $subtotal = $data['subtotal'] ?? 0;
                 $delivery_fee = $data['delivery_fee'] ?? 5.00;
+                if ($order_type !== 'delivery') {
+                    $delivery_fee = 0.00;
+                }
                 $total_amount = $subtotal + $delivery_fee;
                 $change_amount = 0;
                 
@@ -359,6 +380,13 @@ class OrderController {
                 }
             }
             
+            // Se vier motivo de cancelamento, anexa nos notes
+            if (isset($data['cancellation_reason']) && trim($data['cancellation_reason']) !== '') {
+                $reason = trim($data['cancellation_reason']);
+                $update_fields[] = "notes = CONCAT(COALESCE(notes, ''), CASE WHEN COALESCE(notes, '') = '' THEN '' ELSE '\n' END, '[CANCELADO] Motivo: ', :cancel_reason)";
+                $params[':cancel_reason'] = $reason;
+            }
+
             // Outros campos atualizáveis
             $updatable_fields = ['customer_name', 'customer_phone', 'customer_address', 'customer_neighborhood', 'customer_reference', 'notes', 'estimated_delivery_time'];
             
@@ -498,6 +526,42 @@ class OrderController {
         $timestamp = date('ymd');
         $random = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
         return $timestamp . $random;
+    }
+
+    /**
+     * Retorna estado global de pausa (DB ou arquivo)
+     */
+    private function getGlobalPauseState() {
+        // 1) Tenta banco de dados (tabela opcional settings_flags)
+        try {
+            if ($this->db) {
+                $stmt = $this->db->prepare("SELECT flag_value, extra FROM settings_flags WHERE flag_key = :key LIMIT 1");
+                $stmt->execute([':key' => 'orders_paused']);
+                $row = $stmt->fetch();
+                if ($row) {
+                    $paused = (string)$row['flag_value'] === '1';
+                    $message = isset($row['extra']) ? (string)$row['extra'] : '';
+                    return [ 'paused' => $paused, 'message' => $message ];
+                }
+            }
+        } catch (Exception $e) {
+            // ignora e tenta arquivo
+        }
+
+        // 2) Fallback: arquivo de configuração
+        try {
+            $configDir = realpath(__DIR__ . '/../../config');
+            if ($configDir === false) { $configDir = __DIR__ . '/../../config'; }
+            $file = $configDir . DIRECTORY_SEPARATOR . 'pause_state.json';
+            if (!is_file($file)) return [ 'paused' => false, 'message' => '' ];
+            $content = @file_get_contents($file);
+            if ($content === false) return [ 'paused' => false, 'message' => '' ];
+            $json = json_decode($content, true);
+            if (!is_array($json)) return [ 'paused' => false, 'message' => '' ];
+            return [ 'paused' => (bool)($json['paused'] ?? false), 'message' => (string)($json['message'] ?? '') ];
+        } catch (Exception $e) {
+            return [ 'paused' => false, 'message' => '' ];
+        }
     }
 }
 ?>

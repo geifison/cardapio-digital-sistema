@@ -6,7 +6,16 @@
     <title>Cardápio Digital - Restaurante</title>
     <link rel="stylesheet" href="assets/css/style.css">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+        <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Poppins', 'Inter', sans-serif; }
+        #modal-overlay { display: none; }
+    </style>
 </head>
 <body>
     <!-- Header -->
@@ -17,10 +26,7 @@
                     <i class="fas fa-utensils"></i>
                     <h1>Sabor & Cia</h1>
                 </div>
-                <div class="cart-toggle" onclick="toggleCart()">
-                    <i class="fas fa-shopping-cart"></i>
-                    <span class="cart-count" id="cartCount">0</span>
-                </div>
+                
             </div>
         </div>
     </header>
@@ -58,9 +64,26 @@
         </div>
     </main>
 
+    <!-- Footer Cart Summary Bar -->
+    <div class="footer-cart-bar" id="footerCartBar" style="display: none;" onclick="toggleCart()" role="button" aria-label="Abrir carrinho">
+        <div class="container">
+            <div class="footer-cart-content">
+                <div class="footer-cart-info">
+                    <i class="bi bi-basket footer-cart-icon"></i>
+                    <div class="footer-cart-text">
+                        <span class="footer-cart-title">Seu pedido</span>
+                        <span class="footer-cart-meta"><span id="footerCartCount">0</span> itens • Subtotal <strong id="footerCartSubtotal">R$ 0,00</strong></span>
+                    </div>
+                </div>
+                <i class="bi bi-chevron-up footer-cart-chevron" aria-hidden="true"></i>
+            </div>
+        </div>
+    </div>
+
     <!-- Cart Sidebar -->
     <div class="cart-sidebar" id="cartSidebar">
         <div class="cart-header">
+            <div class="sheet-handle" aria-hidden="true"></div>
             <h3><i class="fas fa-shopping-cart"></i> Seu Pedido</h3>
             <button class="close-cart" onclick="toggleCart()">
                 <i class="fas fa-times"></i>
@@ -87,13 +110,20 @@
                 </div>
                 <div class="summary-row">
                     <span>Taxa de entrega:</span>
-                    <span id="deliveryFee">R$ 5,00</span>
+                    <span id="deliveryFee">A calcular</span>
                 </div>
                 <div class="summary-row total">
                     <span>Total:</span>
                     <span id="cartTotal">R$ 0,00</span>
                 </div>
+                <div class="delivery-note">A taxa de entrega será calculada após informar o endereço no checkout.</div>
             </div>
+            
+            <!-- Botão de sugestão dinâmico -->
+            <button type="button" id="cartSuggestion" class="suggestion-btn" style="display:none;" onclick="handleSuggestionClick(this)" aria-label="Sugestão de produto">
+                <span class="suggestion-text">Continuar comprando</span>
+                <i class="bi bi-chevron-right"></i>
+            </button>
             
             <button class="checkout-btn" onclick="proceedToCheckout()">
                 <i class="fas fa-credit-card"></i>
@@ -113,109 +143,173 @@
             </div>
             
             <div class="modal-content">
+                <div class="checkout-progress" id="checkoutProgress">
+                    <div class="progress-step active" data-step="1">
+                        <span class="step-number">1</span>
+                        <span class="step-label">Pedido</span>
+                    </div>
+                    <div class="progress-step" data-step="2">
+                        <span class="step-number">2</span>
+                        <span class="step-label">Dados</span>
+                    </div>
+                    <div class="progress-step" data-step="3">
+                        <span class="step-number">3</span>
+                        <span class="step-label">Endereço</span>
+                    </div>
+                    <div class="progress-step" data-step="4">
+                        <span class="step-number">4</span>
+                        <span class="step-label">Pagamento</span>
+                    </div>
+                    <div class="progress-step" data-step="5">
+                        <span class="step-number">5</span>
+                        <span class="step-label">Resumo</span>
+                    </div>
+                </div>
                 <form id="checkoutForm">
-                    <div class="form-section">
-                        <h4><i class="fas fa-user"></i> Dados Pessoais</h4>
-                        <div class="form-group">
-                            <label for="customerName">Nome Completo *</label>
-                            <input type="text" id="customerName" name="customerName" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="customerPhone">Telefone/WhatsApp *</label>
-                            <input type="tel" id="customerPhone" name="customerPhone" required>
-                        </div>
-                    </div>
-                    
-                    <div class="form-section">
-                        <h4><i class="fas fa-map-marker-alt"></i> Endereço de Entrega</h4>
-                        <div class="form-group">
-                            <label for="customerAddress">Endereço Completo *</label>
-                            <textarea id="customerAddress" name="customerAddress" rows="3" required></textarea>
-                        </div>
-                        <div class="form-group">
-                            <label for="customerNeighborhood">Bairro *</label>
-                            <input type="text" id="customerNeighborhood" name="customerNeighborhood" required>
-                        </div>
-                        <div class="form-group">
-                            <label for="customerReference">Ponto de Referência</label>
-                            <input type="text" id="customerReference" name="customerReference">
-                        </div>
-                    </div>
-                    
-                    <div class="form-section">
-                        <h4><i class="fas fa-credit-card"></i> Forma de Pagamento</h4>
-                        <div class="payment-options">
-                            <label class="payment-option">
-                                <input type="radio" name="paymentMethod" value="dinheiro" checked>
-                                <span class="payment-label">
-                                    <i class="fas fa-money-bill-wave"></i>
-                                    Dinheiro
-                                </span>
-                            </label>
-                            <label class="payment-option">
-                                <input type="radio" name="paymentMethod" value="cartao">
-                                <span class="payment-label">
-                                    <i class="fas fa-credit-card"></i>
-                                    Cartão (na entrega)
-                                </span>
-                            </label>
-                            <label class="payment-option">
-                                <input type="radio" name="paymentMethod" value="pix">
-                                <span class="payment-label">
-                                    <i class="fas fa-qrcode"></i>
-                                    PIX
-                                </span>
-                            </label>
+                    <div class="checkout-step active" id="checkout-step-1">
+                        <div class="form-section">
+                            <h4><i class="fas fa-receipt"></i> Tipo de Pedido</h4>
+                            <div class="payment-options order-type-options">
+                                <label class="payment-option">
+                                    <input type="radio" name="orderType" value="retirada">
+                                    <span class="payment-label"><i class="fas fa-bag-shopping"></i> Retirada</span>
+                                </label>
+                                <label class="payment-option">
+                                    <input type="radio" name="orderType" value="delivery" checked>
+                                    <span class="payment-label"><i class="fas fa-truck"></i> Delivery</span>
+                                </label>
+                                <label class="payment-option" data-pos-only="true" id="orderTypeBalcaoWrapper" style="display:none;">
+                                    <input type="radio" name="orderType" value="balcao">
+                                    <span class="payment-label"><i class="fas fa-store"></i> Balcão</span>
+                                </label>
+                            </div>
                         </div>
                         
-                        <div class="money-section" id="moneySection">
+                    </div>
+                    <div class="checkout-step" id="checkout-step-2">
+                        <div class="form-section">
+                            <h4><i class="fas fa-user"></i> Dados Pessoais</h4>
                             <div class="form-group">
-                                <label for="paymentValue">Valor para troco (opcional)</label>
-                                <input type="number" id="paymentValue" name="paymentValue" step="0.01" min="0">
-                                <small>Deixe em branco se não precisar de troco</small>
+                                <label for="customerName">Nome Completo *</label>
+                                <input type="text" id="customerName" name="customerName" required>
                             </div>
-                            <div class="change-display" id="changeDisplay" style="display: none;">
-                                <span>Troco: <strong id="changeAmount">R$ 0,00</strong></span>
+                            <div class="form-group">
+                                <label for="customerPhone">Telefone/WhatsApp *</label>
+                                <input type="tel" id="customerPhone" name="customerPhone" placeholder="(XX) XXXXX-XXXX" maxlength="15" required>
                             </div>
                         </div>
+                        
                     </div>
-                    
-                    <div class="form-section">
-                        <h4><i class="fas fa-sticky-note"></i> Observações</h4>
-                        <div class="form-group">
-                            <label for="orderNotes">Observações do pedido</label>
-                            <textarea id="orderNotes" name="orderNotes" rows="3" placeholder="Alguma observação especial?"></textarea>
+                    <div class="checkout-step" id="checkout-step-3">
+                        <div class="form-section" id="deliveryAddressSection">
+                            <h4><i class="fas fa-map-marker-alt"></i> Endereço para Entrega</h4>
+                            <div class="form-group">
+                                <label for="addressZip">CEP *</label>
+                                <input type="text" id="addressZip" name="addressZip" placeholder="00000-000" maxlength="9">
+                            </div>
+                            <div class="form-group">
+                                <label for="addressStreet">Rua *</label>
+                                <input type="text" id="addressStreet" name="addressStreet" list="streetSuggestions" placeholder="Preencha o CEP para sugerir a rua" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="addressNumber">Número *</label>
+                                <input type="text" id="addressNumber" name="addressNumber">
+                            </div>
+                            <div class="form-group">
+                                <label for="customerNeighborhood">Bairro *</label>
+                                <input type="text" id="customerNeighborhood" name="customerNeighborhood" list="neighbourhoodSuggestions" placeholder="Preencha o CEP para sugerir o bairro" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="addressCity">Cidade *</label>
+                                <input type="text" id="addressCity" name="addressCity" placeholder="Preencha o CEP para sugerir a cidade" readonly>
+                            </div>
+                            <div class="form-group">
+                                <label for="customerReference">Referência *</label>
+                                <input type="text" id="customerReference" name="customerReference" placeholder="Ex.: Apto 301 Bloco B, Casa Amarela">
+                            </div>
+                            <div class="form-group">
+                                <label for="addressComplement">Complemento (opcional)</label>
+                                <input type="text" id="addressComplement" name="addressComplement">
+                            </div>
                         </div>
+                        
                     </div>
-                    
-                    <div class="order-summary">
-                        <h4>Resumo do Pedido</h4>
-                        <div id="checkoutItems"></div>
-                        <div class="summary-totals">
-                            <div class="summary-row">
-                                <span>Subtotal:</span>
-                                <span id="checkoutSubtotal">R$ 0,00</span>
+                    <div class="checkout-step" id="checkout-step-4">
+                        <div class="form-section">
+                            <h4><i class="fas fa-credit-card"></i> Forma de Pagamento</h4>
+                            <div class="payment-options">
+                                <label class="payment-option">
+                                    <input type="radio" name="paymentMethod" value="dinheiro" checked>
+                                    <span class="payment-label">
+                                        <i class="fas fa-money-bill-wave"></i>
+                                        Dinheiro
+                                    </span>
+                                </label>
+                                <label class="payment-option">
+                                    <input type="radio" name="paymentMethod" value="cartao">
+                                    <span class="payment-label">
+                                        <i class="fas fa-credit-card"></i>
+                                        Cartão (na entrega)
+                                    </span>
+                                </label>
+                                <label class="payment-option">
+                                    <input type="radio" name="paymentMethod" value="pix">
+                                    <span class="payment-label">
+                                        <i class="fas fa-qrcode"></i>
+                                        PIX
+                                    </span>
+                                </label>
                             </div>
-                            <div class="summary-row">
-                                <span>Taxa de entrega:</span>
-                                <span id="checkoutDeliveryFee">R$ 5,00</span>
-                            </div>
-                            <div class="summary-row total">
-                                <span>Total:</span>
-                                <span id="checkoutTotal">R$ 0,00</span>
+                            
+                            <div class="money-section" id="moneySection">
+                                <div class="form-group">
+                                    <label for="paymentValue">Valor para troco (opcional)</label>
+                                    <input type="number" id="paymentValue" name="paymentValue" step="0.01" min="0">
+                                    <small>Deixe em branco se não precisar de troco</small>
+                                </div>
+                                <div class="change-display" id="changeDisplay" style="display: none;">
+                                    <span>Troco: <strong id="changeAmount">R$ 0,00</strong></span>
+                                </div>
                             </div>
                         </div>
+                        
+                    </div>
+                    <div class="checkout-step" id="checkout-step-5">
+                        <div class="form-section">
+                            <h4><i class="fas fa-sticky-note"></i> Observações</h4>
+                            <div class="form-group">
+                                <label for="orderNotes">Observações do pedido</label>
+                                <textarea id="orderNotes" name="orderNotes" rows="3" placeholder="Alguma observação especial?"></textarea>
+                            </div>
+                        </div>
+                        <div class="order-summary">
+                            <h4>Resumo do Pedido</h4>
+                            <div id="checkoutItems"></div>
+                            <div class="summary-totals">
+                                <div class="summary-row">
+                                    <span>Subtotal:</span>
+                                    <span id="checkoutSubtotal">R$ 0,00</span>
+                                </div>
+                                <div class="summary-row">
+                                    <span>Taxa de entrega:</span>
+                                    <span id="checkoutDeliveryFee">R$ 5,00</span>
+                                </div>
+                                <div class="summary-row total">
+                                    <span>Total:</span>
+                                    <span id="checkoutTotal">R$ 0,00</span>
+                                </div>
+                            </div>
+                        </div>
+                        
                     </div>
                 </form>
             </div>
             
             <div class="modal-footer">
-                <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">
-                    Voltar
-                </button>
-                <button type="button" class="btn-primary" onclick="submitOrder()">
-                    <i class="fas fa-check"></i>
-                    Confirmar Pedido
+                <button type="button" class="btn-secondary" id="checkoutBackBtn" onclick="prevCheckoutStep()">Voltar</button>
+                <button type="button" class="btn-primary" id="checkoutPrimaryBtn" onclick="nextCheckoutStepOrSubmit()">
+                    <i class="fas fa-arrow-right"></i>
+                    Continuar
                 </button>
             </div>
         </div>
@@ -242,10 +336,16 @@
                     <p><strong>Número do pedido:</strong> <span id="orderNumber"></span></p>
                     <p><strong>Tempo estimado:</strong> <span id="estimatedTime">30 minutos</span></p>
                 </div>
-                <button class="btn-primary" onclick="closeSuccessModal()">
-                    <i class="fas fa-home"></i>
-                    Fazer Novo Pedido
-                </button>
+                <div class="btn-row">
+                    <button class="btn-primary" style="background:#25D366;border-color:#25D366;" onclick="openWhatsAppWithOrder()">
+                        <i class="fab fa-whatsapp"></i>
+                        Enviar e acompanhar no WhatsApp
+                    </button>
+                    <button class="btn-primary" onclick="closeSuccessModal()">
+                        <i class="fas fa-home"></i>
+                        Fazer Novo Pedido
+                    </button>
+                </div>
             </div>
         </div>
     </div>
@@ -458,7 +558,128 @@
         </div>
     </div>
 
+    <!-- Modal de Horário Fechado com Cronômetro (integrado às configurações) -->
+    <div id="modal-overlay" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4" style="z-index:2147483647;">
+        <div id="modal-content" class="w-full max-w-md bg-white rounded-2xl shadow-xl p-8 text-center transform transition-all">
+            <div class="mx-auto mb-4 h-14 w-14 flex items-center justify-center bg-gray-100 rounded-full">
+                <svg class="h-7 w-7 text-gray-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+            </div>
+            <h2 class="text-2xl font-bold text-gray-900">Estamos fechados no momento</h2>
+            <p class="text-gray-600 mt-2">
+               Funcionamos <strong id="hoursRange" class="font-semibold text-gray-800"></strong>.
+            </p>
+            <div class="mt-6">
+                <p class="text-xs uppercase tracking-wider text-gray-500 font-medium">Falta para abrir</p>
+                <div id="countdown" class="text-5xl font-bold text-gray-900 tracking-tight mt-2">
+                    <span id="hours" >00</span><span class="text-3xl mx-1">:</span><span id="minutes">00</span><span class="text-3xl mx-1">:</span><span id="seconds">00</span>
+                </div>
+            </div>
+            <p class="text-gray-500 mt-6 text-sm">Agradecemos a preferência.</p>
+        </div>
+    </div>
+
     <script src="assets/js/app.js"></script>
+    <script>
+        // Usa businessHours e isWithinBusinessHours carregados em assets/js/app.js
+        (function() {
+            const overlay = document.getElementById('modal-overlay');
+            const hEl = document.getElementById('hours');
+            const mEl = document.getElementById('minutes');
+            const sEl = document.getElementById('seconds');
+            const rangeEl = document.getElementById('hoursRange');
+
+            function toHM(str) {
+                const [h, m] = String(str || '00:00').split(':').map(n => parseInt(n, 10));
+                return { h: isNaN(h) ? 0 : h, m: isNaN(m) ? 0 : m };
+            }
+
+            function getTodayHours(hours) {
+                if (!hours) return null;
+                const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+                const key = map[new Date().getDay()];
+                return hours[key] || null;
+            }
+
+            function computeNextOpening(hours) {
+                const now = new Date();
+                const dow = now.getDay();
+                const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
+                const today = hours[map[dow]];
+                let next = new Date(now);
+                next.setSeconds(0); next.setMilliseconds(0);
+                if (today && !today.closed) {
+                    const o = toHM(today.open);
+                    const c = toHM(today.close);
+                    const nowMin = now.getHours()*60+now.getMinutes();
+                    const openMin = o.h*60+o.m, closeMin = c.h*60+c.m;
+                    if (nowMin < openMin) {
+                        next.setHours(o.h, o.m, 0, 0);
+                        return next;
+                    }
+                }
+                for (let i=1;i<=7;i++) {
+                    const idx = (dow + i) % 7;
+                    const d = hours[map[idx]];
+                    if (d && !d.closed) {
+                        const o = toHM(d.open);
+                        next = new Date(now);
+                        next.setDate(now.getDate()+i);
+                        next.setHours(o.h, o.m, 0, 0);
+                        return next;
+                    }
+                }
+                return null;
+            }
+
+            function formatRange(hours) {
+                if (!hours) return '';
+                // Se todos os dias iguais, mostra faixa única, senão mostra hoje
+                const days = ['monday','tuesday','wednesday','thursday','friday','saturday','sunday'];
+                const first = hours[days[0]];
+                const allEqual = days.every(k => JSON.stringify(hours[k]) === JSON.stringify(first));
+                const pad = v => String(v).padStart(2,'0');
+                if (allEqual && first && !first.closed) {
+                    const o = toHM(first.open), c = toHM(first.close);
+                    return `${pad(o.h)}:${pad(o.m)} às ${pad(c.h)}:${pad(c.m)}`;
+                }
+                const today = getTodayHours(hours);
+                if (today && !today.closed) {
+                    const o = toHM(today.open), c = toHM(today.close);
+                    return `${pad(o.h)}:${pad(o.m)} às ${pad(c.h)}:${pad(c.m)} (hoje)`;
+                }
+                return 'Consulte nossos horários';
+            }
+
+            function tick() {
+                if (typeof isWithinBusinessHours === 'undefined') return;
+                if (isWithinBusinessHours) {
+                    overlay.style.display = 'none';
+                    try { document.documentElement.style.overflow = ''; document.body.style.overflow = ''; } catch(_){}
+                    return;
+                }
+                overlay.style.display = 'flex';
+                try { document.documentElement.style.overflow = 'hidden'; document.body.style.overflow = 'hidden'; } catch(_){}
+                if (businessHours) {
+                    rangeEl.textContent = formatRange(businessHours);
+                    const next = computeNextOpening(businessHours);
+                    if (next) {
+                        const now = new Date();
+                        const total = Math.max(0, Math.floor((next - now)/1000));
+                        const hh = Math.floor(total/3600);
+                        const mm = Math.floor((total%3600)/60);
+                        const ss = total%60;
+                        hEl.textContent = String(hh).padStart(2,'0');
+                        mEl.textContent = String(mm).padStart(2,'0');
+                        sEl.textContent = String(ss).padStart(2,'0');
+                    }
+                }
+            }
+            setInterval(tick, 1000);
+            document.addEventListener('DOMContentLoaded', tick);
+        })();
+    </script>
 </body>
 </html>
 

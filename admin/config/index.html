@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Configurações do Sistema - Cardápio Digital</title>
+	<link rel="stylesheet" href="../assets/css/admin.css?v=20250810">
+	<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+	<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+<body>
+	<header class="admin-header">
+		<div class="header-content">
+			<div class="logo">
+				<i class="fas fa-cog"></i>
+				<h1>Configurações do Sistema</h1>
+			</div>
+			<div class="header-actions">
+				<a class="btn btn-secondary" href="../index.html" title="Voltar para o painel">
+					<i class="fas fa-arrow-left"></i> Voltar
+				</a>
+			</div>
+		</div>
+	</header>
+
+	<main class="admin-main">
+		<section class="admin-section active">
+			<div class="accordion" id="settingsAccordion">
+				<div class="accordion-item">
+					<h2 class="accordion-header" id="headingHours">
+						<button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#collapseHours" aria-expanded="true" aria-controls="collapseHours">
+							<i class="fas fa-clock" style="margin-right:8px;"></i> Horário de Funcionamento
+						</button>
+					</h2>
+					<div id="collapseHours" class="accordion-collapse collapse show" aria-labelledby="headingHours" data-bs-parent="#settingsAccordion">
+						<div class="accordion-body">
+							<div class="categories-management">
+								<p class="mb-3" style="color:#6c757d">Defina os horários por dia da semana. Marque "Fechado" para dias sem atendimento.</p>
+
+								<div class="form-group" style="margin-bottom:1rem;">
+									<label class="checkbox-label">
+										<input type="checkbox" id="applyWeekdays">
+										Aplicar o mesmo horário de segunda a sexta
+									</label>
+								</div>
+
+								<form id="businessHoursForm" class="product-form">
+									<div id="businessHoursRows"></div>
+								</form>
+
+								<div class="d-flex gap-2 mt-3">
+									<button id="btnSaveHours" class="add-btn">
+										<i class="fas fa-save"></i> Salvar
+									</button>
+									<button id="btnResetHours" class="refresh-btn" type="button">
+										<i class="fas fa-rotate"></i> Recarregar
+									</button>
+								</div>
+
+								<div id="hoursFeedback" class="mt-3" style="display:none"></div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<div class="accordion-item" style="margin-top:16px;">
+					<h2 class="accordion-header" id="headingDelivery">
+						<button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#collapseDelivery" aria-expanded="false" aria-controls="collapseDelivery">
+							<i class="fas fa-truck" style="margin-right:8px;"></i> Configuração de Entrega
+						</button>
+					</h2>
+					<div id="collapseDelivery" class="accordion-collapse collapse" aria-labelledby="headingDelivery" data-bs-parent="#settingsAccordion">
+						<div class="accordion-body">
+							<div class="categories-management">
+								<p class="mb-3" style="color:#6c757d">Defina o endereço de partida (loja), valor por KM e a chave do Mapbox. O endereço será geocodificado e salvo uma única vez.</p>
+
+								<form id="deliveryConfigForm" class="product-form">
+									<div class="form-group">
+										<label>Endereço de Partida (Loja)</label>
+										<input type="text" id="originAddress" class="form-control" placeholder="Rua, Número - Bairro - Cidade - CEP" required>
+									</div>
+									<div class="form-group">
+										<label>Valor por KM (R$)</label>
+										<input type="number" step="0.01" min="0" id="pricePerKm" class="form-control" placeholder="Ex.: 3.50" required>
+									</div>
+									<div class="form-group">
+										<label>Taxa Mínima (R$)</label>
+										<input type="number" step="0.01" min="0" id="minDeliveryFee" class="form-control" placeholder="Ex.: 5.00">
+									</div>
+									<div class="form-group">
+										<label>Mapbox Access Token</label>
+										<input type="text" id="mapboxKey" class="form-control" placeholder="pk.XXXX..." required>
+									</div>
+									<div class="form-group">
+										<label class="checkbox-label">
+											<input type="checkbox" id="exposePublicKey"> Expor chave publicamente para Autofill (opcional)
+										</label>
+										<small>Permite que o frontend carregue o script de Autofill/Confirm da Mapbox usando esta chave. Use apenas com token público.</small>
+									</div>
+									<div id="deliveryFeedback" class="mt-2" style="display:none"></div>
+								</form>
+
+								<div class="d-flex gap-2 mt-3">
+									<button id="btnSaveDelivery" class="add-btn">
+										<i class="fas fa-save"></i> Salvar
+									</button>
+									<button id="btnReloadDelivery" class="refresh-btn" type="button">
+										<i class="fas fa-rotate"></i> Recarregar
+									</button>
+								</div>
+							</div>
+						</div>
+					</div>
+				</div>
+
+			</div>
+		</section>
+	</main>
+
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+	<script src="../assets/js/config.js?v=20250810"></script>
+	<script src="../assets/js/utils.js?v=20250810"></script>
+	<script>
+		// Ajuste dinâmico da base da API para funcionar com ou sem subpasta do projeto
+		(function(){
+			try {
+				if (typeof setConfig !== 'function') return;
+				var path = window.location.pathname || '/';
+				var parts = path.split('/').filter(Boolean);
+				var base = '/api/';
+				if (parts.length > 0 && parts[0].toLowerCase() !== 'admin') {
+					base = '/' + parts[0] + '/api/';
+				}
+				setConfig('API.BASE_URL', base);
+				try { console.debug('[CONFIG] API.BASE_URL =', base); } catch (_) {}
+			} catch (_) {}
+		})();
+	</script>
+
+	<script>
+	(function() {
+		const DAYS = [
+			{ key: 'monday',    label: 'Segunda-feira' },
+			{ key: 'tuesday',   label: 'Terça-feira' },
+			{ key: 'wednesday', label: 'Quarta-feira' },
+			{ key: 'thursday',  label: 'Quinta-feira' },
+			{ key: 'friday',    label: 'Sexta-feira' },
+			{ key: 'saturday',  label: 'Sábado' },
+			{ key: 'sunday',    label: 'Domingo' }
+		];
+
+		const DEFAULT_HOURS = {
+			monday:    { closed: false, open: '09:00', close: '18:00' },
+			tuesday:   { closed: false, open: '09:00', close: '18:00' },
+			wednesday: { closed: false, open: '09:00', close: '18:00' },
+			thursday:  { closed: false, open: '09:00', close: '18:00' },
+			friday:    { closed: false, open: '09:00', close: '18:00' },
+			saturday:  { closed: false, open: '10:00', close: '14:00' },
+			sunday:    { closed: true,  open: '00:00', close: '00:00' }
+		};
+
+		const STORAGE_KEY = 'settings.business_hours';
+
+		function readSavedHours() {
+			try {
+				const raw = localStorage.getItem(STORAGE_KEY);
+				return raw ? ObjectUtils.merge(ObjectUtils.clone(DEFAULT_HOURS), JSON.parse(raw)) : ObjectUtils.clone(DEFAULT_HOURS);
+			} catch (e) {
+				return ObjectUtils.clone(DEFAULT_HOURS);
+			}
+		}
+
+		async function writeSavedHours(hours) {
+			localStorage.setItem(STORAGE_KEY, JSON.stringify(hours));
+			try {
+				await fetch(getApiUrl('settings/business-hours'), {
+					method: 'POST',
+					headers: { 'Content-Type': 'application/json' },
+					body: JSON.stringify(hours)
+				});
+			} catch (_) { /* silencioso: mantém no localStorage */ }
+		}
+
+		async function fetchServerHoursOrLocal() {
+			try {
+				const resp = await fetch(getApiUrl('settings/business-hours'));
+				if (resp.ok) {
+					const json = await resp.json();
+					if (json && json.success && json.data) {
+						localStorage.setItem(STORAGE_KEY, JSON.stringify(json.data));
+						return json.data;
+					}
+				}
+			} catch (_) {}
+			return readSavedHours();
+		}
+
+		function showFeedback(message, type = 'success') {
+			const box = document.getElementById('hoursFeedback');
+			box.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger');
+			box.textContent = message;
+			box.style.display = '';
+			setTimeout(() => { box.style.display = 'none'; }, getConfig('UI.TOAST_DURATION') || 3000);
+		}
+
+		function createRow(dayKey, label, data) {
+			const row = document.createElement('div');
+			row.className = 'list-row';
+
+			const nameCol = document.createElement('div');
+			nameCol.className = 'list-col';
+			nameCol.innerHTML = '<strong>' + label + '</strong>';
+
+			const openCol = document.createElement('div');
+			openCol.className = 'list-col';
+			const openInput = document.createElement('input');
+			openInput.type = 'time';
+			openInput.name = dayKey + '.open';
+			openInput.value = data.open;
+			openInput.className = 'form-control';
+			openCol.appendChild(openInput);
+
+			const closeCol = document.createElement('div');
+			closeCol.className = 'list-col';
+			const closeInput = document.createElement('input');
+			closeInput.type = 'time';
+			closeInput.name = dayKey + '.close';
+			closeInput.value = data.close;
+			closeInput.className = 'form-control';
+			closeCol.appendChild(closeInput);
+
+			const closedCol = document.createElement('div');
+			closedCol.className = 'list-col';
+			const closedLabel = document.createElement('label');
+			closedLabel.className = 'checkbox-label';
+			const closedInput = document.createElement('input');
+			closedInput.type = 'checkbox';
+			closedInput.name = dayKey + '.closed';
+			closedInput.checked = !!data.closed;
+			closedLabel.appendChild(closedInput);
+			closedLabel.appendChild(document.createTextNode(' Fechado'));
+			closedCol.appendChild(closedLabel);
+
+			function toggleDisable() {
+				const disabled = closedInput.checked;
+				openInput.disabled = disabled;
+				closeInput.disabled = disabled;
+				if (disabled) {
+					openInput.classList.add('disabled');
+					closeInput.classList.add('disabled');
+				} else {
+					openInput.classList.remove('disabled');
+					closeInput.classList.remove('disabled');
+				}
+			}
+
+			closedInput.addEventListener('change', toggleDisable);
+			toggleDisable();
+
+			row.appendChild(nameCol);
+			row.appendChild(openCol);
+			row.appendChild(closeCol);
+			row.appendChild(closedCol);
+			return row;
+		}
+
+		function renderForm(hours) {
+			const container = document.getElementById('businessHoursRows');
+			container.innerHTML = '';
+
+			const header = document.createElement('div');
+			header.className = 'list-row';
+			header.style.fontWeight = '600';
+			header.innerHTML = '<div class="list-col">Dia</div><div class="list-col">Abertura</div><div class="list-col">Fechamento</div><div class="list-col">Status</div>';
+			container.appendChild(header);
+
+			DAYS.forEach((d) => {
+				const row = createRow(d.key, d.label, hours[d.key]);
+				container.appendChild(row);
+			});
+		}
+
+		function collectForm() {
+			const result = {};
+			DAYS.forEach((d) => {
+				const open = document.querySelector('input[name="' + d.key + '.open"]').value || '00:00';
+				const close = document.querySelector('input[name="' + d.key + '.close"]').value || '00:00';
+				const closed = document.querySelector('input[name="' + d.key + '.closed"]').checked;
+				result[d.key] = { open, close, closed };
+			});
+			return result;
+		}
+
+		function validateHours(hours) {
+			for (const day of DAYS) {
+				const h = hours[day.key];
+				if (!h.closed) {
+					if (!/^\d{2}:\d{2}$/.test(h.open) || !/^\d{2}:\d{2}$/.test(h.close)) return false;
+					// 00:00 -> 00:00 = aberto 24h (permitido)
+					if (h.open === '00:00' && h.close === '00:00') continue;
+					if (h.open >= h.close) return false;
+				}
+			}
+			return true;
+		}
+
+		function applyWeekdaysFromMonday(hours) {
+			const base = hours.monday;
+			['tuesday','wednesday','thursday','friday'].forEach((k) => {
+				hours[k] = { open: base.open, close: base.close, closed: base.closed };
+			});
+			return hours;
+		}
+
+		document.addEventListener('DOMContentLoaded', async function() {
+			let hours = await fetchServerHoursOrLocal();
+			renderForm(hours);
+
+			document.getElementById('btnSaveHours').addEventListener('click', function(e) {
+				e.preventDefault();
+				let data = collectForm();
+				if (document.getElementById('applyWeekdays').checked) {
+					data = applyWeekdaysFromMonday(data);
+					renderForm(data);
+				}
+				if (!validateHours(data)) {
+					showFeedback('Verifique os horários: a abertura deve ser antes do fechamento.', 'error');
+					return;
+				}
+				writeSavedHours(data);
+				showFeedback('Horários salvos com sucesso!');
+			});
+
+			document.getElementById('btnResetHours').addEventListener('click', function() {
+				hours = readSavedHours();
+				renderForm(hours);
+				showFeedback('Horários recarregados.');
+			});
+		});
+	})();
+	</script>
+
+	<script>
+	(function(){
+		async function loadDeliveryConfig() {
+			try {
+				const bases = (function(){
+					const res = [];
+					try { res.push(getConfig('API.BASE_URL')); } catch(_) {}
+					res.push('/api/');
+					try {
+						const path = window.location.pathname || '/';
+						const p = path.split('/').filter(Boolean);
+						if (p.length > 0) res.push('/' + p[0] + '/api/');
+						res.push('../../api/');
+					} catch(_) {}
+					return Array.from(new Set(res.filter(Boolean)));
+				})();
+				for (const b of bases) {
+					try {
+						const r = await fetch(b + 'delivery/config');
+						const json = await r.json();
+						if (r.ok && json && json.success && json.data) {
+							try { setConfig('API.BASE_URL', b); } catch(_) {}
+							document.getElementById('originAddress').value = json.data.origin_address || '';
+							document.getElementById('pricePerKm').value = json.data.price_per_km || '';
+							document.getElementById('minDeliveryFee').value = json.data.min_delivery_fee || '';
+							document.getElementById('exposePublicKey').checked = !!json.data.expose_public_key;
+							return;
+						}
+					} catch (_) {}
+				}
+			} catch (_) {}
+		}
+
+		function showDeliveryFeedback(msg, type='success') {
+			const box = document.getElementById('deliveryFeedback');
+			box.className = 'alert alert-' + (type==='success'?'success':'danger');
+			box.textContent = msg;
+			box.style.display = '';
+			setTimeout(()=>{ box.style.display='none'; }, getConfig('UI.TOAST_DURATION') || 3000);
+		}
+
+		document.getElementById('btnReloadDelivery').addEventListener('click', loadDeliveryConfig);
+		document.getElementById('btnSaveDelivery').addEventListener('click', async function(e){
+			e.preventDefault();
+			const addr = document.getElementById('originAddress').value.trim();
+			const ppk = parseFloat(document.getElementById('pricePerKm').value);
+			const key = document.getElementById('mapboxKey').value.trim();
+			if (!addr || !key || !(ppk > 0)) { showDeliveryFeedback('Preencha endereço, valor por KM (>0) e a chave.', 'error'); return; }
+			try {
+				const json = await (async () => {
+					// Tentativas com múltiplas bases
+					const bases = (function(){
+						const res = [];
+						try { res.push(getConfig('API.BASE_URL')); } catch(_) {}
+						res.push('/api/');
+						try {
+							const path = window.location.pathname || '/';
+							const p = path.split('/').filter(Boolean);
+							if (p.length > 0) res.push('/' + p[0] + '/api/');
+							res.push('../../api/');
+						} catch(_) {}
+						return Array.from(new Set(res.filter(Boolean)));
+					})();
+					const payload = { origin_address: addr, price_per_km: ppk, min_delivery_fee: parseFloat(document.getElementById('minDeliveryFee').value) || 0, expose_public_key: document.getElementById('exposePublicKey').checked ? 1 : 0, mapbox_api_key: key };
+					for (const b of bases) {
+						try {
+							const r = await fetch(b + 'delivery/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) });
+							const j = await r.json();
+							if (r.ok && j && j.success) { try { setConfig('API.BASE_URL', b); } catch(_) {}; return j; }
+						} catch (_) {}
+					}
+					throw new Error('network');
+				})();
+				if (json && json.success) {
+					showDeliveryFeedback('Configuração salva com sucesso.');
+					// por segurança, limpa a chave do input
+					document.getElementById('mapboxKey').value = '';
+				} else {
+					showDeliveryFeedback((json && json.message) || 'Falha ao salvar configuração.', 'error');
+				}
+			} catch (err) {
+				showDeliveryFeedback('Erro de rede ao salvar configuração.', 'error');
+			}
+		});
+
+		document.addEventListener('DOMContentLoaded', loadDeliveryConfig);
+	})();
+	</script>
+</body>
+</html>
+

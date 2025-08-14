@@ -1,4 +1,15 @@
 /* Filtros em linha (horizontais) */
+/* Animação cintilante estilo shimmer para botão de pausa */
+/* Ícone piscando (versão original) */
+@keyframes blink-red {
+  0% { opacity: 1; }
+  50% { opacity: 0.2; }
+  100% { opacity: 1; }
+}
+
+.orders-paused-blink {
+  animation: blink-red 1s infinite;
+}
 .products-filters { 
   margin: 16px 0 24px; 
   padding: 20px;
@@ -421,6 +432,8 @@ body {
     display: block;
 }
 
+
+
 .section-header {
     display: flex;
     justify-content: space-between;
@@ -530,10 +543,10 @@ body {
 }
 
 .orders-list {
-    flex: 1;
+    flex: initial;
     padding: 1rem;
-    overflow-y: auto;
-    max-height: 60vh;
+    overflow-y: visible;
+    max-height: none;
 }
 
 /* Order Card */
@@ -569,6 +582,14 @@ body {
 
 .order-card.completed {
     border-left: 4px solid var(--success-color);
+}
+
+/* Cancelado como finalizado em cinza */
+.order-card.canceled,
+.order-card.completed.canceled {
+    filter: grayscale(0.9);
+    opacity: 0.75;
+    border-left-color: var(--medium-gray);
 }
 
 .order-header {

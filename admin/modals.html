@@ -547,7 +547,59 @@
     </div>
 </div>
 
+<!-- Cancel Order Modal -->
+<div class="modal-overlay" id="cancelOrderModal">
+    <div class="modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-ban"></i> Cancelar Pedido</h3>
+            <button class="close-modal" onclick="closeCancelOrderModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-content">
+            <div class="form-group">
+                <label for="cancelReason">Informe o motivo do cancelamento</label>
+                <textarea id="cancelReason" rows="4" placeholder="Ex.: Cliente desistiu, erro no pedido, pagamento não confirmado, etc."></textarea>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button class="btn-secondary" onclick="closeCancelOrderModal()">
+                <i class="fas fa-times"></i>
+                Voltar
+            </button>
+            <button class="btn-danger" onclick="confirmCancelOrder()">
+                <i class="fas fa-ban"></i>
+                Confirmar Cancelamento
+            </button>
+        </div>
+    </div>
+    
+</div>
+
 <!-- Audio for notifications -->
 <audio id="notificationSound" preload="auto">
     <source src="../order-sound.mp3" type="audio/mpeg">
 </audio>
+
+<!-- New Order Modal (POS via Frontend) -->
+<div class="modal-overlay" id="newOrderModal">
+    <div class="modal large-modal">
+        <div class="modal-header">
+            <h3><i class="fas fa-plus"></i> Novo Pedido</h3>
+            <button class="close-modal" onclick="closeNewOrderModal()">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+        <div class="modal-content" style="padding:0;">
+            <div style="width:100%; height:80vh; background:#f7f7f7; position:relative;">
+                <iframe id="posIframe" src="" style="position:absolute; inset:0; width:100%; height:100%; border:0; background:#fff;"></iframe>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <small style="flex:1; color:#666;">Operação de balcão usando o cardápio do cliente.</small>
+            <button class="btn-secondary" onclick="closeNewOrderModal()">
+                <i class="fas fa-times"></i> Fechar
+            </button>
+        </div>
+    </div>
+ </div>

@@ -21,7 +21,9 @@ let appState = {
     refreshInterval: null,
     orderTimers: new Map(),
     orderSoundInterval: null, // Intervalo para o som em loop
-    hasNewOrders: false // Flag para controlar se há pedidos novos
+    hasNewOrders: false, // Flag para controlar se há pedidos novos
+    ordersPaused: false,
+    pauseMessage: ''
 };
 
 // Inicialização da aplicação
@@ -42,8 +44,12 @@ async function initializeApp() {
         
         if (isAuth) {
             hideLoginModal();
-            await loadInitialData();
+            await Promise.all([
+                loadInitialData(),
+                fetchPauseState()
+            ]);
             setupEventListeners();
+            renderPauseButtonState();
             startAutoRefresh();
         } else {
             showLoginModal();
@@ -52,6 +58,61 @@ async function initializeApp() {
         console.error('Erro ao inicializar aplicação:', error);
         showLoginModal();
     }
+}
+
+// ====== Controle de Pausa de Pedidos ======
+async function fetchPauseState() {
+    try {
+        const resp = await fetch(CONFIG.API_BASE_URL + 'settings/pause', { credentials: 'include' });
+        if (!resp.ok) return;
+        const json = await resp.json();
+        if (json && json.success && json.data) {
+            appState.ordersPaused = !!json.data.paused;
+            appState.pauseMessage = String(json.data.message || '');
+        }
+    } catch (e) { /* noop */ }
+}
+
+async function togglePauseState() {
+    try {
+        const newState = !appState.ordersPaused;
+        const resp = await fetch(CONFIG.API_BASE_URL + 'settings/pause', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ paused: newState, message: appState.pauseMessage || '' })
+        });
+        const json = await resp.json();
+        if (resp.ok && json && json.success) {
+            appState.ordersPaused = newState;
+            renderPauseButtonState();
+        } else {
+            showError((json && (json.message || json.error)) || 'Falha ao alterar estado de pausa');
+        }
+    } catch (e) {
+        showError('Erro ao comunicar com o servidor');
+    }
+}
+
+function renderPauseButtonState() {
+    try {
+        const candidates = [
+            { btn: document.getElementById('pauseOrdersBtn'), icon: document.getElementById('pauseIcon') },
+            { btn: document.getElementById('pauseOrdersNavBtn'), icon: document.getElementById('pauseNavIcon') }
+        ];
+        candidates.forEach(({ btn, icon }) => {
+            if (!btn || !icon) return;
+            if (appState.ordersPaused) {
+                icon.classList.add('orders-paused-blink');
+                icon.style.color = '#dc3545';
+                btn.title = 'Pedidos temporariamente pausados';
+            } else {
+                icon.classList.remove('orders-paused-blink');
+                icon.style.color = '';
+                btn.title = 'Pausar Pedidos';
+            }
+        });
+    } catch (_) { /* noop */ }
 }
 
 /**
@@ -177,9 +238,21 @@ async function loadInitialData() {
 /**
  * Carrega pedidos
  */
-async function loadOrders() {
+async function loadOrders(options = {}) {
+    const suppressSound = options && options.suppressSound === true;
     try {
-        const response = await fetch(CONFIG.API_BASE_URL + 'orders', {
+        // Garante filtro de hoje por padrão (usando data local, não UTC)
+        if (typeof appState.ordersDateFilter === 'undefined' || appState.ordersDateFilter === null) {
+            const now = new Date();
+            const tzOffsetMin = now.getTimezoneOffset();
+            const local = new Date(now.getTime() - tzOffsetMin * 60000);
+            appState.ordersDateFilter = local.toISOString().split('T')[0];
+        }
+
+        const baseUrl = CONFIG.API_BASE_URL + 'orders';
+        const url = appState.ordersDateFilter ? `${baseUrl}?date=${encodeURIComponent(appState.ordersDateFilter)}` : baseUrl;
+
+        const response = await fetch(url, {
             credentials: 'include'
         });
         
@@ -191,12 +264,28 @@ async function loadOrders() {
                 
                 // Verifica se há novos pedidos para tocar som
                 const currentNewOrdersCount = appState.orders.filter(order => order.status === 'novo').length;
-                if (currentNewOrdersCount > previousOrdersCount && appState.isAuthenticated) {
+                if (!suppressSound && currentNewOrdersCount > previousOrdersCount && appState.isAuthenticated) {
                     playNotificationSound();
                 }
                 
                 renderOrdersBoard();
                 updateOrderTimers();
+
+                // Fallback: se filtrado por data e não retornou nada, tenta sem filtro de data
+                const wasFilteredByDate = Boolean(appState.ordersDateFilter);
+                if (wasFilteredByDate && Array.isArray(data.data) && data.data.length === 0 && options._retryWithoutDate !== true) {
+                    try {
+                        const response2 = await fetch(baseUrl, { credentials: 'include' });
+                        if (response2.ok) {
+                            const data2 = await response2.json();
+                            if (data2.success && Array.isArray(data2.data)) {
+                                appState.orders = data2.data;
+                                renderOrdersBoard();
+                                updateOrderTimers();
+                            }
+                        }
+                    } catch (_) {}
+                }
             }
         }
     } catch (error) {
@@ -304,11 +393,25 @@ function renderOrdersBoard() {
     const deliveryOrdersList = document.getElementById('deliveryOrdersList');
     const completedOrdersList = document.getElementById('completedOrdersList');
     
-    // Filtra pedidos por status
-    const newOrders = appState.orders.filter(order => order.status === 'novo');
-    const productionOrders = appState.orders.filter(order => order.status === 'aceito' || order.status === 'producao');
-    const deliveryOrders = appState.orders.filter(order => order.status === 'entrega');
-    const completedOrders = appState.orders.filter(order => order.status === 'finalizado').slice(0, 10); // Últimos 10
+    // Filtra e ordena pedidos por status (mais antigos no topo)
+    const sortByOldest = (a, b) => new Date(a.created_at) - new Date(b.created_at);
+
+    const newOrders = appState.orders
+        .filter(order => order.status === 'novo')
+        .sort(sortByOldest);
+
+    const productionOrders = appState.orders
+        .filter(order => order.status === 'aceito' || order.status === 'producao')
+        .sort(sortByOldest);
+
+    const deliveryOrders = appState.orders
+        .filter(order => order.status === 'entrega')
+        .sort(sortByOldest);
+
+    // Finalizados inclui também cancelados (sem limite, lista completa)
+    const completedOrders = appState.orders
+        .filter(order => order.status === 'finalizado' || order.status === 'cancelado')
+        .sort(sortByOldest);
     
     // Atualiza contadores
     document.getElementById('newOrdersCount').textContent = newOrders.length;
@@ -322,10 +425,18 @@ function renderOrdersBoard() {
     deliveryOrdersList.innerHTML = deliveryOrders.map(order => createOrderCard(order, 'delivery')).join('');
     completedOrdersList.innerHTML = completedOrders.map(order => createOrderCard(order, 'completed')).join('');
     
-    // Controla o som em loop baseado nos pedidos novos
+    // Controla o som em loop baseado nos pedidos novos, com suporte a supressão pontual
     const hadNewOrders = appState.hasNewOrders;
-    appState.hasNewOrders = newOrders.length > 0;
-    
+    const currentlyHasNewOrders = newOrders.length > 0;
+
+    if (appState.suppressOrderSoundOnce) {
+        // Atualiza flag interna, mas não inicia/para som nesta renderização
+        appState.hasNewOrders = currentlyHasNewOrders;
+        appState.suppressOrderSoundOnce = false;
+        return;
+    }
+
+    appState.hasNewOrders = currentlyHasNewOrders;
     // Se não havia pedidos novos antes e agora há, inicia o som
     if (!hadNewOrders && appState.hasNewOrders) {
         startOrderSoundLoop();
@@ -352,6 +463,7 @@ function createOrderCard(order, type) {
     
     let actions = '';
     let timer = '';
+    let timerBadge = '';
     
     // Timer para pedidos em produção
     if (type === 'production') {
@@ -359,52 +471,88 @@ function createOrderCard(order, type) {
         const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000 / 60);
         const timerClass = elapsed > 30 ? 'warning' : elapsed > 45 ? 'danger' : 'normal';
         timer = `<div class="order-timer ${timerClass}">${elapsed}min</div>`;
+        const bsTimerClass = elapsed > 45 ? 'bg-danger' : elapsed > 30 ? 'bg-warning' : 'bg-success';
+        timerBadge = `<span class="badge ${bsTimerClass}">${elapsed}min</span>`;
     }
     
     // Botões de ação baseados no status
     switch (type) {
         case 'new':
             actions = `
-                <button class="action-btn accept" onclick="updateOrderStatus(${order.id}, 'aceito')">
+                <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'aceito')">
                     <i class="fas fa-check"></i> Aceitar
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})">
+                    <i class="fas fa-ban"></i> Cancelar
                 </button>
             `;
             break;
         case 'production':
             actions = `
-                <button class="action-btn print" onclick="showPrintModal(${order.id})">
-                    <i class="fas fa-print"></i>
-                </button>
-                <button class="action-btn next" onclick="updateOrderStatus(${order.id}, 'entrega')">
+                <div class="btn-group dropup">
+                    <button class="btn btn-sm btn-outline-warning dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Imprimir" onclick="event.stopPropagation()">
+                        <i class="fas fa-print"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                            <button class="dropdown-item" onclick="printKitchenOrderFrom(${order.id}); event.stopPropagation();">
+                                <i class=\"fas fa-fire me-2\"></i> Cozinha
+                            </button>
+                        </li>
+                        <li>
+                            <button class="dropdown-item" onclick="printCustomerReceipt(${order.id}); event.stopPropagation();">
+                                <i class=\"fas fa-user me-2\"></i> Cliente
+                            </button>
+                        </li>
+                    </ul>
+                </div>
+                <button class="btn btn-sm btn-outline-primary" onclick="updateOrderStatus(${order.id}, 'entrega')" title="Enviar para entrega">
                     <i class="fas fa-truck"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
+                    <i class="fas fa-ban"></i>
                 </button>
             `;
             break;
         case 'delivery':
             actions = `
-                <button class="action-btn next" onclick="updateOrderStatus(${order.id}, 'finalizado')">
+                <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'finalizado')" title="Finalizar">
                     <i class="fas fa-check-circle"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
+                    <i class="fas fa-ban"></i>
                 </button>
             `;
             break;
     }
     
+    const canceledClass = order.status === 'cancelado' ? 'canceled opacity-75' : '';
+    const borderClass = order.status === 'cancelado'
+        ? 'border-secondary'
+        : type === 'new' ? 'border-warning'
+        : type === 'production' ? 'border-danger'
+        : type === 'delivery' ? 'border-info'
+        : 'border-success';
+    const orderLabel = `#${order.order_number || order.id}${order.status === 'cancelado' ? ' • Cancelado' : ''}`;
+
     return `
-        <div class="order-card ${type}" onclick="showOrderDetail(${order.id})">
-            ${timer}
-            <div class="order-header">
-                <span class="order-number">#${order.order_number}</span>
-                <span class="order-time">${timeString}</span>
+        <div class="card order-card ${type} ${canceledClass} border-start ${borderClass} shadow-sm" onclick="showOrderDetail(${order.id})">
+            <div class="card-header d-flex justify-content-between align-items-center py-2">
+                <div class="d-flex align-items-center gap-2">
+                    <span class="fw-semibold">${orderLabel}</span>
+                </div>
+                <div class="d-flex align-items-center gap-2">
+                    <span class="text-muted small"><i class="far fa-clock me-1"></i>${timeString}</span>
+                    ${timerBadge}
+                </div>
             </div>
-            <div class="order-customer">
-                <i class="fas fa-user"></i> ${order.customer_name}
+            <div class="card-body py-2">
+                <div class="mb-1"><i class="fas fa-user me-1"></i>${order.customer_name}</div>
+                <div class="text-muted small">${itemsText}${moreItems}</div>
             </div>
-            <div class="order-items">
-                ${itemsText}${moreItems}
-            </div>
-            <div class="order-footer">
-                <span class="order-total">${formatCurrency(order.total_amount)}</span>
-                <div class="order-actions" onclick="event.stopPropagation()">
+            <div class="card-footer d-flex justify-content-between align-items-center py-2">
+                <span class="fw-semibold text-success">${formatCurrency(order.total_amount)}</span>
+                <div class="d-flex gap-1" onclick="event.stopPropagation()">
                     ${actions}
                 </div>
             </div>
@@ -431,8 +579,8 @@ async function updateOrderStatus(orderId, newStatus) {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                await loadOrders();
-                showSuccess('Status do pedido atualizado com sucesso!');
+                // Não tocar som ao apenas mudar de fase
+                await loadOrders({ suppressSound: true });
             } else {
                 showError(data.message || 'Erro ao atualizar status');
             }
@@ -443,6 +591,53 @@ async function updateOrderStatus(orderId, newStatus) {
     } catch (error) {
         console.error('Erro ao atualizar status:', error);
         showError('Erro de conexão. Tente novamente.');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Fluxo de cancelamento com motivo
+function openCancelOrder(orderId) {
+    appState.cancelOrderId = orderId;
+    const modal = document.getElementById('cancelOrderModal');
+    const textarea = document.getElementById('cancelReason');
+    if (textarea) textarea.value = '';
+    if (modal) modal.classList.add('show');
+}
+
+function closeCancelOrderModal() {
+    const modal = document.getElementById('cancelOrderModal');
+    if (modal) modal.classList.remove('show');
+}
+
+async function confirmCancelOrder() {
+    const orderId = appState.cancelOrderId;
+    const reason = (document.getElementById('cancelReason')?.value || '').trim();
+    if (!orderId) return;
+    if (!reason) {
+        showError('Informe o motivo do cancelamento.');
+        return;
+    }
+    try {
+        showLoading();
+        const response = await fetch(CONFIG.API_BASE_URL + `orders/${orderId}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ status: 'cancelado', cancellation_reason: reason })
+        });
+        const data = await response.json();
+        if (response.ok && data && (data.success || data.data)) {
+            // Cancelamento também não deve disparar som adicional
+            await loadOrders({ suppressSound: true });
+            showSuccess('Pedido cancelado.');
+            closeCancelOrderModal();
+        } else {
+            showError(data.message || 'Erro ao cancelar pedido');
+        }
+    } catch (e) {
+        console.error(e);
+        showError('Erro de conexão ao cancelar.');
     } finally {
         hideLoading();
     }
@@ -463,184 +658,135 @@ function showOrderDetail(orderId) {
     const orderTime = new Date(order.created_at);
     const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60);
     
-    content.innerHTML = `
-        <div class="order-detail">
-            <div class="detail-section">
-                <h4><i class="fas fa-info-circle"></i> Informações do Pedido</h4>
-                <div class="detail-item">
-                    <span>Número:</span>
-                    <strong>#${order.order_number}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Status:</span>
-                    <strong>${getStatusText(order.status)}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Data/Hora:</span>
-                    <strong>${new Date(order.created_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Tempo decorrido:</span>
-                    <strong>${elapsed} minutos</strong>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-user"></i> Dados do Cliente</h4>
-                <div class="detail-item">
-                    <span>Nome:</span>
-                    <strong>${order.customer_name}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Telefone:</span>
-                    <strong>${order.customer_phone}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Endereço:</span>
-                    <strong>${order.customer_address}</strong>
-                </div>
-                ${order.customer_neighborhood ? `
-                <div class="detail-item">
-                    <span>Bairro:</span>
-                    <strong>${order.customer_neighborhood}</strong>
-                </div>
-                ` : ''}
-                ${order.customer_reference ? `
-                <div class="detail-item">
-                    <span>Referência:</span>
-                    <strong>${order.customer_reference}</strong>
-                </div>
-                ` : ''}
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-credit-card"></i> Pagamento</h4>
-                <div class="detail-item">
-                    <span>Forma:</span>
-                    <strong>${getPaymentMethodText(order.payment_method)}</strong>
-                </div>
-                ${order.payment_value ? `
-                <div class="detail-item">
-                    <span>Valor pago:</span>
-                    <strong>${formatCurrency(order.payment_value)}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Troco:</span>
-                    <strong>${formatCurrency(order.change_amount)}</strong>
-                </div>
-                ` : ''}
-                <div class="detail-item">
-                    <span>Total:</span>
-                    <strong>${formatCurrency(order.total_amount)}</strong>
-                </div>
-            </div>
-            
-            <div class="detail-section">
-                <h4><i class="fas fa-clock"></i> Timeline</h4>
-                <div class="detail-item">
-                    <span>Pedido criado:</span>
-                    <strong>${new Date(order.created_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                ${order.accepted_at ? `
-                <div class="detail-item">
-                    <span>Aceito em:</span>
-                    <strong>${new Date(order.accepted_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                ` : ''}
-                ${order.production_started_at ? `
-                <div class="detail-item">
-                    <span>Produção iniciada:</span>
-                    <strong>${new Date(order.production_started_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                ` : ''}
-                ${order.delivery_started_at ? `
-                <div class="detail-item">
-                    <span>Saiu para entrega:</span>
-                    <strong>${new Date(order.delivery_started_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                ` : ''}
-                ${order.completed_at ? `
-                <div class="detail-item">
-                    <span>Finalizado em:</span>
-                    <strong>${new Date(order.completed_at).toLocaleString('pt-BR')}</strong>
-                </div>
-                ` : ''}
-            </div>
-            
-            <div class="detail-section order-items-detail">
-                <h4><i class="fas fa-list"></i> Itens do Pedido</h4>
-                <ul class="item-list">
-                    ${order.items.map(item => `
-                        <li>
-                            <div>
-                                <strong>${item.quantity}x ${item.product_name}</strong>
-                                ${item.notes ? `<br><small>Obs: ${item.notes}</small>` : ''}
-                            </div>
-                            <span>${formatCurrency(item.subtotal)}</span>
-                        </li>
-                    `).join('')}
-                </ul>
-                <div class="detail-item" style="margin-top: 1rem; padding-top: 1rem; border-top: 2px solid #bdc3c7;">
-                    <span>Subtotal:</span>
-                    <strong>${formatCurrency(order.total_amount - order.delivery_fee)}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Taxa de entrega:</span>
-                    <strong>${formatCurrency(order.delivery_fee)}</strong>
-                </div>
-                <div class="detail-item">
-                    <span>Total:</span>
-                    <strong>${formatCurrency(order.total_amount)}</strong>
-                </div>
-            </div>
-            
-            ${order.notes ? `
-            <div class="detail-section">
-                <h4><i class="fas fa-sticky-note"></i> Observações</h4>
-                <p>${order.notes}</p>
-            </div>
-            ` : ''}
-        </div>
-    `;
+    content.innerHTML = generateCustomerReceiptHtml(order);
     
-    // Botões do footer baseados no status
-    let footerButtons = '';
-    switch (order.status) {
-        case 'novo':
-            footerButtons = `
-                <button class="action-btn accept" onclick="updateOrderStatus(${order.id}, 'aceito'); closeOrderDetailModal();">
-                    <i class="fas fa-check"></i> Aceitar Pedido
-                </button>
-            `;
-            break;
-        case 'aceito':
-        case 'producao':
-            footerButtons = `
-                <button class="action-btn print" onclick="showPrintModal(${order.id})">
-                    <i class="fas fa-print"></i> Imprimir Comandas
-                </button>
-                <button class="action-btn next" onclick="updateOrderStatus(${order.id}, 'entrega'); closeOrderDetailModal();">
-                    <i class="fas fa-truck"></i> Enviar para Entrega
-                </button>
-            `;
-            break;
-        case 'delivery':
-            footerButtons = `
-                <button class="action-btn next" onclick="updateOrderStatus(${order.id}, 'finalizado'); closeOrderDetailModal();">
-                    <i class="fas fa-check-circle"></i> Finalizar Pedido
-                </button>
-            `;
-            break;
-    }
-    
+    // Footer sempre com apenas dois botões: imprimir e fechar
     footer.innerHTML = `
-        <button class="action-btn" onclick="closeOrderDetailModal()">
+        <button class="btn btn-secondary" onclick="closeOrderDetailModal()">
             <i class="fas fa-times"></i> Fechar
         </button>
-        ${footerButtons}
+        <button class="btn btn-primary" onclick="printCustomerReceipt(${order.id})">
+            <i class="fas fa-print"></i> Imprimir para Cliente
+        </button>
     `;
     
     modal.classList.add('show');
+}
+
+function printCustomerReceipt(orderId) {
+    const order = appState.orders.find(o => o.id === orderId);
+    if (!order) return;
+    const html = generateCustomerReceiptHtml(order);
+    printDocument(html);
+}
+
+// Gera HTML do recibo do cliente (organizado e claro, com logo opcional)
+function generateCustomerReceiptHtml(order) {
+    const createdAt = new Date(order.created_at).toLocaleString('pt-BR');
+    const itemsSubtotal = Array.isArray(order.items)
+        ? order.items.reduce((sum, it) => sum + (typeof it.subtotal === 'number' ? it.subtotal : (it.product_price || 0) * (it.quantity || 0)), 0)
+        : 0;
+    const subtotal = (order.total_amount || 0) - (order.delivery_fee || 0);
+    const logoUrl = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.LOGO_URL) ? window.CONFIG.PRINT.LOGO_URL : '';
+    const businessName = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'Comanda';
+    const isMesa = (order.customer_name || '').toLowerCase().includes('mesa');
+    const tipo = isMesa ? 'MESA' : ((order.customer_address && order.customer_address.trim() !== '') || (order.delivery_fee && order.delivery_fee > 0)
+        ? 'ENTREGA' : 'RETIRADA');
+
+    return `
+    <div class="receipt">
+      <div class="header">
+        ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : `<h1>${businessName}</h1>`}
+        <p>${createdAt}</p>
+      </div>
+      <div class="order-details">
+        <p><strong>PEDIDO:</strong> #${order.order_number || order.id || '-'}</p>
+        <p><strong>STATUS:</strong> ${getStatusText(order.status)}</p>
+        <p><strong>TIPO:</strong> ${tipo}</p>
+      </div>
+      <div class="order-details" style="margin-top:6px;">
+        <p><strong>CLIENTE:</strong> ${order.customer_name || '-'}</p>
+        <p><strong>TELEFONE:</strong> ${order.customer_phone || '-'}</p>
+        ${order.customer_address ? `<p><strong>ENDEREÇO:</strong> ${order.customer_address}</p>` : ''}
+        ${order.customer_neighborhood ? `<p><strong>BAIRRO:</strong> ${order.customer_neighborhood}</p>` : ''}
+        ${order.customer_reference ? `<p><strong>REFERÊNCIA:</strong> ${order.customer_reference}</p>` : ''}
+      </div>
+      <div class="separator"></div>
+      ${order.items.map(item => `
+        <div class="item-section">
+          <h2>${item.quantity}x ${item.product_name}</h2>
+          ${item.notes ? `
+            <ul class="item-details">
+              ${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).map(s => `<li>${s.toUpperCase()}</li>`).join('')}
+            </ul>
+          ` : ''}
+          <ul class="item-details" style="margin-top:4px;">
+            <li><strong>Unitário:</strong> ${formatCurrency(item.product_price || 0)}</li>
+            <li><strong>Subtotal:</strong> ${formatCurrency(typeof item.subtotal === 'number' ? item.subtotal : (item.product_price || 0) * (item.quantity || 0))}</li>
+          </ul>
+        </div>
+      `).join('')}
+      <div class="separator"></div>
+      <div class="order-details">
+        <p><strong>Subtotal Itens:</strong> ${formatCurrency(itemsSubtotal)}</p>
+        <p><strong>Descontos:</strong> ${formatCurrency((itemsSubtotal + (order.delivery_fee || 0)) - (order.total_amount || 0))}</p>
+        <p><strong>Entrega:</strong> ${formatCurrency(order.delivery_fee || 0)}</p>
+        <p><strong>Total:</strong> ${formatCurrency(order.total_amount || 0)}</p>
+      </div>
+      <div class="order-details" style="margin-top:6px;">
+        <p><strong>Pagamento:</strong> ${getPaymentMethodText(order.payment_method)}</p>
+        ${order.payment_value ? `<p><strong>Valor pago:</strong> ${formatCurrency(order.payment_value)}</p>` : ''}
+        ${order.change_amount > 0 ? `<p><strong>Troco:</strong> ${formatCurrency(order.change_amount)}</p>` : ''}
+        ${order.estimated_delivery_time ? `<p><strong>Tempo estimado:</strong> ${order.estimated_delivery_time} min</p>` : ''}
+      </div>
+      ${order.notes ? `
+        <div class="obs-section">
+          <h2>*** OBSERVAÇÕES ***</h2>
+          <ul>
+            ${order.notes.split(/\n|;|\r/).map(s => s.trim()).filter(s => s).map(s => `<li>- ${s.toUpperCase()}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      <div class="separator"></div>
+    </div>`;
+}
+
+// Gera HTML da comanda de cozinha (detalhe com fontes grandes e legíveis)
+function generateKitchenTicketHtml(order) {
+    const createdAt = new Date(order.created_at).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
+    const logoUrl = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.LOGO_URL) ? window.CONFIG.PRINT.LOGO_URL : '';
+    const businessName = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'Cozinha';
+    return `
+    <div class="receipt">
+      <div class="header">
+        ${logoUrl ? `<img src="${logoUrl}" class="logo" alt="Logo" />` : `<h1>${businessName}</h1>`}
+        <p>${createdAt}</p>
+      </div>
+      <div class="order-details">
+        <p><strong>PEDIDO: #${order.order_number}</strong></p>
+        ${order.customer_name ? `<p><strong>CLIENTE:</strong> ${order.customer_name}</p>` : ''}
+      </div>
+      <div class="separator"></div>
+      ${order.items.map(item => `
+        <div class="item-section">
+          <h2>${item.quantity}x ${item.product_name}</h2>
+          ${item.notes ? `
+            <ul class="item-details">
+              ${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).map(s => `<li><strong>•</strong> ${s.toUpperCase()}</li>`).join('')}
+            </ul>
+          ` : ''}
+        </div>
+      `).join('')}
+      ${order.notes ? `
+        <div class="obs-section">
+          <h2>*** OBSERVAÇÕES ***</h2>
+          <ul>
+            ${order.notes.split(/\n|;|\r/).map(s => s.trim()).filter(s => s).map(s => `<li>- ${s.toUpperCase()}</li>`).join('')}
+          </ul>
+        </div>
+      ` : ''}
+      <div class="separator"></div>
+    </div>`;
 }
 
 /**
@@ -675,50 +821,15 @@ function printKitchenOrder() {
     const order = appState.orders.find(o => o.id === appState.currentOrderId);
     if (!order) return;
     
-    const printContent = `
-        <div class="print-content">
-            <h2 style="text-align: center; margin-bottom: 20px; font-size: 18px;">COMANDA DA COZINHA</h2>
-            
-            <div style="border-bottom: 2px solid #000; padding-bottom: 10px; margin-bottom: 20px;">
-                <div style="text-align: center; font-size: 16px; font-weight: bold; margin-bottom: 10px;">
-                    PEDIDO #${order.order_number}
-                </div>
-                <div style="text-align: center; font-size: 14px;">
-                    ${new Date(order.created_at).toLocaleString('pt-BR')}
-                </div>
-            </div>
-            
-            <h3 style="margin-bottom: 15px; border-bottom: 1px solid #000; padding-bottom: 5px;">ITENS PARA PRODUÇÃO:</h3>
-            <div style="margin-bottom: 20px;">
-                ${order.items.map(item => `
-                    <div style="margin-bottom: 12px; padding: 8px; border: 1px solid #ccc; background: #f9f9f9;">
-                        <div style="font-size: 16px; font-weight: bold; margin-bottom: 5px;">
-                            ${item.quantity}x ${item.product_name}
-                        </div>
-                        ${item.notes ? `
-                        <div style="font-size: 12px; color: #d63031; font-style: italic;">
-                            📝 ${item.notes}
-                        </div>
-                        ` : ''}
-                    </div>
-                `).join('')}
-            </div>
-            
-            ${order.notes ? `
-            <div style="margin-top: 20px; padding: 10px; background: #ffeaa7; border: 1px solid #fdcb6e;">
-                <div style="font-weight: bold; margin-bottom: 5px;">📋 OBSERVAÇÕES GERAIS:</div>
-                <div style="font-size: 14px;">${order.notes}</div>
-            </div>
-            ` : ''}
-            
-            <div style="text-align: center; margin-top: 30px; font-size: 11px; color: #636e72;">
-                Impresso em: ${new Date().toLocaleString('pt-BR')}
-            </div>
-        </div>
-    `;
-    
+    const printContent = generateKitchenTicketHtml(order);
     printDocument(printContent);
     closePrintModal();
+}
+
+// Atalho para acionar impressão da cozinha a partir do card (sem abrir modal)
+function printKitchenOrderFrom(orderId) {
+    appState.currentOrderId = orderId;
+    printKitchenOrder();
 }
 
 /**
@@ -728,105 +839,7 @@ function printCustomerOrder() {
     const order = appState.orders.find(o => o.id === appState.currentOrderId);
     if (!order) return;
     
-    const printContent = `
-        <div class="print-content">
-            <div style="text-align: center; margin-bottom: 20px;">
-                <h1 style="margin: 0; font-size: 20px; color: #2d3436;">SABOR & CIA</h1>
-                <div style="font-size: 12px; color: #636e72; margin-top: 5px;">Cardápio Digital</div>
-            </div>
-            
-            <div style="text-align: center; margin-bottom: 25px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                <div style="font-size: 16px; font-weight: bold; color: #2d3436;">COMPROVANTE DE PEDIDO</div>
-            </div>
-            
-            <div style="border-bottom: 2px solid #000; padding-bottom: 15px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <strong>Pedido:</strong>
-                    <span style="font-weight: bold; font-size: 16px;">#${order.order_number}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <strong>Data/Hora:</strong>
-                    <span>${new Date(order.created_at).toLocaleString('pt-BR')}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between;">
-                    <strong>Status:</strong>
-                    <span style="color: #00b894; font-weight: bold;">${getStatusText(order.status)}</span>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px; padding: 10px; background: #f8f9fa; border-radius: 5px;">
-                <div style="font-weight: bold; margin-bottom: 8px; color: #2d3436;">👤 DADOS DO CLIENTE:</div>
-                <div style="font-size: 14px; line-height: 1.4;">
-                    <strong>Nome:</strong> ${order.customer_name}<br>
-                    <strong>Telefone:</strong> ${order.customer_phone}<br>
-                    <strong>Endereço:</strong> ${order.customer_address}<br>
-                    ${order.customer_neighborhood ? `<strong>Bairro:</strong> ${order.customer_neighborhood}<br>` : ''}
-                    ${order.customer_reference ? `<strong>Referência:</strong> ${order.customer_reference}<br>` : ''}
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px;">
-                <div style="font-weight: bold; margin-bottom: 10px; border-bottom: 1px solid #000; padding-bottom: 5px;">🛒 ITENS DO PEDIDO:</div>
-                <table style="width: 100%; border-collapse: collapse;">
-                    <thead>
-                        <tr style="border-bottom: 1px solid #000; background: #f8f9fa;">
-                            <th style="text-align: left; padding: 8px; font-size: 12px;">Item</th>
-                            <th style="text-align: center; padding: 8px; font-size: 12px;">Qtd</th>
-                            <th style="text-align: right; padding: 8px; font-size: 12px;">Valor</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        ${order.items.map(item => `
-                            <tr style="border-bottom: 1px solid #eee;">
-                                <td style="padding: 8px; font-size: 13px;">${item.product_name}</td>
-                                <td style="text-align: center; padding: 8px; font-size: 13px;">${item.quantity}</td>
-                                <td style="text-align: right; padding: 8px; font-size: 13px;">${formatCurrency(item.subtotal)}</td>
-                            </tr>
-                        `).join('')}
-                    </tbody>
-                </table>
-            </div>
-            
-            <div style="border-top: 2px solid #000; padding-top: 15px; margin-bottom: 20px;">
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>Subtotal:</span>
-                    <span>${formatCurrency(order.total_amount - order.delivery_fee)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; margin-bottom: 5px;">
-                    <span>Taxa de entrega:</span>
-                    <span>${formatCurrency(order.delivery_fee)}</span>
-                </div>
-                <div style="display: flex; justify-content: space-between; font-weight: bold; font-size: 18px; border-top: 1px solid #000; padding-top: 10px; margin-top: 10px;">
-                    <span>TOTAL:</span>
-                    <span style="color: #2d3436;">${formatCurrency(order.total_amount)}</span>
-                </div>
-            </div>
-            
-            <div style="margin-bottom: 20px; padding: 10px; background: #e8f5e8; border-radius: 5px;">
-                <div style="font-weight: bold; margin-bottom: 8px; color: #2d3436;">💳 INFORMAÇÕES DE PAGAMENTO:</div>
-                <div style="font-size: 14px; line-height: 1.4;">
-                    <strong>Forma de pagamento:</strong> ${getPaymentMethodText(order.payment_method)}<br>
-                    ${order.payment_value ? `<strong>Valor pago:</strong> ${formatCurrency(order.payment_value)}<br>` : ''}
-                    ${order.change_amount > 0 ? `<strong>Troco:</strong> ${formatCurrency(order.change_amount)}<br>` : ''}
-                </div>
-            </div>
-            
-            ${order.notes ? `
-            <div style="margin-bottom: 20px; padding: 10px; background: #fff3cd; border: 1px solid #ffeaa7; border-radius: 5px;">
-                <div style="font-weight: bold; margin-bottom: 5px; color: #856404;">📝 OBSERVAÇÕES:</div>
-                <div style="font-size: 14px; color: #856404;">${order.notes}</div>
-            </div>
-            ` : ''}
-            
-            <div style="text-align: center; margin-top: 30px; padding: 15px; background: #f8f9fa; border-radius: 5px;">
-                <div style="font-size: 14px; font-weight: bold; color: #2d3436; margin-bottom: 5px;">Obrigado pela preferência!</div>
-                <div style="font-size: 11px; color: #636e72;">
-                    Impresso em: ${new Date().toLocaleString('pt-BR')}
-                </div>
-            </div>
-        </div>
-    `;
-    
+    const printContent = generateCustomerReceiptHtml(order);
     printDocument(printContent);
     closePrintModal();
 }
@@ -840,78 +853,37 @@ function printDocument(content) {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Impressão - Sabor & Cia</title>
+            <title>Impressão - ${ (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'Cardápio Digital' }</title>
+            <meta charset="utf-8" />
+            <meta name="viewport" content="width=device-width, initial-scale=1" />
+            <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
             <style>
-                * {
-                    box-sizing: border-box;
-                }
-                
-                body { 
-                    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                    font-size: 12px; 
-                    margin: 0; 
-                    padding: 10px; 
-                    background: #fff;
-                }
-                
-                .print-content { 
-                    max-width: 80mm; 
-                    margin: 0 auto; 
-                    background: #fff;
-                }
-                
-                table { 
-                    width: 100%; 
-                    border-collapse: collapse;
-                }
-                
-                th, td {
-                    padding: 4px 6px;
-                    text-align: left;
-                    border-bottom: 1px solid #ddd;
-                }
-                
-                th {
-                    background: #f8f9fa;
-                    font-weight: bold;
-                }
-                
                 @media print {
-                    body { 
-                        margin: 0; 
-                        padding: 5px;
-                    }
-                    .print-content { 
-                        max-width: none; 
-                        width: 100%;
-                    }
-                    @page {
-                        margin: 0.5cm;
-                        size: 80mm auto;
-                    }
+                    body * { visibility: hidden; }
+                    #print-area, #print-area * { visibility: visible; }
+                    #print-area { position: absolute; left: 0; top: 0; width: 100%; }
+                    .no-print { display: none; }
+                    @page { margin: 0.5cm; size: 80mm auto; }
                 }
-                
-                /* Estilos específicos para impressão */
-                .print-content h1, .print-content h2, .print-content h3 {
-                    margin: 0 0 10px 0;
-                    page-break-after: avoid;
-                }
-                
-                .print-content div {
-                    page-break-inside: avoid;
-                }
-                
-                /* Cores para impressão */
-                @media print {
-                    * {
-                        -webkit-print-color-adjust: exact !important;
-                        color-adjust: exact !important;
-                    }
-                }
+
+                body { font-family: 'Inconsolata', monospace; background: #fff; margin: 0; padding: 10px; }
+                .receipt { width: 302px; background: #fff; color: #000; padding: 15px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+                .receipt h1, .receipt h2, .receipt p, .receipt li { margin: 0; padding: 0; }
+                .header { text-align: center; margin-bottom: 10px; }
+                .header h1 { font-size: 1.5rem; font-weight: 700; text-transform: uppercase; }
+                .logo { display: block; max-width: 160px; max-height: 60px; margin: 0 auto 6px; }
+                .order-details p { font-size: 0.9rem; line-height: 1.4; }
+                .separator { border-top: 1px dashed #000; margin: 10px 0; }
+                .item-section h2 { text-align: center; font-size: 1.4rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
+                .item-details { font-size: 1.1rem; margin-left: 5px; list-style: none; }
+                .item-details li { margin-bottom: 3px; }
+                .obs-section { border: 2px solid #000; padding: 10px; margin-top: 10px; }
+                .obs-section h2 { text-align: center; font-size: 1.2rem; font-weight: 700; margin-bottom: 5px; text-transform: uppercase; }
+                .obs-section ul { font-size: 1.1rem; font-weight: 700; list-style: none; padding-left: 0; }
             </style>
         </head>
         <body>
-            ${content}
+            <div id="print-area">${content}</div>
             <script>
                 window.onload = function() {
                     setTimeout(function() {
@@ -990,7 +962,10 @@ function renderCategoriesGrid() {
  * Atualiza dashboard com estatísticas
  */
 function updateDashboard() {
-    const today = new Date().toISOString().split('T')[0];
+    const _now = new Date();
+    const _tzOffsetMin = _now.getTimezoneOffset();
+    const _local = new Date(_now.getTime() - _tzOffsetMin * 60000);
+    const today = _local.toISOString().split('T')[0];
     const todayOrders = appState.orders.filter(order => 
         order.created_at.startsWith(today)
     );
@@ -1043,6 +1018,11 @@ function setupEventListeners() {
         }
     });
 }
+
+// Render inicial do botão de pausa após DOM pronto
+document.addEventListener('DOMContentLoaded', () => {
+    try { renderPauseButtonState(); } catch (_) {}
+});
 
 /**
  * Mostra seção específica
@@ -1140,9 +1120,8 @@ function startAutoRefresh() {
     }
     
     appState.refreshInterval = setInterval(() => {
-        if (appState.currentSection === 'orders') {
-            loadOrders();
-        }
+        // Sempre verifica pedidos para tocar som em qualquer seção
+        loadOrders();
     }, CONFIG.REFRESH_INTERVAL);
 }
 
@@ -1288,10 +1267,671 @@ window.refreshOrders = refreshOrders;
 window.updateOrderStatus = updateOrderStatus;
 window.showOrderDetail = showOrderDetail;
 window.closeOrderDetailModal = closeOrderDetailModal;
+window.openCancelOrder = openCancelOrder;
+window.closeCancelOrderModal = closeCancelOrderModal;
+window.confirmCancelOrder = confirmCancelOrder;
 
 // ========================================
 // FUNÇÕES DE GERENCIAMENTO DE PRODUTOS
 // ========================================
+
+// Listener para mensagens vindas do iframe do POS (frontend)
+window.addEventListener('message', (event) => {
+    try {
+        const data = event.data || {};
+        if (data && data.type === 'posOrderCreated') {
+            // Fecha modal e atualiza quadro de pedidos
+            closeNewOrderModal();
+            // Evita tocar som para o próprio pedido recém-criado
+            appState.suppressOrderSoundOnce = true;
+            refreshOrders();
+            showSuccess('Pedido criado no balcão com sucesso!');
+        }
+    } catch (_) { /* noop */ }
+});
+
+// ========================================
+// NOVO PEDIDO (LOCAL/RETIRADA/DELIVERY)
+// ========================================
+
+let newOrderState = {
+    mode: 'local',
+    items: [],
+    filteredProducts: [],
+    search: '',
+    pizza: {
+        sizeId: null,
+        sizeMaxFlavors: 0,
+        flavorIds: [],
+        borderId: null,
+        extraIds: [],
+        lastPrice: null,
+        lastName: null
+    }
+};
+
+async function openNewOrderModal(mode = 'local') {
+    newOrderState = { mode, items: [] };
+    const modal = document.getElementById('newOrderModal');
+    if (!modal) {
+        showError('Modal de novo pedido não carregado.');
+        return;
+    }
+
+    // Tenta abordagem mais robusta: abrir POS em nova aba/janela
+    try {
+        const posUrl = new URL('../pos.html', window.location.href);
+        posUrl.searchParams.set('pos', '1');
+        posUrl.searchParams.set('mode', String(mode || 'local'));
+        const win = window.open(posUrl.href, 'pos_window');
+        if (win && !win.closed) {
+            // Assinar canal para receber confirmação do pedido criado
+            try {
+                if (window.__posChannel) {
+                    try { window.__posChannel.close(); } catch (_) {}
+                }
+                const ch = new BroadcastChannel('pos-orders');
+                ch.onmessage = (ev) => {
+                    const data = ev && ev.data;
+                    if (data && data.type === 'posOrderCreated') {
+                        appState.suppressOrderSoundOnce = true;
+                        refreshOrders();
+                        showSuccess('Pedido criado no balcão com sucesso!');
+                    }
+                };
+                window.__posChannel = ch;
+            } catch (_) { /* BroadcastChannel indisponível, seguirá fallback via postMessage */ }
+            return; // Não abre o modal/iframe quando conseguiu abrir nova aba
+        }
+    } catch (_) { /* continua para fallback */ }
+
+    // Fallback: POS via iframe dentro do modal
+    const posIframe = document.getElementById('posIframe');
+    if (posIframe) {
+        try {
+            // Monta URL absoluta do frontend (mais robusto que caminho relativo)
+            // Preferir página POS dedicada para contexto de balcão
+            const indexUrl = new URL('../pos.html', window.location.href);
+            indexUrl.searchParams.set('pos', '1');
+            indexUrl.searchParams.set('mode', String(mode || 'local'));
+            posIframe.src = indexUrl.href;
+        } catch (e) {
+            console.warn('Falha ao configurar POS iframe:', e);
+        }
+        modal.classList.add('show');
+        return; // Evita executar o fluxo antigo baseado em campos internos
+    }
+
+    // Campos
+    const modeSelect = document.getElementById('orderModeSelect');
+    const paymentMethod = document.getElementById('paymentMethod');
+    const paymentValueGroup = document.getElementById('paymentValueGroup');
+    const paymentValue = document.getElementById('paymentValue');
+    const deliveryFields = document.getElementById('deliveryFields');
+    const deliveryFee = document.getElementById('deliveryFee');
+    const itemsList = document.getElementById('newOrderItemsList');
+    const productsContainer = document.getElementById('newOrderProductsContainer');
+    const searchInput = document.getElementById('newOrderSearch');
+    const pizzaTabBtn = document.getElementById('newOrderTabPizza');
+    const productsTabBtn = document.getElementById('newOrderTabProducts');
+    const pizzaTab = document.getElementById('newOrderPizzaTab');
+    const productsTab = document.getElementById('newOrderProductsTab');
+    const totalEl = document.getElementById('newOrderTotal');
+
+    // Reset
+    if (modeSelect) modeSelect.value = mode;
+    if (paymentMethod) paymentMethod.value = 'dinheiro';
+    if (paymentValue) paymentValue.value = '';
+    if (itemsList) itemsList.innerHTML = '';
+    if (totalEl) totalEl.textContent = 'Total: R$ 0,00';
+    if (deliveryFee) deliveryFee.value = mode === 'delivery' ? '0.00' : '0.00';
+
+    // Popular vitrine amigável
+    if (productsContainer) {
+        newOrderState.search = '';
+        if (searchInput) searchInput.value = '';
+        newOrderState.filteredProducts = [...(appState.products || [])];
+        renderNewOrderProducts();
+    }
+
+    // Preparar Pizza Builder (carregar dados)
+    resetPizzaBuilderState();
+    await ensurePizzaBuilderDataLoaded();
+    renderPizzaBuilder();
+
+    // Handlers
+    if (paymentMethod) {
+        paymentMethod.onchange = () => {
+            if (paymentMethod.value === 'dinheiro') {
+                paymentValueGroup.style.display = '';
+            } else {
+                paymentValueGroup.style.display = 'none';
+                if (paymentValue) paymentValue.value = '';
+            }
+        };
+        paymentMethod.onchange();
+    }
+
+    handleOrderModeChange(mode);
+
+    modal.classList.add('show');
+}
+
+function closeNewOrderModal() {
+    const modal = document.getElementById('newOrderModal');
+    if (modal) {
+        modal.classList.remove('show');
+        const posIframe = document.getElementById('posIframe');
+        if (posIframe) {
+            // Limpa o src para liberar recursos
+            posIframe.src = '';
+        }
+    }
+}
+
+function handleOrderModeChange(mode) {
+    newOrderState.mode = mode;
+    const deliveryFields = document.getElementById('deliveryFields');
+    if (deliveryFields) deliveryFields.style.display = (mode === 'delivery') ? '' : 'none';
+    recalcNewOrderTotal();
+}
+
+function addItemToNewOrder(productId) {
+    const product = (appState.products || []).find(p => Number(p.id) === Number(productId));
+    if (!product) return;
+    const existingIndex = newOrderState.items.findIndex(it => Number(it.product_id) === Number(product.id));
+    if (existingIndex >= 0) {
+        newOrderState.items[existingIndex].quantity = Number(newOrderState.items[existingIndex].quantity || 1) + 1;
+    } else {
+        newOrderState.items.push({
+            product_id: product.id,
+            product_name: product.name,
+            product_price: Number(product.price || 0),
+            quantity: 1,
+            notes: ''
+        });
+    }
+    renderNewOrderItems();
+}
+
+function removeItemFromNewOrder(index) {
+    if (index < 0 || index >= newOrderState.items.length) return;
+    newOrderState.items.splice(index, 1);
+    renderNewOrderItems();
+}
+
+function renderNewOrderItems() {
+    const itemsList = document.getElementById('newOrderItemsList');
+    if (!itemsList) return;
+    if (!newOrderState.items.length) {
+        itemsList.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>Nenhum item adicionado</p></div>';
+        recalcNewOrderTotal();
+        return;
+    }
+    itemsList.innerHTML = `
+        <div class="list-row" style="font-weight:600; background:#f8f9fa;">
+            <div class="list-col">Produto</div>
+            <div class="list-col">Qtd</div>
+            <div class="list-col">Unitário</div>
+            <div class="list-col">Subtotal</div>
+            <div class="list-col">Ações</div>
+        </div>
+    ` + newOrderState.items.map((it, idx) => {
+        const subtotal = (Number(it.product_price || 0) * Number(it.quantity || 1));
+        return `
+            <div class="list-row">
+                <div class="list-col">
+                    <div class="item-info">
+                        <strong>${it.quantity}x ${it.product_name}</strong>
+                        ${it.notes ? `<small>${it.notes}</small>` : ''}
+                    </div>
+                </div>
+                <div class="list-col">
+                    <div class="qty-control">
+                        <button type="button" class="action-btn" onclick="decrementItemQty(${idx})"><i class="fas fa-minus"></i></button>
+                        <input type="number" min="1" value="${Number(it.quantity || 1)}" onchange="changeItemQty(${idx}, this.value)" style="width:64px; text-align:center;" />
+                        <button type="button" class="action-btn" onclick="incrementItemQty(${idx})"><i class="fas fa-plus"></i></button>
+                    </div>
+                </div>
+                <div class="list-col"><span class="price-display">${formatCurrency(Number(it.product_price || 0))}</span></div>
+                <div class="list-col"><span class="price-display">${formatCurrency(subtotal)}</span></div>
+                <div class="list-col list-actions">
+                    <button class="action-btn delete" title="Remover" onclick="removeItemFromNewOrder(${idx})"><i class="fas fa-trash"></i></button>
+                </div>
+            </div>`;
+    }).join('');
+    recalcNewOrderTotal();
+}
+
+function recalcNewOrderTotal() {
+    const totalEl = document.getElementById('newOrderTotal');
+    const deliveryFeeInput = document.getElementById('deliveryFee');
+    const deliveryFee = (newOrderState.mode === 'delivery') ? Number(deliveryFeeInput?.value || 0) : 0;
+    const subtotal = newOrderState.items.reduce((sum, it) => sum + Number(it.product_price || 0) * Number(it.quantity || 1), 0);
+    const total = subtotal + deliveryFee;
+    if (totalEl) totalEl.textContent = `Total: ${formatCurrency(total)}`;
+}
+
+function renderNewOrderProducts() {
+    const container = document.getElementById('newOrderProductsContainer');
+    if (!container) return;
+    const products = newOrderState.filteredProducts || [];
+    if (!products.length) {
+        container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-search"></i><p>Nenhum produto encontrado</p></div>';
+        return;
+    }
+    // Agrupa por categoria
+    const byCategory = products.reduce((acc, p) => {
+        const key = p.category_name || 'Outros';
+        acc[key] = acc[key] || [];
+        acc[key].push(p);
+        return acc;
+    }, {});
+    container.innerHTML = Object.entries(byCategory).map(([cat, prods]) => `
+        <div class="accordion-item">
+            <h2 class="accordion-header">
+                <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#newOrder-cat-${cat.replace(/\s+/g,'-')}">
+                    <div class="category-title"><i class="fas fa-tag"></i><span>${cat}</span><span class="category-count">${prods.length} itens</span></div>
+                </button>
+            </h2>
+            <div id="newOrder-cat-${cat.replace(/\s+/g,'-')}" class="accordion-collapse collapse">
+                <div class="accordion-body">
+                    <div class="products-grid">
+                        ${prods.map(p => `
+                            <div class="product-card">
+                                <div class="product-info">
+                                    <div class="product-header">
+                                        <h4 class="product-name">${p.name}</h4>
+                                        <div class="product-price">${formatCurrency(Number(p.price || 0))}</div>
+                                    </div>
+                                    <div class="product-actions">
+                                        <button class="product-btn edit" title="Adicionar" onclick="addItemToNewOrder(${p.id})"><i class="fas fa-plus"></i></button>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            </div>
+        </div>
+    `).join('');
+}
+
+function filterNewOrderProducts() {
+    const term = (document.getElementById('newOrderSearch')?.value || '').toLowerCase();
+    newOrderState.search = term;
+    const base = Array.isArray(appState.products) ? appState.products : [];
+    newOrderState.filteredProducts = !term ? [...base] : base.filter(p => `${p.name} ${p.category_name || ''}`.toLowerCase().includes(term));
+    renderNewOrderProducts();
+}
+
+function changeItemQty(index, value) {
+    const qty = Math.max(1, Number(value || 1));
+    if (!newOrderState.items[index]) return;
+    newOrderState.items[index].quantity = qty;
+    renderNewOrderItems();
+}
+
+function incrementItemQty(index) {
+    if (!newOrderState.items[index]) return;
+    newOrderState.items[index].quantity = Number(newOrderState.items[index].quantity || 1) + 1;
+    renderNewOrderItems();
+}
+
+function decrementItemQty(index) {
+    if (!newOrderState.items[index]) return;
+    const newQty = Number(newOrderState.items[index].quantity || 1) - 1;
+    newOrderState.items[index].quantity = Math.max(1, newQty);
+    renderNewOrderItems();
+}
+
+// =============================
+// PIZZA BUILDER - ADMIN BALCÃO
+// =============================
+
+function showNewOrderTab(which) {
+    const tabs = {
+        products: document.getElementById('newOrderProductsTab'),
+        pizza: document.getElementById('newOrderPizzaTab')
+    };
+    const btns = {
+        products: document.getElementById('newOrderTabProducts'),
+        pizza: document.getElementById('newOrderTabPizza')
+    };
+    Object.values(tabs).forEach(el => el && el.classList.remove('active'));
+    Object.values(btns).forEach(el => el && el.classList.remove('active'));
+    tabs[which]?.classList.add('active');
+    btns[which]?.classList.add('active');
+}
+
+function resetPizzaBuilderState() {
+    newOrderState.pizza = {
+        sizeId: null,
+        sizeMaxFlavors: 0,
+        flavorIds: [],
+        borderId: null,
+        extraIds: [],
+        lastPrice: null,
+        lastName: null
+    };
+}
+
+async function ensurePizzaBuilderDataLoaded() {
+    // carrega via API pizza/ endpoints
+    try {
+        const [sizesRes, flavorsRes, bordersRes, extrasRes] = await Promise.all([
+            fetch(CONFIG.API_BASE_URL + 'pizza/sizes'),
+            fetch(CONFIG.API_BASE_URL + 'pizza/flavors'),
+            fetch(CONFIG.API_BASE_URL + 'pizza/borders'),
+            fetch(CONFIG.API_BASE_URL + 'pizza/extras')
+        ]);
+        const [sizes, flavors, borders, extras] = await Promise.all([
+            sizesRes.json(), flavorsRes.json(), bordersRes.json(), extrasRes.json()
+        ]);
+        newOrderState.pizzaData = {
+            sizes: (sizes.success ? sizes.data : []),
+            flavors: (flavors.success ? flavors.data : []),
+            borders: (borders.success ? borders.data : []),
+            extras: (extras.success ? extras.data : [])
+        };
+    } catch (e) {
+        console.error('Erro ao carregar dados do Pizza Builder', e);
+        newOrderState.pizzaData = { sizes: [], flavors: [], borders: [], extras: [] };
+    }
+}
+
+function renderPizzaBuilder(filterFlavorCategory = '') {
+    const sizesWrap = document.getElementById('pbSizes');
+    const flavorsWrap = document.getElementById('pbFlavors');
+    const bordersWrap = document.getElementById('pbBorders');
+    const extrasWrap = document.getElementById('pbExtras');
+    const data = newOrderState.pizzaData || { sizes: [], flavors: [], borders: [], extras: [] };
+    if (sizesWrap) {
+        sizesWrap.innerHTML = (data.sizes || []).map(s => `
+            <label class="checkbox-label">
+              <input type="radio" name="pbSize" value="${s.id}" onchange="pbSelectSize(${s.id}, ${s.max_flavors})" ${Number(newOrderState.pizza.sizeId)===Number(s.id)?'checked':''} />
+              <span class="checkmark"></span>
+              <div class="size-info">
+                <strong>${s.name}</strong>
+                <small>${s.slices} fatias • até ${s.max_flavors} sabores</small>
+                <span class="price">${formatCurrency(Number(s.price||0))}</span>
+              </div>
+            </label>
+        `).join('');
+    }
+    if (flavorsWrap) {
+        const list = (data.flavors || []).filter(f => !filterFlavorCategory || f.category === filterFlavorCategory);
+        flavorsWrap.innerHTML = list.map(f => `
+            <label class="checkbox-label">
+              <input type="checkbox" value="${f.id}" onchange="pbToggleFlavor(${f.id})" ${newOrderState.pizza.flavorIds.includes(f.id)?'checked':''} />
+              <span class="checkmark"></span>
+              <div class="size-info">
+                <strong>${f.name}</strong>
+                <small>${f.category}</small>
+              </div>
+            </label>
+        `).join('');
+    }
+    if (bordersWrap) {
+        bordersWrap.innerHTML = (data.borders || []).map(b => `
+            <label class="checkbox-label">
+              <input type="radio" name="pbBorder" value="${b.id}" onchange="pbSelectBorder(${b.id})" ${Number(newOrderState.pizza.borderId)===Number(b.id)?'checked':''} />
+              <span class="checkmark"></span>
+              <div class="size-info">
+                <strong>${b.name}</strong>
+                <span class="price">+ ${formatCurrency(Number(b.additional_price||0))}</span>
+              </div>
+            </label>
+        `).join('');
+    }
+    if (extrasWrap) {
+        extrasWrap.innerHTML = (data.extras || []).map(ex => `
+            <label class="checkbox-label">
+              <input type="checkbox" value="${ex.id}" onchange="pbToggleExtra(${ex.id})" ${newOrderState.pizza.extraIds.includes(ex.id)?'checked':''} />
+              <span class="checkmark"></span>
+              <div class="size-info">
+                <strong>${ex.name}</strong>
+                <span class="price">+ ${formatCurrency(Number(ex.price||0))}</span>
+              </div>
+            </label>
+        `).join('');
+    }
+    updatePizzaBuilderPrice();
+}
+
+function pbFilterFlavors(cat) {
+    renderPizzaBuilder(cat);
+}
+
+function pbSelectSize(sizeId, maxFlavors) {
+    newOrderState.pizza.sizeId = Number(sizeId);
+    newOrderState.pizza.sizeMaxFlavors = Number(maxFlavors || 0);
+    if (newOrderState.pizza.flavorIds.length > newOrderState.pizza.sizeMaxFlavors) {
+        newOrderState.pizza.flavorIds = newOrderState.pizza.flavorIds.slice(0, newOrderState.pizza.sizeMaxFlavors);
+    }
+    updatePizzaBuilderPrice();
+}
+
+function pbToggleFlavor(flavorId) {
+    flavorId = Number(flavorId);
+    const idx = newOrderState.pizza.flavorIds.indexOf(flavorId);
+    if (idx >= 0) {
+        newOrderState.pizza.flavorIds.splice(idx, 1);
+    } else {
+        if (newOrderState.pizza.sizeMaxFlavors && newOrderState.pizza.flavorIds.length >= newOrderState.pizza.sizeMaxFlavors) {
+            showError(`Este tamanho permite no máximo ${newOrderState.pizza.sizeMaxFlavors} sabores.`);
+            return;
+        }
+        newOrderState.pizza.flavorIds.push(flavorId);
+    }
+    updatePizzaBuilderPrice();
+}
+
+function pbSelectBorder(borderId) {
+    newOrderState.pizza.borderId = Number(borderId);
+    updatePizzaBuilderPrice();
+}
+
+function pbToggleExtra(extraId) {
+    extraId = Number(extraId);
+    const idx = newOrderState.pizza.extraIds.indexOf(extraId);
+    if (idx >= 0) {
+        newOrderState.pizza.extraIds.splice(idx, 1);
+    } else {
+        newOrderState.pizza.extraIds.push(extraId);
+    }
+    updatePizzaBuilderPrice();
+}
+
+async function updatePizzaBuilderPrice() {
+    const pz = newOrderState.pizza;
+    const summaryEl = document.getElementById('pbSummary');
+    if (!pz.sizeId || !pz.flavorIds.length) {
+        if (summaryEl) summaryEl.textContent = 'Selecione tamanho e sabores para calcular o preço.';
+        return;
+    }
+    try {
+        const response = await fetch(CONFIG.API_BASE_URL + 'pizza/calculate-price', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                size_id: pz.sizeId,
+                flavor_ids: pz.flavorIds,
+                border_id: pz.borderId,
+                extra_ids: pz.extraIds
+            })
+        });
+        const data = await response.json();
+        if (response.ok && data && data.success) {
+            const d = data.data;
+            pz.lastPrice = Number(d.pricing?.total_price || 0);
+            const sizeName = d.summary?.size_name || '';
+            const flavorsName = (d.summary?.flavor_names || []).join(', ');
+            pz.lastName = `Pizza ${sizeName}${flavorsName ? ' - ' + flavorsName : ''}`;
+            if (summaryEl) summaryEl.innerHTML = `
+                <strong>${pz.lastName}</strong><br/>
+                Total: <strong>${formatCurrency(pz.lastPrice)}</strong>
+            `;
+        } else {
+            if (summaryEl) summaryEl.textContent = data?.message || 'Erro ao calcular';
+        }
+    } catch (e) {
+        if (summaryEl) summaryEl.textContent = 'Erro ao calcular o preço.';
+    }
+}
+
+function addBuiltPizzaToOrder() {
+    const pz = newOrderState.pizza;
+    if (!pz.sizeId || !pz.flavorIds.length || pz.lastPrice === null) {
+        showError('Selecione tamanho e sabores para adicionar.');
+        return;
+    }
+    // Adiciona como item único com nome/price calculado
+    newOrderState.items.push({
+        product_id: 0,
+        product_name: pz.lastName || 'Pizza',
+        product_price: Number(pz.lastPrice || 0),
+        quantity: 1,
+        notes: '',
+        pizzaConfig: {
+            sizeId: pz.sizeId,
+            flavorIds: [...pz.flavorIds],
+            borderId: pz.borderId,
+            extraIds: [...pz.extraIds]
+        }
+    });
+    renderNewOrderItems();
+    showNewOrderTab('products');
+}
+
+async function submitNewOrder() {
+    try {
+        if (!newOrderState.items.length) {
+            showError('Adicione pelo menos um item.');
+            return;
+        }
+
+        // Campos do formulário
+        const mode = newOrderState.mode;
+        const customerName = (document.getElementById('customerName')?.value || '').trim();
+        const customerPhone = (document.getElementById('customerPhone')?.value || '').trim();
+        const customerAddress = (document.getElementById('customerAddress')?.value || '').trim();
+        const customerNeighborhood = (document.getElementById('customerNeighborhood')?.value || '').trim();
+        const customerReference = (document.getElementById('customerReference')?.value || '').trim();
+        const deliveryFeeVal = (mode === 'delivery') ? Number(document.getElementById('deliveryFee')?.value || 0) : 0;
+        const paymentMethod = (document.getElementById('paymentMethod')?.value || 'dinheiro');
+        const paymentValueRaw = document.getElementById('paymentValue')?.value;
+        const paymentValue = paymentMethod === 'dinheiro' && paymentValueRaw ? Number(paymentValueRaw) : null;
+        const notes = (document.getElementById('orderNotes')?.value || '').trim();
+
+        // Validações mínimas
+        if (mode === 'delivery') {
+            if (!customerName || !customerPhone || !customerAddress) {
+                showError('Para delivery, preencha Nome, Telefone e Endereço.');
+                return;
+            }
+        }
+
+        // Backend exige campos mesmo para local/retirada: usar placeholders seguros
+        const safeName = customerName || (mode === 'local' ? 'Mesa' : 'Cliente')
+        const safePhone = customerPhone || '00000000000';
+        const safeAddress = (mode === 'delivery') ? customerAddress : '-';
+
+        const subtotal = newOrderState.items.reduce((sum, it) => sum + Number(it.product_price || 0) * Number(it.quantity || 1), 0);
+
+        // Se houver pizzas montadas, criar produtos antes e atualizar itens
+        for (let i = 0; i < newOrderState.items.length; i++) {
+            const it = newOrderState.items[i];
+            if (it && it.pizzaConfig && (!it.product_id || Number(it.product_id) === 0)) {
+                try {
+                    const resp = await fetch(CONFIG.API_BASE_URL + 'pizza/create', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        credentials: 'include',
+                        body: JSON.stringify({
+                            size_id: it.pizzaConfig.sizeId,
+                            flavor_ids: it.pizzaConfig.flavorIds,
+                            border_id: it.pizzaConfig.borderId,
+                            extra_ids: it.pizzaConfig.extraIds,
+                            category_id: 2
+                        })
+                    });
+                    const respData = await resp.json();
+                    if (resp.ok && respData && respData.success && respData.data) {
+                        it.product_id = respData.data.product_id;
+                        it.product_name = respData.data.name || it.product_name;
+                        it.product_price = Number(respData.data.price || it.product_price);
+                    } else {
+                        throw new Error(respData?.message || 'Falha ao criar pizza');
+                    }
+                } catch (e) {
+                    showError(e.message || 'Erro ao criar pizza para o pedido');
+                    return;
+                }
+            }
+        }
+
+        const payload = {
+            customer_name: safeName,
+            customer_phone: safePhone,
+            customer_address: safeAddress,
+            customer_neighborhood: customerNeighborhood,
+            customer_reference: customerReference,
+            payment_method: paymentMethod,
+            payment_value: paymentValue,
+            subtotal: subtotal,
+            delivery_fee: deliveryFeeVal,
+            notes: notes,
+            estimated_delivery_time: 30,
+            items: newOrderState.items.map(it => ({
+                product_id: it.product_id,
+                product_name: it.product_name,
+                product_price: Number(it.product_price || 0),
+                quantity: Number(it.quantity || 1),
+                notes: it.notes || ''
+            }))
+        };
+
+        showLoading();
+        const response = await fetch(CONFIG.API_BASE_URL + 'orders', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify(payload)
+        });
+        const data = await response.json();
+        if (!response.ok || !data || !data.success) {
+            throw new Error(data?.message || 'Erro ao criar pedido');
+        }
+
+        closeNewOrderModal();
+        await loadOrders({ suppressSound: true });
+        showSuccess('Pedido criado com sucesso.');
+    } catch (err) {
+        console.error(err);
+        showError(err.message || 'Erro ao criar pedido');
+    } finally {
+        hideLoading();
+    }
+}
+
+// Expor globais
+window.openNewOrderModal = openNewOrderModal;
+window.closeNewOrderModal = closeNewOrderModal;
+window.handleOrderModeChange = handleOrderModeChange;
+window.addItemToNewOrder = addItemToNewOrder;
+window.removeItemFromNewOrder = removeItemFromNewOrder;
+window.filterNewOrderProducts = filterNewOrderProducts;
+window.changeItemQty = changeItemQty;
+window.incrementItemQty = incrementItemQty;
+window.decrementItemQty = decrementItemQty;
+window.submitNewOrder = submitNewOrder;
+window.showNewOrderTab = showNewOrderTab;
+window.pbFilterFlavors = pbFilterFlavors;
+window.pbSelectSize = pbSelectSize;
+window.pbToggleFlavor = pbToggleFlavor;
+window.pbSelectBorder = pbSelectBorder;
+window.pbToggleExtra = pbToggleExtra;
+window.addBuiltPizzaToOrder = addBuiltPizzaToOrder;
 
 // Estado dos produtos
 let productsState = {

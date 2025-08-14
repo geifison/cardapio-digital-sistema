@@ -54,6 +54,14 @@
                     <i class="fas fa-user-circle"></i>
                     <span id="userName">Administrador</span>
                 </div>
+                <div class="dropdown">
+                    <button class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Configurações" style="text-decoration:none; color:#2c3e50;">
+                        <i class="fas fa-cog"></i>
+                    </button>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        
+                    </ul>
+                </div>
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
                     Sair
@@ -81,6 +89,13 @@
                 <i class="fas fa-chart-bar"></i>
                 Relatórios
             </button>
+            
+            <!-- Ações à direita da barra de menus -->
+            <span style="margin-left:auto; display:flex; align-items:center; gap:10px;">
+                <button id="pauseOrdersNavBtn" class="btn btn-link" type="button" onclick="togglePauseState()" title="Pausar Pedidos" style="text-decoration:none; color:#ffffff;">
+                    <i id="pauseNavIcon" class="fas fa-pause-circle" style="font-size:20px; color:#ffffff;"></i>
+                </button>
+            </span>
         </div>
     </nav>
 
@@ -95,6 +110,16 @@
                         <i class="fas fa-sync-alt"></i>
                         Atualizar
                     </button>
+                     <div class="btn-group">
+                         <button class="add-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
+                             <i class="fas fa-plus"></i> Novo Pedido
+                         </button>
+                         <ul class="dropdown-menu dropdown-menu-end">
+                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('local')"><i class="fas fa-store me-2"></i>No Local</a></li>
+                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('retirada')"><i class="fas fa-bag-shopping me-2"></i>Retirada</a></li>
+                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('delivery')"><i class="fas fa-truck me-2"></i>Delivery</a></li>
+                         </ul>
+                     </div>
                 </div>
             </div>
 
@@ -428,6 +453,8 @@
                 </div>
             </div>
         </section>
+
+        
     </main>
 
     <!-- Include dos Modais -->
@@ -442,5 +469,6 @@
     <script src="assets/js/modals-loader.js?v=20250810"></script>
     <script src="assets/js/admin.js?v=20250810"></script>
     <script src="assets/js/produtos-admin.js?v=20250810"></script>
+    
 </body>
 </html>

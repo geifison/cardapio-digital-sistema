@@ -23,6 +23,8 @@ require_once 'controllers/ProductController.php';
 require_once 'controllers/OrderController.php';
 require_once 'controllers/AuthController.php';
 require_once 'controllers/PizzaController.php';
+require_once 'controllers/SettingsController.php';
+require_once 'controllers/GeocodeController.php';
 require_once __DIR__ . '/EventManager.php';
 
 // Configuração de erro reporting
@@ -48,10 +50,15 @@ try {
     // Obtém a URI da requisição
     $request_uri = $_SERVER['REQUEST_URI'];
     
-    // Remove o caminho do projeto se presente
-    $project_path = '/cardapio-digital-sistema';
-    if (strpos($request_uri, $project_path) === 0) {
-        $request_uri = substr($request_uri, strlen($project_path));
+    // Remove o caminho do projeto se presente (dinâmico)
+    $script_name = $_SERVER['SCRIPT_NAME'] ?? '';
+    $dir = rtrim(str_replace('index.php','', $script_name), '/'); // ex: /cardapio-digital-sistema/api
+    $project_base = '';
+    if ($dir !== '' && strpos($dir, '/api') !== false) {
+        $project_base = substr($dir, 0, strpos($dir, '/api'));
+    }
+    if ($project_base && strpos($request_uri, $project_base) === 0) {
+        $request_uri = substr($request_uri, strlen($project_base));
     }
     
     $base_path = '/api/';
@@ -75,12 +82,31 @@ try {
     // Obtém dados do corpo da requisição
     $input = json_decode(file_get_contents('php://input'), true);
     
-    // Inicializa conexão com banco de dados
+    // Inicializa conexão com banco de dados (com auto-instalação do schema quando necessário)
     $database = new Database();
-    $db = $database->getConnection();
-    
+    try {
+        $db = $database->getConnection();
+    } catch (Throwable $e) {
+        // Tenta criar o banco/tabelas a partir do schema e reconectar
+        try {
+            @ob_start();
+            $database->createDatabase(__DIR__ . '/../database_schema.sql');
+            @ob_end_clean();
+            $db = $database->getConnection();
+        } catch (Throwable $e2) {
+            throw new Exception('Erro de conexão com o banco de dados');
+        }
+    }
     if (!$db) {
-        throw new Exception('Erro de conexão com o banco de dados');
+        // como fallback final
+        try {
+            @ob_start();
+            $database->createDatabase(__DIR__ . '/../database_schema.sql');
+            @ob_end_clean();
+            $db = $database->getConnection();
+        } catch (Throwable $e3) {
+            throw new Exception('Erro de conexão com o banco de dados');
+        }
     }
     
     // Roteamento da API
@@ -120,6 +146,20 @@ try {
         case 'events':
             handleEventRequests($method, $id);
             break;
+        case 'settings':
+            $controller = new SettingsController($db);
+            handleSettingsRequests($controller, $method, $id, $input);
+            break;
+        case 'geocode':
+            $controller = new GeocodeController($db);
+            handleGeocodeRequests($controller, $method, $id, $input);
+            break;
+        case 'delivery':
+            require_once 'controllers/DeliveryController.php';
+            $controller = new DeliveryController($db);
+            handleDeliveryRequests($controller, $method, $id, $input);
+            break;
+        
             
         default:
             http_response_code(404);
@@ -416,6 +456,98 @@ function handlePizzaRequests($controller, $method, $id, $input) {
             }
             break;
 
+        default:
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+            break;
+    }
+}
+
+/**
+ * Gerencia requisições de configurações
+ */
+function handleSettingsRequests($controller, $method, $id, $input) {
+    // Endpoints: google-api-key, business-hours, pause
+    switch ($method) {
+        case 'GET':
+            if ($id === 'google-api-key') {
+                $controller->getGoogleApiKeyStatus();
+            } elseif ($id === 'business-hours') {
+                $controller->getBusinessHours();
+            } elseif ($id === 'pause') {
+                $controller->getPauseState();
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de configurações não encontrado']);
+            }
+            break;
+        case 'POST':
+            if ($id === 'google-api-key') {
+                $controller->saveGoogleApiKey($input);
+            } elseif ($id === 'business-hours') {
+                $controller->saveBusinessHours($input);
+            } elseif ($id === 'pause') {
+                $controller->savePauseState($input);
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de configurações não encontrado']);
+            }
+            break;
+        default:
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+            break;
+    }
+}
+
+/**
+ * Gerencia requisições de geocodificação
+ */
+function handleGeocodeRequests($controller, $method, $id, $input) {
+    switch ($method) {
+        case 'POST':
+            if ($id === 'resolve') {
+                $controller->resolve($input);
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de geocodificação não encontrado']);
+            }
+            break;
+        default:
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+            break;
+    }
+}
+
+ 
+/**
+ * Gerencia requisições de entrega (frete)
+ */
+function handleDeliveryRequests($controller, $method, $id, $input) {
+    switch ($method) {
+        case 'GET':
+            if ($id === 'config') {
+                $controller->getConfig();
+            } elseif ($id === 'public-key') {
+                // Retorna a chave pública APENAS se expose_public_key = 1
+                if (!method_exists($controller, 'getPublicKey')) { require_once 'controllers/DeliveryController.php'; }
+                $controller->getPublicKey();
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de entrega não encontrado']);
+            }
+            break;
+        case 'POST':
+            if ($id === 'config') {
+                $controller->saveConfig($input);
+            } elseif ($id === 'quote') {
+                $controller->quote($input);
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de entrega não encontrado']);
+            }
+            break;
         default:
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Método não permitido']);
