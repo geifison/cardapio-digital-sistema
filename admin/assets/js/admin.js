@@ -479,15 +479,23 @@ function createOrderCard(order, type) {
     switch (type) {
         case 'new':
             actions = `
-                <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'aceito')">
-                    <i class="fas fa-check"></i> Aceitar
+                <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'aceito')" title="Aceitar">
+                    <i class="fas fa-check"></i>
                 </button>
-                <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})">
-                    <i class="fas fa-ban"></i> Cancelar
+                <button class="btn btn-sm btn-outline-warning" onclick="editOrder(${order.id})" title="Editar Pedido">
+                    <i class="fas fa-edit"></i>
+                </button>
+                <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
+                    <i class="fas fa-ban"></i>
                 </button>
             `;
             break;
         case 'production':
+            // Verifica se o pedido tem menos de 30 minutos desde aceito
+            const productionStartTime = new Date(order.accepted_at || order.created_at);
+            const productionElapsed = Math.floor((Date.now() - productionStartTime.getTime()) / 1000 / 60);
+            const canEdit = productionElapsed < 30;
+            
             actions = `
                 <div class="btn-group dropup">
                     <button class="btn btn-sm btn-outline-warning dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Imprimir" onclick="event.stopPropagation()">
@@ -509,6 +517,9 @@ function createOrderCard(order, type) {
                 <button class="btn btn-sm btn-outline-primary" onclick="updateOrderStatus(${order.id}, 'entrega')" title="Enviar para entrega">
                     <i class="fas fa-truck"></i>
                 </button>
+                ${canEdit ? `<button class="btn btn-sm btn-outline-warning" onclick="editOrder(${order.id})" title="Editar Pedido">
+                    <i class="fas fa-edit"></i>
+                </button>` : ''}
                 <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
                     <i class="fas fa-ban"></i>
                 </button>
@@ -523,6 +534,10 @@ function createOrderCard(order, type) {
                     <i class="fas fa-ban"></i>
                 </button>
             `;
+            break;
+        case 'completed':
+            // Pedidos finalizados não têm ações
+            actions = '';
             break;
     }
     
@@ -652,25 +667,174 @@ function showOrderDetail(orderId) {
     
     const modal = document.getElementById('orderDetailModal');
     const content = document.getElementById('orderDetailContent');
-    const footer = document.getElementById('orderDetailFooter');
     
     // Calcula tempo decorrido
     const orderTime = new Date(order.created_at);
     const elapsed = Math.floor((Date.now() - orderTime.getTime()) / 1000 / 60);
     
-    content.innerHTML = generateCustomerReceiptHtml(order);
-    
-    // Footer sempre com apenas dois botões: imprimir e fechar
-    footer.innerHTML = `
-        <button class="btn btn-secondary" onclick="closeOrderDetailModal()">
-            <i class="fas fa-times"></i> Fechar
-        </button>
-        <button class="btn btn-primary" onclick="printCustomerReceipt(${order.id})">
-            <i class="fas fa-print"></i> Imprimir para Cliente
-        </button>
-    `;
+    content.innerHTML = generateNewOrderDetailHtml(order);
     
     modal.classList.add('show');
+    document.body.classList.add('modal-open');
+}
+
+/**
+ * Gera HTML do modal de detalhes do pedido com novo layout Tailwind
+ */
+function generateNewOrderDetailHtml(order) {
+    const createdAt = new Date(order.created_at).toLocaleString('pt-BR');
+    const itemsSubtotal = Array.isArray(order.items)
+        ? order.items.reduce((sum, it) => sum + (typeof it.subtotal === 'number' ? it.subtotal : (it.product_price || 0) * (it.quantity || 0)), 0)
+        : 0;
+    const subtotal = (order.total_amount || 0) - (order.delivery_fee || 0);
+    const businessName = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'Seu Estabelecimento';
+    const isMesa = (order.customer_name || '').toLowerCase().includes('mesa');
+    const tipo = isMesa ? 'MESA' : ((order.customer_address && order.customer_address.trim() !== '') || (order.delivery_fee && order.delivery_fee > 0)
+        ? 'ENTREGA' : 'RETIRADA');
+    
+    // Calcula desconto
+    const discount = Math.max(0, (itemsSubtotal + (order.delivery_fee || 0)) - (order.total_amount || 0));
+    
+    // Calcula troco
+    const changeAmount = order.payment_value && order.payment_value > order.total_amount 
+        ? order.payment_value - order.total_amount 
+        : 0;
+
+    return `
+    <div id="modal" class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl mx-auto overflow-hidden max-h-[90vh]">
+        <!-- Modal Content -->
+        <div id="print-section" class="p-6 sm:p-8 overflow-y-auto max-h-[calc(90vh-120px)]">
+            <!-- Header -->
+            <div class="text-center border-b border-dashed pb-4 mb-6">
+                <h1 class="text-2xl font-bold text-gray-800">${businessName}</h1>
+                <p class="text-sm text-gray-500">${createdAt}</p>
+            </div>
+
+            <!-- Order Info -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-8 gap-y-4 mb-6">
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-gray-600">PEDIDO:</span>
+                    <span id="order-number" class="text-gray-800 font-bold">#${order.order_number || order.id || '-'}</span>
+                    <button onclick="copyToClipboard('#order-number', 'Número do pedido copiado!')" class="no-print text-gray-400 hover:text-blue-600 transition-colors" title="Copiar número do pedido">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="m22 13-2 2-2-2"></path><path d="M11 2H9a2 2 0 0 0-2 2v2"></path></svg>
+                    </button>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-gray-600">STATUS:</span>
+                    <span class="px-3 py-1 bg-green-100 text-green-800 text-sm font-semibold rounded-full">${getStatusText(order.status)}</span>
+                </div>
+                <div class="flex items-center space-x-2">
+                    <span class="font-semibold text-gray-600">TIPO:</span>
+                    <span class="text-gray-800">${tipo}</span>
+                </div>
+            </div>
+
+            <!-- Customer Details -->
+            <div class="bg-gray-50 p-5 rounded-lg mb-6 border border-gray-200">
+                <h2 class="font-bold text-lg text-gray-800 mb-3">Detalhes do Cliente</h2>
+                <div class="space-y-3 text-gray-700">
+                    <p><span class="font-semibold">NOME:</span> ${order.customer_name || '-'}</p>
+                    <div class="flex items-center justify-between">
+                       <p><span class="font-semibold">TELEFONE:</span> <span id="phone-number">${order.customer_phone || '-'}</span></p>
+                       <div class="no-print flex items-center space-x-2">
+                           <button onclick="openWhatsApp()" class="text-gray-400 hover:text-green-600 transition-colors" title="Abrir no WhatsApp">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-message-circle"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"></path></svg>
+                           </button>
+                           <button onclick="copyToClipboard('#phone-number', 'Telefone copiado!')" class="text-gray-400 hover:text-blue-600 transition-colors" title="Copiar telefone">
+                               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="m22 13-2 2-2-2"></path><path d="M11 2H9a2 2 0 0 0-2 2v2"></path></svg>
+                           </button>
+                       </div>
+                    </div>
+                    ${order.customer_address ? `
+                    <div class="flex items-center justify-between">
+                        <p class="pr-4"><span class="font-semibold">ENDEREÇO:</span> <span id="address">${order.customer_address}</span></p>
+                        <button onclick="openMaps()" class="no-print text-gray-400 hover:text-red-600 transition-colors flex-shrink-0" title="Abrir no Mapa">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
+                        </button>
+                    </div>
+                    ` : ''}
+                    ${order.customer_neighborhood ? `<p><span class="font-semibold">BAIRRO:</span> ${order.customer_neighborhood}</p>` : ''}
+                    ${order.customer_reference ? `<p><span class="font-semibold">REFERÊNCIA:</span> ${order.customer_reference}</p>` : ''}
+                </div>
+            </div>
+
+            <!-- Items List -->
+            <div>
+                <h2 class="font-bold text-lg text-gray-800 mb-4">Itens do Pedido</h2>
+                <div class="space-y-4">
+                    ${order.items.map(item => `
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <p class="font-semibold text-gray-800">${item.quantity}x ${item.product_name}</p>
+                            ${item.notes ? `<p class="text-sm text-gray-500">${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).join(', ').toUpperCase()}</p>` : ''}
+                            <p class="text-sm text-gray-500">Unitário: ${formatCurrency(item.product_price || 0)}</p>
+                        </div>
+                        <p class="font-semibold text-gray-800">${formatCurrency(typeof item.subtotal === 'number' ? item.subtotal : (item.product_price || 0) * (item.quantity || 0))}</p>
+                    </div>
+                    `).join('')}
+                </div>
+            </div>
+
+            <!-- Totals -->
+            <div class="border-t border-dashed mt-6 pt-6 space-y-2">
+                <div class="flex justify-between text-gray-600">
+                    <span>Subtotal Itens:</span>
+                    <span>${formatCurrency(itemsSubtotal)}</span>
+                </div>
+                <div class="flex justify-between text-gray-600">
+                    <span>Descontos:</span>
+                    <span>-${formatCurrency(discount)}</span>
+                </div>
+                <div class="flex justify-between text-gray-600">
+                    <span>Entrega:</span>
+                    <span>${formatCurrency(order.delivery_fee || 0)}</span>
+                </div>
+                <div class="flex justify-between font-bold text-xl text-gray-900 mt-2">
+                    <span>Total:</span>
+                    <span>${formatCurrency(order.total_amount || 0)}</span>
+                </div>
+            </div>
+
+            <!-- Payment Details -->
+            <div class="bg-blue-50 border border-blue-200 p-4 rounded-lg mt-6 text-blue-800">
+                 <p><span class="font-semibold">Pagamento:</span> ${getPaymentMethodText(order.payment_method)}</p>
+                 ${order.payment_value ? `<p><span class="font-semibold">Valor pago:</span> ${formatCurrency(order.payment_value)}</p>` : ''}
+                 ${changeAmount > 0 ? `<p><span class="font-semibold">Troco:</span> ${formatCurrency(changeAmount)}</p>` : ''}
+                 ${order.estimated_delivery_time ? `<p><span class="font-semibold">Tempo estimado:</span> ${order.estimated_delivery_time} min</p>` : ''}
+            </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="no-print bg-gray-50 p-6 flex flex-col sm:flex-row items-center justify-end space-y-3 sm:space-y-0 sm:space-x-4 border-t">
+            <button onclick="closeOrderDetailModal()" class="w-full sm:w-auto px-6 py-3 text-gray-700 bg-transparent hover:bg-gray-200 rounded-lg font-semibold transition-colors">
+                Fechar
+            </button>
+            <button onclick="printCustomerReceipt(${order.id})" class="w-full sm:w-auto px-6 py-3 flex items-center justify-center space-x-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition-colors shadow-md hover:shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-printer"><polyline points="6,9 6,2 18,2 18,9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>
+                <span>Imprimir Via do Cliente</span>
+            </button>
+        </div>
+        
+        <!-- Floating message for copy confirmation -->
+        <div id="copy-message" class="no-print fixed bottom-5 right-5 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg opacity-0 transition-opacity duration-300">
+            Texto copiado!
+        </div>
+    </div>`;
+}
+
+/**
+ * Abre o POS para editar um pedido existente
+ */
+function editOrder(orderId) {
+    const order = appState.orders.find(o => o.id === orderId);
+    if (!order) {
+        showError('Pedido não encontrado');
+        return;
+    }
+    
+    // Abre o POS em nova aba com parâmetros de edição
+    const posUrl = `../pos.html?pos=1&edit=${orderId}&orderNumber=${order.order_number || order.id}`;
+    window.open(posUrl, '_blank');
 }
 
 function printCustomerReceipt(orderId) {
@@ -795,6 +959,7 @@ function generateKitchenTicketHtml(order) {
 function closeOrderDetailModal() {
     const modal = document.getElementById('orderDetailModal');
     modal.classList.remove('show');
+    document.body.classList.remove('modal-open');
 }
 
 /**
@@ -1017,6 +1182,18 @@ function setupEventListeners() {
             refreshOrders();
         }
     });
+    
+    // Listener para mensagens de pedidos atualizados via POS
+    try {
+        const channel = new BroadcastChannel('pos-orders');
+        channel.onmessage = function(event) {
+            if (event.data && event.data.type === 'posOrderUpdated') {
+                // Atualiza a lista de pedidos quando um pedido é editado
+                loadOrders({ suppressSound: true });
+                showSuccess(`Pedido #${event.data.payload.orderNumber} atualizado com sucesso!`);
+            }
+        };
+    } catch (_) { /* noop */ }
 }
 
 // Render inicial do botão de pausa após DOM pronto
@@ -4831,4 +5008,65 @@ window.removeImage = removeImage;
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
+
+/**
+ * Função para copiar texto para a área de transferência
+ */
+function copyToClipboard(elementSelector, messageText) {
+    const textToCopy = document.querySelector(elementSelector).innerText;
+    
+    // Cria uma textarea temporária para executar o comando de cópia
+    const textArea = document.createElement('textarea');
+    textArea.value = textToCopy;
+    document.body.appendChild(textArea);
+    textArea.select();
+    try {
+        document.execCommand('copy');
+        showCopyMessage(messageText);
+    } catch (err) {
+        console.error('Falha ao copiar texto: ', err);
+    }
+    document.body.removeChild(textArea);
+}
+
+/**
+ * Função para mostrar uma mensagem de confirmação
+ */
+function showCopyMessage(text) {
+    const message = document.getElementById('copy-message');
+    if (message) {
+        message.innerText = text;
+        message.classList.remove('opacity-0');
+        setTimeout(() => {
+            message.classList.add('opacity-0');
+        }, 2000); // Mensagem desaparece após 2 segundos
+    }
+}
+
+/**
+ * Função para abrir WhatsApp
+ */
+function openWhatsApp() {
+    const phoneElement = document.getElementById('phone-number');
+    if (phoneElement) {
+        // Remove caracteres não numéricos e adiciona código do Brasil (55)
+        const phoneNumber = '55' + phoneElement.innerText.replace(/\D/g, '');
+        const url = `https://wa.me/${phoneNumber}`;
+        window.open(url, '_blank');
+    }
+}
+
+/**
+ * Função para abrir Google Maps
+ */
+function openMaps() {
+    const addressElement = document.getElementById('address');
+    if (addressElement) {
+        const address = addressElement.innerText;
+        // Codifica o endereço para ser usado em uma URL
+        const encodedAddress = encodeURIComponent(address);
+        const url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
+        window.open(url, '_blank');
+    }
+}
 

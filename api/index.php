@@ -315,7 +315,14 @@ function handleOrderRequests($controller, $method, $id, $input) {
             
         case 'PUT':
             if ($id) {
-                $controller->update($id, $input);
+                // Verifica se é edição de itens ou atualização de dados
+                if (isset($input['items']) && is_array($input['items'])) {
+                    // Edição de itens - usa updateItems
+                    $controller->updateItems($id, $input);
+                } else {
+                    // Atualização de dados básicos - usa update
+                    $controller->update($id, $input);
+                }
             } else {
                 http_response_code(400);
                 echo json_encode(['error' => true, 'message' => 'ID é obrigatório para atualização']);

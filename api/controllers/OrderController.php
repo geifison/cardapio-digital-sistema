@@ -386,9 +386,19 @@ class OrderController {
                 $update_fields[] = "notes = CONCAT(COALESCE(notes, ''), CASE WHEN COALESCE(notes, '') = '' THEN '' ELSE '\n' END, '[CANCELADO] Motivo: ', :cancel_reason)";
                 $params[':cancel_reason'] = $reason;
             }
+            
+            // Calcula troco se necessário
+            if (isset($data['payment_method']) && $data['payment_method'] === 'dinheiro' && isset($data['payment_value'])) {
+                $payment_value = floatval($data['payment_value']);
+                $total = floatval($current_order['total_amount']);
+                $change_amount = $payment_value - $total;
+                
+                $update_fields[] = 'change_amount = :change_amount';
+                $params[':change_amount'] = $change_amount;
+            }
 
             // Outros campos atualizáveis
-            $updatable_fields = ['customer_name', 'customer_phone', 'customer_address', 'customer_neighborhood', 'customer_reference', 'notes', 'estimated_delivery_time'];
+            $updatable_fields = ['customer_name', 'customer_phone', 'customer_address', 'customer_neighborhood', 'customer_reference', 'notes', 'estimated_delivery_time', 'order_type', 'payment_method', 'payment_value'];
             
             foreach ($updatable_fields as $field) {
                 if (isset($data[$field])) {
@@ -428,6 +438,98 @@ class OrderController {
             echo json_encode([
                 'error' => true,
                 'message' => 'Erro ao atualizar pedido',
+                'details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Atualiza apenas os itens de um pedido existente
+     */
+    public function updateItems($id, $data) {
+        try {
+            // Verifica se o pedido existe
+            $check_query = "SELECT * FROM orders WHERE id = :id";
+            $check_stmt = $this->db->prepare($check_query);
+            $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $check_stmt->execute();
+            
+            $current_order = $check_stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if (!$current_order) {
+                http_response_code(404);
+                echo json_encode([
+                    'error' => true,
+                    'message' => 'Pedido não encontrado'
+                ]);
+                return;
+            }
+            
+            // Inicia transação
+            $this->db->beginTransaction();
+            
+            try {
+                // Remove itens antigos
+                $delete_items_query = "DELETE FROM order_items WHERE order_id = :order_id";
+                $delete_stmt = $this->db->prepare($delete_items_query);
+                $delete_stmt->bindParam(':order_id', $id);
+                $delete_stmt->execute();
+                
+                // Insere novos itens
+                $insert_items_query = "INSERT INTO order_items (order_id, product_id, product_name, product_price, quantity, subtotal, notes) VALUES (:order_id, :product_id, :product_name, :product_price, :quantity, :subtotal, :notes)";
+                $insert_stmt = $this->db->prepare($insert_items_query);
+                
+                $subtotal = 0;
+                foreach ($data['items'] as $item) {
+                    $item_subtotal = floatval($item['product_price'] ?? 0) * intval($item['quantity'] ?? 1);
+                    $subtotal += $item_subtotal;
+
+                    // Normaliza valores e tipos
+                    $product_id = isset($item['product_id']) ? (int)$item['product_id'] : 0;
+                    $product_name = isset($item['product_name']) ? (string)$item['product_name'] : '';
+                    $product_price = isset($item['product_price']) ? (float)$item['product_price'] : 0.0;
+                    $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+                    $notes = isset($item['notes']) ? (string)$item['notes'] : '';
+
+                    $insert_stmt->bindParam(':order_id', $id, PDO::PARAM_INT);
+                    $insert_stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
+                    $insert_stmt->bindValue(':product_name', $product_name, PDO::PARAM_STR);
+                    $insert_stmt->bindValue(':product_price', number_format($product_price, 2, '.', ''), PDO::PARAM_STR);
+                    $insert_stmt->bindValue(':quantity', $quantity, PDO::PARAM_INT);
+                    $insert_stmt->bindValue(':subtotal', number_format((float)$item_subtotal, 2, '.', ''), PDO::PARAM_STR);
+                    $insert_stmt->bindValue(':notes', $notes, PDO::PARAM_STR);
+
+                    $result = $insert_stmt->execute();
+                    if (!$result) {
+                        throw new Exception("Erro ao inserir item: " . $product_name);
+                    }
+                }
+                
+                // Atualiza o total do pedido
+                $delivery_fee = floatval($current_order['delivery_fee'] ?? 0);
+                $total_amount = $subtotal + $delivery_fee;
+                
+                $update_query = "UPDATE orders SET total_amount = :total_amount, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
+                $update_stmt = $this->db->prepare($update_query);
+                $update_stmt->bindParam(':total_amount', $total_amount);
+                $update_stmt->bindParam(':id', $id);
+                $update_stmt->execute();
+                
+                $this->db->commit();
+                
+                // Retorna o pedido atualizado
+                $this->getById($id);
+                
+            } catch (Exception $e) {
+                $this->db->rollBack();
+                throw $e;
+            }
+            
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => true,
+                'message' => 'Erro ao atualizar itens do pedido',
                 'details' => $e->getMessage()
             ]);
         }

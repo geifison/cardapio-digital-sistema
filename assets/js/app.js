@@ -105,6 +105,38 @@ function getPOSModeParam() {
     }
 }
 
+// ===== Modo de Edição de Pedido =====
+function isEditMode() {
+    try {
+        const url = new URL(window.location.href);
+        const editParam = url.searchParams.get('edit');
+        console.log('isEditMode: URL =', window.location.href);
+        console.log('isEditMode: edit param =', editParam);
+        return editParam !== null;
+    } catch (_) {
+        console.log('isEditMode: Erro ao parsear URL');
+        return false;
+    }
+}
+
+function getEditOrderId() {
+    try {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('edit');
+    } catch (_) {
+        return null;
+    }
+}
+
+function getEditOrderNumber() {
+    try {
+        const url = new URL(window.location.href);
+        return url.searchParams.get('orderNumber');
+    } catch (_) {
+        return null;
+    }
+}
+
 /**
  * Inicializa a aplicação
  */
@@ -128,6 +160,11 @@ async function initializeApp() {
         updateCartDisplay();
         if (isPOSMode()) {
             applyPOSUX();
+        }
+        
+        // Aplica modo de edição se necessário
+        if (isEditMode()) {
+            applyEditMode();
         }
     } catch (error) {
         console.error('Erro ao inicializar aplicação:', error);
@@ -1007,6 +1044,16 @@ function updateCartDisplay() {
         cartEmpty.style.display = 'none';
         cartFooter.style.display = 'block';
         
+        // Em modo de edição do POS, atualiza o botão do carrinho
+        if (isEditMode() && isPOSMode()) {
+            const checkoutButton = document.getElementById('checkoutButton');
+            if (checkoutButton) {
+                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                checkoutButton.onclick = saveOrderFromCart;
+                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+            }
+        }
+        
         cartItems.innerHTML = '';
         appState.cart.forEach(item => {
             const cartItem = createCartItem(item);
@@ -1267,9 +1314,21 @@ function scrollToMenu() {
  */
 function proceedToCheckout() {
     if (appState.cart.length === 0) {
+        // Em modo de edição do POS, não mostra erro se o carrinho estiver vazio
+        if (isEditMode() && isPOSMode()) {
+            showError('Adicione itens ao carrinho antes de salvar as alterações do pedido.');
+            return;
+        }
         showError('Seu carrinho está vazio!');
         return;
     }
+    
+    // Em modo de edição do POS Balcão, salva direto do carrinho
+    if (isEditMode() && isPOSMode()) {
+        saveOrderFromCart();
+        return;
+    }
+    
     // Fecha o carrinho/bottom sheet antes de abrir o checkout
     closeCart();
 
@@ -1724,38 +1783,54 @@ async function submitOrder() {
         deliveryFeeValue = 0;
     }
 
-    const orderData = {
-        customer_name: formData.get('customerName'),
-        customer_phone: formData.get('customerPhone'),
-        customer_address: deliveryAddress,
-        customer_neighborhood: formData.get('customerNeighborhood'),
-        customer_reference: formData.get('customerReference'),
-        order_type: orderType,
-        payment_method: formData.get('paymentMethod'),
-        payment_value: formData.get('paymentValue') || null,
-        notes: formData.get('orderNotes'),
-        items: appState.cart.map(item => ({
-            product_id: item.product.id,
-            product_name: item.product.name,
-            product_price: item.product.price,
-            quantity: item.quantity,
-            notes: item.notes
-        })),
-        subtotal: appState.cart.reduce((sum, item) => {
-            const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
-            return sum + (price * item.quantity);
-        }, 0),
-        delivery_fee: deliveryFeeValue,
-        total_amount: appState.cart.reduce((sum, item) => {
-            const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
-            return sum + (price * item.quantity);
-        }, 0) + deliveryFeeValue
-    };
+    // Se estiver editando, envia apenas os itens do carrinho
+    // Se for novo pedido, envia todos os dados
+    let orderData;
     
-    // Calcula o troco se necessário
-    if (orderData.payment_method === 'dinheiro' && orderData.payment_value) {
-        orderData.change_amount = parseFloat(orderData.payment_value) - orderData.total_amount;
+    if (isEditMode()) {
+        // Modo de edição: apenas itens do carrinho
+        orderData = {
+            items: appState.cart.map(item => ({
+                product_id: item.product.id,
+                product_name: item.product.name,
+                product_price: item.product.price,
+                quantity: item.quantity,
+                notes: item.notes
+            }))
+        };
+    } else {
+        // Modo de criação: todos os dados
+        orderData = {
+            customer_name: formData.get('customerName'),
+            customer_phone: formData.get('customerPhone'),
+            customer_address: deliveryAddress,
+            customer_neighborhood: formData.get('customerNeighborhood'),
+            customer_reference: formData.get('customerReference'),
+            order_type: orderType,
+            payment_method: formData.get('paymentMethod'),
+            payment_value: formData.get('paymentValue') || null,
+            notes: formData.get('orderNotes'),
+            items: appState.cart.map(item => ({
+                product_id: item.product.id,
+                product_name: item.product.name,
+                product_price: item.product.price,
+                quantity: item.quantity,
+                notes: item.notes
+            })),
+            subtotal: appState.cart.reduce((sum, item) => {
+                const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
+                return sum + (price * item.quantity);
+            }, 0),
+            delivery_fee: deliveryFeeValue,
+            total_amount: appState.cart.reduce((sum, item) => {
+                const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
+                return sum + (price * item.quantity);
+            }, 0) + deliveryFeeValue
+        };
     }
+    
+    // Para delivery, constrói o endereço completo usando buildDeliveryAddress
+    // que já está implementada e funciona corretamente
     
     try {
         // Se Autofill/Confirm estiver disponível, opcionalmente confirmar endereço antes de enviar
@@ -1772,57 +1847,104 @@ async function submitOrder() {
         }
         showLoadingOverlay();
         
-        // Envia o pedido para a API
-        const response = await fetch(CONFIG.API_BASE_URL + 'orders', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(orderData)
-        });
+        // Determina se é edição ou novo pedido
+        const isEditing = isEditMode();
+        const editOrderId = getEditOrderId();
+        
+        console.log('submitOrder: isEditing =', isEditing, 'editOrderId =', editOrderId);
+        console.log('submitOrder: orderData =', orderData);
+        
+        let response;
+        if (isEditing && editOrderId) {
+            // Atualiza pedido existente
+            console.log('submitOrder: Enviando PUT para', CONFIG.API_BASE_URL + `orders/${editOrderId}`);
+            response = await fetch(CONFIG.API_BASE_URL + `orders/${editOrderId}`, {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            });
+        } else {
+            // Cria novo pedido
+            response = await fetch(CONFIG.API_BASE_URL + 'orders', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(orderData)
+            });
+        }
         
         const data = await response.json();
+        
+        console.log('submitOrder: Resposta da API:', response.status, data);
         
         if (response.ok && data.success) {
             const orderNumber = data.data.order_number;
             
             hideLoadingOverlay();
             closeCheckoutModal();
-            showSuccessModal(orderNumber);
-            appState.lastSubmittedOrderPayload = { orderNumber, orderData };
             
-            // Limpa o carrinho
-            appState.cart = [];
-            updateCartDisplay();
-            if (appState.isCartOpen) {
-                toggleCart();
-            }
-
-            // Se POS: notifica o admin
-            if (isPOSMode()) {
-                // 1) Canal moderno entre abas
-                try {
-                    const ch = new BroadcastChannel('pos-orders');
-                    ch.postMessage({ type: 'posOrderCreated', payload: { orderNumber } });
-                    // opcionalmente: ch.close();
-                } catch (_) { /* noop */ }
-
-                // 2) Se aberto via iframe
-                if (window.parent && window.parent !== window) {
+            if (isEditing) {
+                // Modo de edição: mostra mensagem de sucesso e fecha
+                showSuccess(`Pedido #${orderNumber} atualizado com sucesso!`);
+                
+                // Se POS em modo de edição: notifica o admin e fecha
+                if (isPOSMode()) {
                     try {
-                        window.parent.postMessage({ type: 'posOrderCreated', payload: { orderNumber } }, '*');
+                        const ch = new BroadcastChannel('pos-orders');
+                        ch.postMessage({ type: 'posOrderUpdated', payload: { orderNumber, orderId: editOrderId } });
                     } catch (_) { /* noop */ }
+
+                    if (window.opener && !window.opener.closed) {
+                        try {
+                            window.opener.postMessage({ type: 'posOrderUpdated', payload: { orderNumber, orderId: editOrderId } }, '*');
+                        } catch (_) { /* noop */ }
+                        // Fecha a aba/janela do POS
+                        try {
+                            window.close();
+                        } catch (_) { /* noop */ }
+                    }
+                }
+            } else {
+                // Modo de criação: mostra modal de sucesso
+                showSuccessModal(orderNumber);
+                appState.lastSubmittedOrderPayload = { orderNumber, orderData };
+                
+                // Limpa o carrinho
+                appState.cart = [];
+                updateCartDisplay();
+                if (appState.isCartOpen) {
+                    toggleCart();
                 }
 
-                // 3) Se aberto via window.open
-                if (window.opener && !window.opener.closed) {
+                // Se POS: notifica o admin
+                if (isPOSMode()) {
+                    // 1) Canal moderno entre abas
                     try {
-                        window.opener.postMessage({ type: 'posOrderCreated', payload: { orderNumber } }, '*');
+                        const ch = new BroadcastChannel('pos-orders');
+                        ch.postMessage({ type: 'posOrderCreated', payload: { orderNumber } });
+                        // opcionalmente: ch.close();
                     } catch (_) { /* noop */ }
-                    // Fecha a aba/janela do POS quando foi aberta via window.open
-                    try {
-                        window.close();
-                    } catch (_) { /* noop */ }
+
+                    // 2) Se aberto via iframe
+                    if (window.parent && window.parent !== window) {
+                        try {
+                            window.parent.postMessage({ type: 'posOrderCreated', payload: { orderNumber } }, '*');
+                        } catch (_) { /* noop */ }
+                    }
+
+                    // 3) Se aberto via window.open
+                    if (window.opener && !window.opener.closed) {
+                        try {
+                            window.opener.postMessage({ type: 'posOrderCreated', payload: { orderNumber } }, '*');
+                        } catch (_) { /* noop */ }
+                        // Fecha a aba/janela do POS quando foi aberta via window.open
+                        try {
+                            window.close();
+                        } catch (_) { /* noop */ }
+                    }
                 }
             }
             
@@ -2022,7 +2144,317 @@ function applyPOSUX() {
         document.body.style.overflow = '';
         // Garante que o carrinho inicie fechado
         if (appState.isCartOpen) toggleCart();
+        
+        // Se estiver em modo de edição, aplica as configurações específicas
+        if (isEditMode()) {
+            // Ajusta o botão do carrinho para modo de edição
+            const checkoutButton = document.getElementById('checkoutButton');
+            if (checkoutButton) {
+                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                checkoutButton.onclick = saveOrderFromCart;
+                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+            }
+        }
     } catch (_) { /* noop */ }
+}
+
+// Ajustes de UX quando rodando em modo de edição de pedido
+function applyEditMode() {
+    try {
+        const orderId = getEditOrderId();
+        const orderNumber = getEditOrderNumber();
+        
+        if (orderId && orderNumber) {
+            // Altera o título para indicar edição
+            const posTitle = document.getElementById('posTitle');
+            if (posTitle) {
+                if (isPOSMode()) {
+                    posTitle.innerHTML = `POS - Balcão <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
+                } else {
+                    posTitle.innerHTML = `POS - Balcão <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
+                }
+            }
+            
+            // Carrega o pedido para edição
+            loadOrderForEdit(orderId);
+        }
+    } catch (_) { /* noop */ }
+}
+
+/**
+ * Adiciona informação de modo de edição no carrinho
+ */
+function addEditModeInfoToCart() {
+    try {
+        const cartContent = document.querySelector('.cart-content');
+        if (!cartContent) return;
+        
+        // Remove mensagem anterior se existir
+        const existingInfo = document.getElementById('editModeInfo');
+        if (existingInfo) {
+            existingInfo.remove();
+        }
+        
+        // Verifica se já existe uma mensagem similar
+        if (document.querySelector('.edit-mode-info')) {
+            return;
+        }
+        
+        // Cria mensagem informativa
+        const infoDiv = document.createElement('div');
+        infoDiv.id = 'editModeInfo';
+        infoDiv.className = 'edit-mode-info';
+        infoDiv.innerHTML = `
+            <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 12px; margin: 12px 0; text-align: center;">
+                <i class="fas fa-edit" style="color: #2196f3; margin-right: 8px;"></i>
+                <strong>Editando Pedido</strong><br>
+                <small style="color: #666;">
+                    Adicione ou remova itens do carrinho.<br>
+                    <strong>Clique em "Salvar Alterações" para confirmar as mudanças.</strong>
+                </small>
+            </div>
+        `;
+        
+        // Insere no início do carrinho
+        cartContent.insertBefore(infoDiv, cartContent.firstChild);
+        
+    } catch (error) {
+        console.error('Erro ao adicionar info de modo de edição:', error);
+    }
+}
+
+/**
+ * Salva pedido diretamente do carrinho (modo de edição do POS Balcão)
+ */
+async function saveOrderFromCart() {
+    try {
+        const orderId = getEditOrderId();
+        console.log('saveOrderFromCart: orderId =', orderId);
+        console.log('saveOrderFromCart: isEditMode() =', isEditMode());
+        console.log('saveOrderFromCart: isPOSMode() =', isPOSMode());
+        
+        if (!orderId) {
+            showError('ID do pedido não encontrado. Recarregue a página e tente novamente.');
+            return;
+        }
+        
+        // Valida se há itens no carrinho
+        if (appState.cart.length === 0) {
+            showError('Adicione itens ao carrinho antes de salvar as alterações do pedido.');
+            return;
+        }
+        
+        // Resolve um product_id válido para cada item (evita IDs sintéticos que quebram FK)
+        function resolveProductIdForCartItem(cartItem) {
+            try {
+                const rawId = cartItem && cartItem.product && cartItem.product.id;
+                const idNum = rawId != null ? parseInt(rawId, 10) : NaN;
+                if (!isNaN(idNum) && idNum > 0) {
+                    return idNum;
+                }
+                // Tenta resolver por nome base (antes de " - ")
+                const name = (cartItem.product && cartItem.product.name) ? String(cartItem.product.name) : '';
+                const baseName = name.split(' - ')[0].trim();
+                if (Array.isArray(appState.products) && appState.products.length > 0) {
+                    let candidate = appState.products.find(p => String(p.name).trim() === baseName) || appState.products.find(p => String(p.name).trim() === name);
+                    if (candidate && candidate.id) return parseInt(candidate.id, 10);
+                    candidate = appState.products.find(p => String(p.product_type || '').toLowerCase() === 'pizza');
+                    if (candidate && candidate.id) return parseInt(candidate.id, 10);
+                }
+                return null;
+            } catch (_) {
+                return null;
+            }
+        }
+
+        const mappedItems = appState.cart.map(item => ({
+            product_id: resolveProductIdForCartItem(item),
+            product_name: item.product.name,
+            product_price: item.product.price,
+            quantity: item.quantity,
+            notes: item.notes
+        }));
+
+        const hasInvalid = mappedItems.some(it => !it.product_id || isNaN(parseInt(it.product_id, 10)) || parseInt(it.product_id, 10) <= 0);
+        if (hasInvalid) {
+            console.warn('saveOrderFromCart: item com product_id inválido detectado', mappedItems);
+            showError('Não foi possível identificar o produto de um dos itens do carrinho. Remova-o e adicione novamente.');
+            return;
+        }
+
+        // Prepara dados apenas dos itens do carrinho
+        const orderData = { items: mappedItems };
+        
+        console.log('saveOrderFromCart: orderData =', orderData);
+        console.log('saveOrderFromCart: API URL =', CONFIG.API_BASE_URL + `orders/${orderId}`);
+        
+        showLoadingOverlay();
+        
+        // Atualiza apenas os itens do pedido
+        const response = await fetch(CONFIG.API_BASE_URL + `orders/${orderId}`, {
+            method: 'PUT',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify(orderData)
+        });
+        
+        console.log('saveOrderFromCart: response status =', response.status);
+        console.log('saveOrderFromCart: response ok =', response.ok);
+
+        let data = null;
+        let rawText = null;
+        try {
+            const ct = (response.headers.get('content-type') || '').toLowerCase();
+            if (ct.includes('application/json')) {
+                data = await response.json();
+            } else {
+                rawText = await response.text();
+            }
+        } catch (e) {
+            try { rawText = await response.text(); } catch(_) {}
+        }
+        console.log('saveOrderFromCart: response data =', data);
+        if (rawText) {
+            console.log('saveOrderFromCart: response rawText =', rawText.slice(0, 500));
+        }
+
+        if (response.ok && data && data.success) {
+            hideLoadingOverlay();
+            
+            // Mostra mensagem de sucesso
+            showSuccess(`Pedido #${(data.data && data.data.order_number) || orderId} atualizado com sucesso! As alterações foram salvas.`);
+            
+            // Notifica o admin e fecha o POS
+            try {
+                const ch = new BroadcastChannel('pos-orders');
+                ch.postMessage({ 
+                    type: 'posOrderUpdated', 
+                    payload: { 
+                        orderNumber: (data.data && data.data.order_number) || orderId, 
+                        orderId: orderId 
+                    } 
+                });
+            } catch (_) { /* noop */ }
+
+            if (window.opener && !window.opener.closed) {
+                try {
+                    window.opener.postMessage({ 
+                        type: 'posOrderUpdated', 
+                        payload: { 
+                            orderNumber: (data.data && data.data.order_number) || orderId, 
+                            orderId: orderId 
+                        } 
+                    }, '*');
+                } catch (_) { /* noop */ }
+                
+                // Fecha a aba/janela do POS após mostrar sucesso
+                setTimeout(() => {
+                    try {
+                        window.close();
+                    } catch (_) { /* noop */ }
+                }, 2000);
+            }
+        } else {
+            hideLoadingOverlay();
+            const serverMsg = data && (data.message || data.error);
+            if (serverMsg) {
+                showError(serverMsg);
+            } else {
+                const snippet = rawText ? String(rawText).slice(0, 300) : '';
+                showError(`Erro ao atualizar pedido (HTTP ${response.status}). ${snippet}`);
+            }
+        }
+        
+    } catch (error) {
+        hideLoadingOverlay();
+        console.error('Erro ao salvar pedido do carrinho:', error);
+        showError('Erro ao salvar pedido. Verifique a conexão e tente novamente.');
+    }
+}
+
+/**
+ * Carrega um pedido existente para edição (apenas itens do carrinho)
+ */
+async function loadOrderForEdit(orderId) {
+    try {
+        const response = await fetch(CONFIG.API_BASE_URL + `orders/${orderId}`);
+        if (!response.ok) {
+            showError('Erro ao carregar pedido para edição');
+            return;
+        }
+        
+        const data = await response.json();
+        if (!data.success || !data.data) {
+            showError('Pedido não encontrado');
+            return;
+        }
+        
+        const order = data.data;
+        
+        // Debug: log dos dados do pedido
+        console.log('Dados do pedido carregados para edição:', order);
+        
+        // Limpa o carrinho atual
+        appState.cart = [];
+        
+        // Adiciona os itens do pedido ao carrinho
+        if (order.items && Array.isArray(order.items)) {
+            order.items.forEach(item => {
+                const cartItem = {
+                    product: {
+                        // Use SEMPRE product_id do item; nunca usar id do order_item
+                        id: item.product_id || null,
+                        name: item.product_name,
+                        price: parseFloat(item.product_price || 0),
+                        image_url: item.product_image_url
+                    },
+                    quantity: parseInt(item.quantity || 1),
+                    notes: item.notes || ''
+                };
+                appState.cart.push(cartItem);
+            });
+        }
+        
+        // Atualiza a exibição do carrinho
+        updateCartDisplay();
+        
+        // Em modo de edição, NÃO preenche os campos do formulário
+        // Apenas carrega os itens no carrinho e mantém os valores originais
+        
+        // Adiciona mensagem informativa no carrinho se estiver em modo de edição do POS
+        if (isPOSMode()) {
+            // Aguarda um pouco para garantir que o carrinho foi renderizado
+            setTimeout(() => {
+                addEditModeInfoToCart();
+            }, 200);
+        }
+        
+        // Define taxa de entrega no estado da aplicação (preserva valor original)
+        if (order.delivery_fee > 0) {
+            appState.deliveryFee = order.delivery_fee;
+        }
+        
+        // Altera os textos dos botões para indicar edição
+        const checkoutButton = document.getElementById('checkoutButton');
+        if (checkoutButton) {
+            if (isPOSMode()) {
+                // No POS Balcão em modo de edição, salva direto do carrinho
+                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                checkoutButton.onclick = saveOrderFromCart;
+                
+                // Adiciona tooltip explicativo
+                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+            } else {
+                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Edição de Pedido';
+            }
+        }
+        
+
+    } catch (error) {
+        console.error('Erro ao carregar pedido para edição:', error);
+        showError('Erro ao carregar pedido para edição');
+    }
 }
 
 /**
@@ -3222,11 +3654,10 @@ function setupPizzaProgressClicks() {
 			const style = document.createElement('style');
 			style.id = 'repeat-last-order-style';
 			style.textContent = `
-#repeatLastOrderTopArea{display:flex;justify-content:center;margin:16px 0}
-#repeatLastOrderTopArea .btn-repeat-last-order{appearance:none;background:#f8fafc;border:1px solid #e5e7eb;color:#111827;padding:10px 16px;border-radius:9999px;font-weight:600;display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:background .2s,border-color .2s,transform .05s}
-#repeatLastOrderTopArea .btn-repeat-last-order:hover{background:#f1f5f9;border-color:#d1d5db}
-#repeatLastOrderTopArea .btn-repeat-last-order:active{transform:translateY(1px)}
-#repeatLastOrderTopArea .btn-repeat-last-order i{font-size:14px}
+#repeatLastOrderBtnTop{appearance:none;background:#f8fafc;border:1px solid #e5e7eb;color:#111827;padding:10px 16px;border-radius:9999px;font-weight:600;display:inline-flex;align-items:center;gap:8px;cursor:pointer;transition:background .2s,border-color .2s,transform .05s;font-size:14px}
+#repeatLastOrderBtnTop:hover{background:#f1f5f9;border-color:#d1d5db}
+#repeatLastOrderBtnTop:active{transform:translateY(1px)}
+#repeatLastOrderBtnTop i{font-size:14px}
 			`;
 			document.head.appendChild(style);
 		} catch(_) { /* noop */ }
@@ -3283,31 +3714,54 @@ function setupPizzaProgressClicks() {
 				if (el && el.parentNode) el.parentNode.removeChild(el);
 			});
 
-			const productsSection = document.querySelector('.products-section');
-			if (!productsSection) return;
-			const hasLast = !!getLastOrderFromLocalStorage();
-			let topArea = document.getElementById('repeatLastOrderTopArea');
-			if (!hasLast) {
-				if (topArea && topArea.parentNode) topArea.parentNode.removeChild(topArea);
+			// Remove versões antigas do header
+			const oldTopArea = document.getElementById('repeatLastOrderTopArea');
+			if (oldTopArea && oldTopArea.parentNode) {
+				oldTopArea.parentNode.removeChild(oldTopArea);
+			}
+
+			// Remove botões antigos do header
+			const oldBtn = document.getElementById('repeatLastOrderBtnTop');
+			if (oldBtn && oldBtn.parentNode) {
+				oldBtn.parentNode.removeChild(oldBtn);
+			}
+
+			const headerActions = document.getElementById('headerActions');
+			if (!headerActions) {
+				// Se o header ainda não estiver carregado, tenta novamente em breve
+				setTimeout(ensureRepeatLastOrderButton, 100);
 				return;
 			}
-			if (!topArea) {
-				ensureRepeatLastOrderStyles();
-				topArea = document.createElement('div');
-				topArea.id = 'repeatLastOrderTopArea';
-				const btn = document.createElement('button');
-				btn.id = 'repeatLastOrderBtnTop';
-				btn.className = 'btn-repeat-last-order';
-				btn.innerHTML = '<i class="fas fa-undo"></i><span>Repetir último pedido</span>';
-				btn.onclick = repeatLastOrder;
-				topArea.appendChild(btn);
-				const productsGrid = document.getElementById('productsGrid');
-				if (productsGrid && productsGrid.parentNode === productsSection) {
-					productsSection.insertBefore(topArea, productsGrid);
-				} else {
-					productsSection.prepend(topArea);
+			
+			const hasLast = !!getLastOrderFromLocalStorage();
+			if (!hasLast) {
+				// Se não há pedido anterior, remove o botão se existir
+				const existingBtn = document.getElementById('repeatLastOrderBtnTop');
+				if (existingBtn && existingBtn.parentNode) {
+					existingBtn.parentNode.removeChild(existingBtn);
 				}
+				return;
 			}
+
+			// Verifica se o botão já existe
+			const existingBtn = document.getElementById('repeatLastOrderBtnTop');
+			if (existingBtn) {
+				return; // Botão já existe, não cria outro
+			}
+
+			// Cria o botão no header
+			ensureRepeatLastOrderStyles();
+			const btn = document.createElement('button');
+			btn.id = 'repeatLastOrderBtnTop';
+			btn.className = 'btn-repeat-last-order';
+			btn.innerHTML = '<i class="fas fa-undo"></i><span>Repetir último pedido</span>';
+			btn.onclick = repeatLastOrder;
+			
+			// Adiciona o botão ao header
+			headerActions.appendChild(btn);
+			
+			// Log para debug
+			console.log('✅ Botão "repetir último pedido" adicionado ao header');
 		} catch(_) { /* noop */ }
 	}
 

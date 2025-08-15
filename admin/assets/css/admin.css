@@ -715,6 +715,7 @@ body {
     align-items: center;
     justify-content: center;
     z-index: 1500;
+    overflow: hidden !important;
 }
 
 .modal-overlay.show,
@@ -4686,5 +4687,229 @@ body {
 
 .image-preview:hover .remove-image {
     opacity: 1;
+}
+
+/* Estilos para o novo modal de detalhes do pedido com Tailwind */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+
+/* Estilos de impressão para o modal */
+@media print {
+    body * {
+        visibility: hidden;
+    }
+    #print-section, #print-section * {
+        visibility: visible;
+    }
+    #print-section {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100%;
+    }
+    .no-print {
+        display: none;
+    }
+}
+
+/* Scrollbar personalizada para melhor estética */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #f1f1f1;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 10px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Classes utilitárias do Tailwind para o modal */
+.bg-white { background-color: #ffffff; }
+.rounded-2xl { border-radius: 1rem; }
+.shadow-2xl { box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); }
+.w-full { width: 100%; }
+.max-w-2xl { max-width: 42rem; }
+.mx-auto { margin-left: auto; margin-right: auto; }
+.overflow-hidden { overflow: hidden; }
+.p-6 { padding: 1.5rem; }
+.sm\:p-8 { padding: 2rem; }
+.text-center { text-align: center; }
+.border-b { border-bottom-width: 1px; }
+.border-dashed { border-style: dashed; }
+.pb-4 { padding-bottom: 1rem; }
+.mb-6 { margin-bottom: 1.5rem; }
+.text-2xl { font-size: 1.5rem; line-height: 2rem; }
+.font-bold { font-weight: 700; }
+.text-gray-800 { color: #1f2937; }
+.text-sm { font-size: 0.875rem; line-height: 1.25rem; }
+.text-gray-500 { color: #6b7280; }
+.grid { display: grid; }
+.grid-cols-1 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+.sm\:grid-cols-2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.gap-x-8 { column-gap: 2rem; }
+.gap-y-4 { row-gap: 1rem; }
+.flex { display: flex; }
+.items-center { align-items: center; }
+.space-x-2 > * + * { margin-left: 0.5rem; }
+.font-semibold { font-weight: 600; }
+.text-gray-600 { color: #4b5563; }
+.text-gray-800 { color: #1f2937; }
+.px-3 { padding-left: 0.75rem; padding-right: 0.75rem; }
+.py-1 { padding-top: 0.25rem; padding-bottom: 0.25rem; }
+.bg-green-100 { background-color: #dcfce7; }
+.text-green-800 { color: #166534; }
+.rounded-full { border-radius: 9999px; }
+.bg-gray-50 { background-color: #f9fafb; }
+.p-5 { padding: 1.25rem; }
+.rounded-lg { border-radius: 0.5rem; }
+.border { border-width: 1px; }
+.border-gray-200 { border-color: #e5e7eb; }
+.text-lg { font-size: 1.125rem; line-height: 1.75rem; }
+.mb-3 { margin-bottom: 0.75rem; }
+.space-y-3 > * + * { margin-top: 0.75rem; }
+.text-gray-700 { color: #374151; }
+.justify-between { justify-content: space-between; }
+.no-print { }
+.hover\:text-green-600:hover { color: #16a34a; }
+.hover\:text-blue-600:hover { color: #2563eb; }
+.transition-colors { transition-property: color, background-color, border-color, text-decoration-color, fill, stroke; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.hover\:text-red-600:hover { color: #dc2626; }
+.flex-shrink-0 { flex-shrink: 0; }
+.mb-4 { margin-bottom: 1rem; }
+.space-y-4 > * + * { margin-top: 1rem; }
+.items-start { align-items: flex-start; }
+.text-gray-500 { color: #6b7280; }
+.border-t { border-top-width: 1px; }
+.mt-6 { margin-top: 1.5rem; }
+.pt-6 { padding-top: 1.5rem; }
+.space-y-2 > * + * { margin-top: 0.5rem; }
+.mt-2 { margin-top: 0.5rem; }
+.text-xl { font-size: 1.25rem; line-height: 1.75rem; }
+.text-gray-900 { color: #111827; }
+.bg-blue-50 { background-color: #eff6ff; }
+.border-blue-200 { border-color: #bfdbfe; }
+.text-blue-800 { color: #1e40af; }
+.bg-gray-50 { background-color: #f9fafb; }
+.border-t { border-top-width: 1px; }
+.flex-col { flex-direction: column; }
+.sm\:flex-row { flex-direction: row; }
+.sm\:space-y-0 { }
+.sm\:space-x-4 > * + * { margin-left: 1rem; }
+.w-full { width: 100%; }
+.sm\:w-auto { width: auto; }
+.px-6 { padding-left: 1.5rem; padding-right: 1.5rem; }
+.py-3 { padding-top: 0.75rem; padding-bottom: 0.75rem; }
+.bg-transparent { background-color: transparent; }
+.hover\:bg-gray-200:hover { background-color: #e5e7eb; }
+.rounded-lg { border-radius: 0.5rem; }
+.bg-blue-600 { background-color: #2563eb; }
+.text-white { color: #ffffff; }
+.hover\:bg-blue-700:hover { background-color: #1d4ed8; }
+.shadow-md { box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06); }
+.hover\:shadow-lg:hover { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+.space-x-2 > * + * { margin-left: 0.5rem; }
+.fixed { position: fixed; }
+.bottom-5 { bottom: 1.25rem; }
+.right-5 { right: 1.25rem; }
+.bg-gray-800 { background-color: #1f2937; }
+.px-4 { padding-left: 1rem; padding-right: 1rem; }
+.py-2 { padding-top: 0.5rem; padding-bottom: 0.5rem; }
+.rounded-lg { border-radius: 0.5rem; }
+.shadow-lg { box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05); }
+.opacity-0 { opacity: 0; }
+.transition-opacity { transition-property: opacity; transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1); transition-duration: 150ms; }
+.duration-300 { transition-duration: 300ms; }
+
+/* Responsividade para telas pequenas */
+@media (max-width: 640px) {
+    .sm\:p-8 { padding: 1.5rem; }
+    .sm\:grid-cols-2 { grid-template-columns: repeat(1, minmax(0, 1fr)); }
+    .sm\:flex-row { flex-direction: column; }
+    .sm\:space-y-0 { }
+    .sm\:space-x-4 > * + * { margin-left: 0; margin-top: 0.75rem; }
+    .sm\:w-auto { width: 100%; }
+}
+
+/* Sobrescreve estilos para o novo modal de detalhes do pedido */
+.modal-overlay > .modal.large-modal {
+    max-width: none !important;
+    width: auto !important;
+    height: auto !important;
+    max-height: 90vh !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    overflow: hidden !important;
+}
+
+.modal-overlay > .modal.large-modal .modal-content {
+    padding: 0 !important;
+    background: transparent !important;
+    max-height: 90vh !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+}
+
+/* Remove estilos do header e footer que não existem mais no novo modal */
+.modal-overlay > .modal.large-modal .modal-header,
+.modal-overlay > .modal.large-modal .modal-footer {
+    display: none !important;
+}
+
+/* Estilos específicos para o scroll do modal de detalhes do pedido */
+.modal-overlay > .modal.large-modal #modal {
+    max-height: 90vh !important;
+    overflow: hidden !important;
+    display: flex !important;
+    flex-direction: column !important;
+}
+
+.modal-overlay > .modal.large-modal #print-section {
+    max-height: calc(90vh - 120px) !important;
+    overflow-y: auto !important;
+    overflow-x: hidden !important;
+    padding-right: 8px !important; /* Espaço para a scrollbar */
+    flex: 1 !important;
+}
+
+.modal-overlay > .modal.large-modal .no-print {
+    flex-shrink: 0 !important;
+}
+
+/* Garante que o modal overlay tenha scroll próprio */
+.modal-overlay {
+    overflow: hidden !important;
+}
+
+/* Estilos para a scrollbar do modal */
+.modal-overlay > .modal.large-modal #print-section::-webkit-scrollbar {
+    width: 8px;
+}
+
+.modal-overlay > .modal.large-modal #print-section::-webkit-scrollbar-track {
+    background: #f1f1f1;
+    border-radius: 4px;
+}
+
+.modal-overlay > .modal.large-modal #print-section::-webkit-scrollbar-thumb {
+    background: #d1d5db;
+    border-radius: 4px;
+}
+
+.modal-overlay > .modal.large-modal #print-section::-webkit-scrollbar-thumb:hover {
+    background: #9ca3af;
+}
+
+/* Bloqueia scroll do body quando modal estiver aberto */
+body.modal-open {
+    overflow: hidden !important;
+    position: fixed !important;
+    width: 100% !important;
 }
 

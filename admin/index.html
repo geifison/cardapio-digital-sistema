@@ -10,6 +10,12 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
     <!-- Login Modal -->
@@ -59,7 +65,7 @@
                         <i class="fas fa-cog"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
-                        
+                        <li><a class="dropdown-item" href="config/index.html" target="_blank"><i class="fas fa-cog me-2"></i>CONFIGURAÇÕES</a></li>
                     </ul>
                 </div>
                 <button class="logout-btn" onclick="logout()">
@@ -106,20 +112,9 @@
             <div class="section-header">
                 <h2><i class="fas fa-clipboard-list"></i> Gestão de Pedidos</h2>
                 <div class="section-actions">
-                    <button class="refresh-btn" onclick="refreshOrders()">
-                        <i class="fas fa-sync-alt"></i>
-                        Atualizar
-                    </button>
-                     <div class="btn-group">
-                         <button class="add-btn dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                             <i class="fas fa-plus"></i> Novo Pedido
-                         </button>
-                         <ul class="dropdown-menu dropdown-menu-end">
-                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('local')"><i class="fas fa-store me-2"></i>No Local</a></li>
-                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('retirada')"><i class="fas fa-bag-shopping me-2"></i>Retirada</a></li>
-                             <li><a class="dropdown-item" href="#" onclick="openNewOrderModal('delivery')"><i class="fas fa-truck me-2"></i>Delivery</a></li>
-                         </ul>
-                     </div>
+                     <button class="add-btn" onclick="openNewOrderModal('local')">
+                         <i class="fas fa-plus"></i> Novo Pedido
+                     </button>
                 </div>
             </div>
 
@@ -461,6 +456,50 @@
     <div id="modals-container">
         <!-- Os modais serão carregados aqui -->
     </div>
+
+    <!-- Estilos personalizados para o modal de detalhes do pedido -->
+    <style>
+        /* Custom styles for the order detail modal */
+        body {
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Styles for printing */
+        @media print {
+            body * {
+                visibility: hidden;
+            }
+            #print-section, #print-section * {
+                visibility: visible;
+            }
+            #print-section {
+                position: absolute;
+                left: 0;
+                top: 0;
+                width: 100%;
+            }
+            .no-print {
+                display: none;
+            }
+        }
+        
+        /* Custom scrollbar for better aesthetics */
+        ::-webkit-scrollbar {
+            width: 8px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #f1f1f1;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #d1d5db;
+            border-radius: 10px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #9ca3af;
+        }
+    </style>
 
     <!-- JavaScript Externo -->
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>

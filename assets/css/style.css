@@ -52,6 +52,61 @@ body {
     padding: 1rem 0;
 }
 
+.header-actions {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+/* Estilos para o botão de repetir último pedido no header */
+.header-actions .btn-repeat-last-order {
+    background: #f8fafc;
+    border: 1px solid #e5e7eb;
+    color: #111827;
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-weight: 500;
+    font-size: 14px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    text-decoration: none;
+    white-space: nowrap;
+    min-height: 36px;
+}
+
+.header-actions .btn-repeat-last-order:hover {
+    background: #f1f5f9;
+    border-color: #d1d5db;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.header-actions .btn-repeat-last-order i {
+    font-size: 14px;
+    color: #6b7280;
+}
+
+/* Responsividade para dispositivos móveis */
+@media (max-width: 768px) {
+    .header-actions .btn-repeat-last-order {
+        padding: 6px 12px;
+        font-size: 13px;
+        min-height: 32px;
+    }
+    
+    .header-actions .btn-repeat-last-order span {
+        display: none; /* Oculta o texto em dispositivos móveis */
+    }
+    
+    .header-actions .btn-repeat-last-order i {
+        font-size: 16px;
+        margin: 0;
+    }
+}
+
 .logo {
     display: flex;
     align-items: center;

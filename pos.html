@@ -35,7 +35,7 @@
       <div class="header-content">
         <div class="logo">
           <i class="fas fa-cash-register"></i>
-          <h1>POS - Balcão</h1>
+          <h1 id="posTitle">POS - Balcão</h1>
         </div>
         <div class="cart-toggle" onclick="toggleCart()">
           <i class="fas fa-shopping-cart"></i>
@@ -55,9 +55,6 @@
     <div class="container">
       <!-- Ações rápidas do POS -->
       <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin:12px 0;">
-        <button type="button" class="checkout-btn" onclick="openPizzaBuilder()" title="Monte sua pizza">
-          <i class="fas fa-pizza-slice"></i> Monte sua pizza
-        </button>
       </div>
       <div class="content-wrapper">
         <section class="products-section">
@@ -86,7 +83,7 @@
         <div class="summary-row"><span>Taxa de entrega:</span><span id="deliveryFee">R$ 5,00</span></div>
         <div class="summary-row total"><span>Total:</span><span id="cartTotal">R$ 0,00</span></div>
       </div>
-      <button class="checkout-btn" onclick="proceedToCheckout()"><i class="fas fa-credit-card"></i> Finalizar Pedido</button>
+      <button class="checkout-btn" id="checkoutButton" onclick="proceedToCheckout()"><i class="fas fa-credit-card"></i> Finalizar Pedido</button>
     </div>
   </div>
 
@@ -94,7 +91,7 @@
   <div class="modal-overlay" id="checkoutModal">
     <div class="modal">
       <div class="modal-header">
-        <h3><i class="fas fa-clipboard-list"></i> Finalizar Pedido</h3>
+        <h3><i class="fas fa-clipboard-list"></i> <span id="checkoutModalTitle">Finalizar Pedido</span></h3>
         <button class="close-modal" onclick="closeCheckoutModal()"><i class="fas fa-times"></i></button>
       </div>
       <div class="modal-content">
@@ -151,7 +148,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">Voltar</button>
-        <button type="button" class="btn-primary" onclick="submitOrder()"><i class="fas fa-check"></i> Confirmar Pedido</button>
+        <button type="button" class="btn-primary" id="confirmOrderButton" onclick="submitOrder()"><i class="fas fa-check"></i> Confirmar Pedido</button>
       </div>
     </div>
   </div>
