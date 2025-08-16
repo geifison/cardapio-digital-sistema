@@ -3,7 +3,9 @@
  * API Principal do Sistema de Cardápio Digital
  * Gerencia todas as requisições da API
  */
-session_start();
+if (session_status() === PHP_SESSION_NONE) {
+    session_start();
+}
 // Configurações de CORS
 header('Access-Control-Allow-Origin: *');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
@@ -25,6 +27,7 @@ require_once 'controllers/AuthController.php';
 require_once 'controllers/PizzaController.php';
 require_once 'controllers/SettingsController.php';
 require_once 'controllers/GeocodeController.php';
+require_once 'controllers/UserController.php';
 require_once __DIR__ . '/EventManager.php';
 
 // Configuração de erro reporting
@@ -80,7 +83,13 @@ try {
     $method = $_SERVER['REQUEST_METHOD'];
     
     // Obtém dados do corpo da requisição
-    $input = json_decode(file_get_contents('php://input'), true);
+    if (isset($GLOBALS['test_input_data'])) {
+        // Se estamos em modo de teste, usa os dados globais
+        $input = json_decode($GLOBALS['test_input_data'], true);
+    } else {
+        // Caso contrário, lê do php://input normalmente
+        $input = json_decode(file_get_contents('php://input'), true);
+    }
     
     // Inicializa conexão com banco de dados (com auto-instalação do schema quando necessário)
     $database = new Database();
@@ -158,6 +167,11 @@ try {
             require_once 'controllers/DeliveryController.php';
             $controller = new DeliveryController($db);
             handleDeliveryRequests($controller, $method, $id, $input);
+            break;
+            
+        case 'users':
+            $controller = new UserController($db);
+            handleUserRequests($controller, $method, $id, $input);
             break;
         
             
@@ -555,6 +569,42 @@ function handleDeliveryRequests($controller, $method, $id, $input) {
                 echo json_encode(['success' => false, 'message' => 'Endpoint de entrega não encontrado']);
             }
             break;
+        default:
+            http_response_code(405);
+            echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+            break;
+    }
+}
+
+/**
+ * Gerencia requisições de usuários
+ */
+function handleUserRequests($controller, $method, $id, $input) {
+    // Endpoints: /users (listar), /users/create, /users/update, /users/delete
+    switch ($method) {
+        case 'GET':
+            if (!$id) {
+                // Listar todos os usuários
+                $controller->listUsers();
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de usuários não encontrado']);
+            }
+            break;
+            
+        case 'POST':
+            if ($id === 'create') {
+                $controller->createUser($input);
+            } elseif ($id === 'update') {
+                $controller->updateUser($input);
+            } elseif ($id === 'delete') {
+                $controller->deleteUser($input);
+            } else {
+                http_response_code(404);
+                echo json_encode(['success' => false, 'message' => 'Endpoint de usuários não encontrado']);
+            }
+            break;
+            
         default:
             http_response_code(405);
             echo json_encode(['success' => false, 'message' => 'Método não permitido']);
