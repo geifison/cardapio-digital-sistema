@@ -2162,9 +2162,9 @@ async function loadProductsForManagement() {
  */
 async function renderProductsGrid() {
     console.log('🎨 [NOVO] Renderizando grade de produtos com acordeão...');
-    const grid = document.getElementById('productsGrid');
+    const grid = document.getElementById('produtos-accordion-container');
     if (!grid) {
-        console.error('❌ Elemento productsGrid não encontrado');
+        console.error('❌ Elemento produtos-accordion-container não encontrado');
         return;
     }
     
@@ -2306,7 +2306,7 @@ function getAfterAccordionItem(container, y) {
 }
 
 async function persistAccordionCategoryOrder() {
-    const grid = document.getElementById('productsGrid');
+    const grid = document.getElementById('produtos-accordion-container');
     if (!grid) return;
     const accordion = grid.querySelector('#productsAccordion');
     if (!accordion) return;

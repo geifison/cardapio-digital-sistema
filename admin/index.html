@@ -60,14 +60,9 @@
                     <i class="fas fa-user-circle"></i>
                     <span id="userName">Administrador</span>
                 </div>
-                <div class="dropdown">
-                    <button class="btn btn-link dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false" title="Configurações" style="text-decoration:none; color:#2c3e50;">
-                        <i class="fas fa-cog"></i>
-                    </button>
-                    <ul class="dropdown-menu dropdown-menu-end">
-                        <li><a class="dropdown-item" href="config/index.html" target="_blank"><i class="fas fa-cog me-2"></i>CONFIGURAÇÕES</a></li>
-                    </ul>
-                </div>
+                <button class="btn btn-link" onclick="showSection('settings')" type="button" title="Configurações" style="text-decoration:none; color:#2c3e50; font-size: 1.2rem;">
+                    <i class="fas fa-cog"></i>
+                </button>
                 <button class="logout-btn" onclick="logout()">
                     <i class="fas fa-sign-out-alt"></i>
                     Sair
@@ -94,6 +89,10 @@
             <button class="nav-item" onclick="showSection('reports')">
                 <i class="fas fa-chart-bar"></i>
                 Relatórios
+            </button>
+            <button class="nav-item" onclick="showSection('settings')">
+                <i class="fas fa-cog"></i>
+                Configurações
             </button>
             
             <!-- Ações à direita da barra de menus -->
@@ -449,6 +448,188 @@
             </div>
         </section>
 
+        <!-- Settings Section -->
+        <section id="settingsSection" class="admin-section">
+            <div class="section-header">
+                <h2><i class="fas fa-cog"></i> Configurações do Sistema</h2>
+            </div>
+            
+            <ul class="nav nav-tabs" id="settingsTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active" id="hours-tab" data-bs-toggle="tab" data-bs-target="#hours" type="button" role="tab" aria-controls="hours" aria-selected="true">
+                        <i class="fas fa-clock me-1"></i> Horário de Funcionamento
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="delivery-tab" data-bs-toggle="tab" data-bs-target="#delivery" type="button" role="tab" aria-controls="delivery" aria-selected="false">
+                        <i class="fas fa-truck me-1"></i> Configuração de Entrega
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="users-tab" data-bs-toggle="tab" data-bs-target="#users" type="button" role="tab" aria-controls="users" aria-selected="false">
+                        <i class="fas fa-users me-1"></i> Gerenciamento de Usuários
+                    </button>
+                </li>
+            </ul>
+
+            <div class="tab-content" id="settingsTabsContent">
+                <div class="tab-pane fade show active" id="hours" role="tabpanel" aria-labelledby="hours-tab">
+                    <p class="mb-3 text-muted">Defina os horários por dia da semana. Marque "Fechado" para dias sem atendimento.</p>
+                    <div class="form-group mb-3">
+                        <label class="checkbox-label">
+                            <input type="checkbox" id="applyWeekdays">
+                            Aplicar o mesmo horário de segunda a sexta
+                        </label>
+                    </div>
+                    <form id="businessHoursForm" class="product-form">
+                        <div id="businessHoursRows"></div>
+                    </form>
+                    <div class="d-flex gap-2 mt-3">
+                        <button id="btnSaveHours" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar Horários
+                        </button>
+                        <button id="btnResetHours" class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-rotate me-1"></i> Recarregar
+                        </button>
+                    </div>
+                    <div id="hoursFeedback" class="mt-3" style="display:none"></div>
+                </div>
+
+                <div class="tab-pane fade" id="delivery" role="tabpanel" aria-labelledby="delivery-tab">
+                    <p class="mb-3 text-muted">Defina o endereço de partida, valor por KM e a chave do Mapbox.</p>
+                    <form id="deliveryConfigForm" class="product-form">
+                        <div class="form-group">
+                            <label for="originAddress">Endereço de Partida (Loja)</label>
+                            <input type="text" id="originAddress" class="form-control" placeholder="Rua, Número - Bairro - Cidade - CEP" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="pricePerKm">Valor por KM (R$)</label>
+                            <input type="number" step="0.01" min="0" id="pricePerKm" class="form-control" placeholder="Ex.: 3.50" required>
+                        </div>
+                        <div class="form-group">
+                            <label for="minDeliveryFee">Taxa Mínima (R$)</label>
+                            <input type="number" step="0.01" min="0" id="minDeliveryFee" class="form-control" placeholder="Ex.: 5.00">
+                        </div>
+                        <div class="form-group">
+                            <label for="mapboxKey">Mapbox Access Token</label>
+                            <input type="text" id="mapboxKey" class="form-control" placeholder="pk.XXXX..." required>
+                        </div>
+                        <div class="form-check">
+                            <input class="form-check-input" type="checkbox" id="exposePublicKey">
+                            <label class="form-check-label" for="exposePublicKey">
+                                Expor chave publicamente para Autofill (opcional)
+                            </label>
+                            <small class="d-block text-muted">Permite que o frontend use esta chave para o Autofill da Mapbox. Use apenas com token público.</small>
+                        </div>
+                        <div id="deliveryFeedback" class="mt-3" style="display:none"></div>
+                    </form>
+                    <div class="d-flex gap-2 mt-3">
+                        <button id="btnSaveDelivery" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i> Salvar Configuração de Entrega
+                        </button>
+                        <button id="btnReloadDelivery" class="btn btn-outline-secondary" type="button">
+                            <i class="fas fa-rotate me-1"></i> Recarregar
+                        </button>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="users" role="tabpanel" aria-labelledby="users-tab">
+                    <div class="section-header">
+                        <h2>Usuários do Sistema</h2>
+                        <button id="btnAddNewUser" class="btn btn-primary">
+                            <i class="fas fa-plus me-1"></i> Adicionar Novo Usuário
+                        </button>
+                    </div>
+                    <div id="usersFeedback" class="mb-3" style="display:none;"></div>
+                    <div class="table-responsive">
+                        <table class="table table-hover">
+                            <thead>
+                                <tr>
+                                    <th>Nome</th>
+                                    <th>Email</th>
+                                    <th>Perfil</th>
+                                    <th>Ações</th>
+                                </tr>
+                            </thead>
+                            <tbody id="usersTableBody">
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- User Management Modal -->
+        <div class="modal fade" id="userModal" tabindex="-1" aria-labelledby="userModalLabel" aria-hidden="true">
+            <div class="modal-dialog modal-dialog-centered">
+                <div class="modal-content shadow-lg">
+                    <div class="modal-header">
+                        <h5 class="modal-title" id="userModalLabel">
+                            <i class="fas fa-user-plus me-2"></i>
+                            <span>Adicionar Novo Usuário</span>
+                        </h5>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <form id="userForm" novalidate>
+                            <input type="hidden" id="userId">
+
+                            <div class="input-group mb-4">
+                                <span class="input-group-text"><i class="fas fa-user"></i></span>
+                                <div class="form-floating">
+                                    <input type="text" class="form-control" id="userName" placeholder="Nome Completo" required>
+                                    <label for="userName">Nome Completo</label>
+                                </div>
+                            </div>
+
+                            <div class="input-group mb-4">
+                                <span class="input-group-text"><i class="fas fa-envelope"></i></span>
+                                <div class="form-floating">
+                                    <input type="email" class="form-control" id="userEmail" placeholder="email@exemplo.com" required>
+                                    <label for="userEmail">Email</label>
+                                </div>
+                            </div>
+
+                            <div class="mb-4">
+                                <div class="input-group">
+                                    <span class="input-group-text"><i class="fas fa-lock"></i></span>
+                                    <div class="form-floating position-relative">
+                                        <input type="password" class="form-control" id="userPassword" placeholder="Senha" style="padding-right: 3rem;">
+                                        <label for="userPassword">Senha</label>
+                                        <span id="togglePassword" class="password-toggle-icon">
+                                            <i class="fas fa-eye-slash"></i>
+                                        </span>
+                                    </div>
+                                </div>
+                                <small id="passwordHelpBlock" class="form-text w-100 mt-2 text-muted ps-1">
+                                   A senha deve ter no mínimo 6 caracteres.
+                                </small>
+                            </div>
+
+                             <div class="input-group">
+                                <span class="input-group-text"><i class="fas fa-shield-alt"></i></span>
+                                <div class="form-floating">
+                                     <select class="form-select" id="userRole" required>
+                                        <option value="operator">Caixa</option>
+                                        <option value="manager">Gerente</option>
+                                        <option value="admin">Administrador</option>
+                                    </select>
+                                    <label for="userRole">Perfil de Acesso</label>
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+                            <i class="fas fa-times me-1"></i> Cancelar
+                        </button>
+                        <button type="submit" class="btn btn-primary" form="userForm">
+                            <i class="fas fa-save me-1"></i> Salvar
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
         
     </main>
 
@@ -464,6 +645,70 @@
             font-family: 'Inter', sans-serif;
             -webkit-font-smoothing: antialiased;
             -moz-osx-font-smoothing: grayscale;
+        }
+        
+        /* Estilos para o Modal de Usuário Melhorado */
+        #userModal .modal-content {
+            border-radius: 0.75rem; /* Bordas mais arredondadas */
+            border: none;
+            box-shadow: 0 0.5rem 1.5rem rgba(0,0,0,0.1);
+        }
+
+        #userModal .modal-header {
+            padding: 1rem 1.5rem;
+            border-bottom: 1px solid #e9ecef;
+            background-color: #f8f9fa;
+        }
+
+        #userModal .modal-title {
+            font-weight: 600;
+            color: #343a40;
+            display: flex;
+            align-items: center;
+        }
+
+        #userModal .modal-body {
+            padding: 2rem;
+        }
+
+        #userModal .input-group-text {
+            background-color: #e9ecef;
+            border: 1px solid #ced4da;
+            width: 42px; /* Largura fixa para alinhar ícones */
+            justify-content: center;
+            font-size: 0.9rem;
+        }
+
+        #userModal .form-floating > .form-control,
+        #userModal .form-floating > .form-select {
+            height: calc(3.5rem - 2px); /* Ajusta altura para o form-floating */
+            padding: 1rem 1.25rem;
+        }
+
+        #userModal .form-floating > label {
+            padding: 1rem 1.25rem;
+        }
+
+        #userModal .modal-footer {
+            padding: 1rem 1.5rem;
+            background-color: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        #userModal .btn {
+            padding: 0.6rem 1.2rem;
+            font-weight: 500;
+        }
+        
+        /* Estilo para o ícone de revelar senha */
+        .password-toggle-icon {
+            position: absolute;
+            top: 50%;
+            right: 1rem;
+            transform: translateY(-50%);
+            cursor: pointer;
+            color: #6c757d;
+            z-index: 5; /* Garante que o ícone fique sobre o campo */
         }
         
         /* Styles for printing */
@@ -499,6 +744,419 @@
         ::-webkit-scrollbar-thumb:hover {
             background: #9ca3af;
         }
+        
+        /* Estilos para as abas de configuração */
+        .nav-tabs {
+            border-bottom: 1px solid #dee2e6;
+            margin-bottom: 1rem;
+        }
+        
+        .nav-tabs .nav-link {
+            color: #495057;
+            font-weight: 500;
+            border: 1px solid transparent;
+            border-radius: 0.375rem 0.375rem 0 0;
+            padding: 0.75rem 1rem;
+            margin-right: 0.25rem;
+            text-decoration: none;
+        }
+        
+        .nav-tabs .nav-link:hover {
+            border-color: #e9ecef #e9ecef #dee2e6;
+            background-color: #f8f9fa;
+        }
+        
+        .nav-tabs .nav-link.active {
+            color: #0d6efd;
+            background-color: #fff;
+            border-color: #dee2e6 #dee2e6 #fff;
+        }
+        
+        .tab-content {
+            background-color: #fff;
+            padding: 1.5rem;
+            border: 1px solid #dee2e6;
+            border-top: none;
+            border-radius: 0 0 0.375rem 0.375rem;
+        }
+        
+        .tab-pane {
+            display: none;
+        }
+        
+        .tab-pane.active {
+            display: block;
+        }
+        
+        .tab-pane.fade {
+            transition: opacity 0.15s linear;
+        }
+        
+        .tab-pane.fade.show {
+            opacity: 1;
+        }
+        
+        /* Estilos para os formulários de configuração */
+        .form-group {
+            margin-bottom: 1rem;
+        }
+        
+        .form-control {
+            display: block;
+            width: 100%;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            font-weight: 400;
+            line-height: 1.5;
+            color: #212529;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid #ced4da;
+            border-radius: 0.375rem;
+            transition: border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        
+        .form-control:focus {
+            color: #212529;
+            background-color: #fff;
+            border-color: #86b7fe;
+            outline: 0;
+            box-shadow: 0 0 0 0.25rem rgba(13, 110, 253, 0.25);
+        }
+        
+        .form-label {
+            margin-bottom: 0.5rem;
+            font-weight: 500;
+        }
+        
+        .form-text {
+            margin-top: 0.25rem;
+            font-size: 0.875em;
+            color: #6c757d;
+        }
+        
+        .form-check {
+            display: flex;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+        
+        .form-check-input {
+            margin-right: 0.5rem;
+        }
+        
+        .form-check-label {
+            margin-bottom: 0;
+        }
+        
+        /* Estilos para os botões */
+        .btn {
+            display: inline-block;
+            font-weight: 400;
+            line-height: 1.5;
+            text-align: center;
+            text-decoration: none;
+            vertical-align: middle;
+            cursor: pointer;
+            user-select: none;
+            border: 1px solid transparent;
+            padding: 0.375rem 0.75rem;
+            font-size: 1rem;
+            border-radius: 0.375rem;
+            transition: color 0.15s ease-in-out, background-color 0.15s ease-in-out, border-color 0.15s ease-in-out, box-shadow 0.15s ease-in-out;
+        }
+        
+        .btn-primary {
+            color: #fff;
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        
+        .btn-primary:hover {
+            color: #fff;
+            background-color: #0b5ed7;
+            border-color: #0a58ca;
+        }
+        
+        .btn-secondary {
+            color: #fff;
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        
+        .btn-secondary:hover {
+            color: #fff;
+            background-color: #5c636a;
+            border-color: #565e64;
+        }
+        
+        .btn-outline-secondary {
+            color: #6c757d;
+            border-color: #6c757d;
+            background-color: transparent;
+        }
+        
+        .btn-outline-secondary:hover {
+            color: #fff;
+            background-color: #6c757d;
+            border-color: #6c757d;
+        }
+        
+        /* Estilos para as mensagens de feedback */
+        .alert {
+            padding: 0.75rem 1.25rem;
+            margin-bottom: 1rem;
+            border: 1px solid transparent;
+            border-radius: 0.375rem;
+        }
+        
+        .alert-success {
+            color: #0f5132;
+            background-color: #d1e7dd;
+            border-color: #badbcc;
+        }
+        
+        .alert-danger {
+            color: #842029;
+            background-color: #f8d7da;
+            border-color: #f5c2c7;
+        }
+        
+        /* Estilos para a tabela de usuários */
+        .table {
+            width: 100%;
+            margin-bottom: 1rem;
+            color: #212529;
+            vertical-align: top;
+            border-color: #dee2e6;
+        }
+        
+        .table th,
+        .table td {
+            padding: 0.75rem;
+            vertical-align: top;
+            border-top: 1px solid #dee2e6;
+        }
+        
+        .table thead th {
+            vertical-align: bottom;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+        }
+        
+        .table-hover tbody tr:hover {
+            background-color: rgba(0, 0, 0, 0.075);
+        }
+        
+        .table-responsive {
+            overflow-x: auto;
+        }
+        
+        /* Estilos para os badges */
+        .badge {
+            display: inline-block;
+            padding: 0.35em 0.65em;
+            font-size: 0.75em;
+            font-weight: 700;
+            line-height: 1;
+            text-align: center;
+            white-space: nowrap;
+            vertical-align: baseline;
+            border-radius: 0.375rem;
+        }
+        
+        .bg-secondary {
+            color: #fff;
+            background-color: #6c757d;
+        }
+        
+        /* Estilos para os botões de ação na tabela */
+        .btn-sm {
+            padding: 0.25rem 0.5rem;
+            font-size: 0.875rem;
+            border-radius: 0.2rem;
+        }
+        
+        .btn-outline-primary {
+            color: #0d6efd;
+            border-color: #0d6efd;
+            background-color: transparent;
+        }
+        
+        .btn-outline-primary:hover {
+            color: #fff;
+            background-color: #0d6efd;
+            border-color: #0d6efd;
+        }
+        
+        .btn-outline-danger {
+            color: #dc3545;
+            border-color: #dc3545;
+            background-color: transparent;
+        }
+        
+        .btn-outline-danger:hover {
+            color: #fff;
+            background-color: #dc3545;
+            border-color: #dc3545;
+        }
+        
+        /* Estilos para o modal de usuários */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            z-index: 1055;
+            display: none;
+            width: 100%;
+            height: 100%;
+            overflow-x: hidden;
+            overflow-y: auto;
+            outline: 0;
+        }
+        
+        .modal-dialog {
+            position: relative;
+            width: auto;
+            margin: 0.5rem;
+            pointer-events: none;
+        }
+        
+        .modal-content {
+            position: relative;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            pointer-events: auto;
+            background-color: #fff;
+            background-clip: padding-box;
+            border: 1px solid rgba(0, 0, 0, 0.2);
+            border-radius: 0.375rem;
+            outline: 0;
+            box-shadow: 0 0.25rem 0.5rem rgba(0, 0, 0, 0.5);
+        }
+        
+        .modal-header {
+            display: flex;
+            flex-shrink: 0;
+            align-items: center;
+            justify-content: space-between;
+            padding: 1rem;
+            border-bottom: 1px solid #dee2e6;
+            border-top-left-radius: calc(0.375rem - 1px);
+            border-top-right-radius: calc(0.375rem - 1px);
+        }
+        
+        .modal-body {
+            position: relative;
+            flex: 1 1 auto;
+            padding: 1rem;
+        }
+        
+        .modal-footer {
+            display: flex;
+            flex-shrink: 0;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: flex-end;
+            padding: 0.75rem;
+            border-top: 1px solid #dee2e6;
+            border-bottom-right-radius: calc(0.375rem - 1px);
+            border-bottom-left-radius: calc(0.375rem - 1px);
+        }
+        
+        .modal-title {
+            margin-bottom: 0;
+            line-height: 1.5;
+        }
+        
+        .btn-close {
+            box-sizing: content-box;
+            width: 1em;
+            height: 1em;
+            padding: 0.25em 0.25em;
+            color: #000;
+            background: transparent url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16'%3e%3cpath d='M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z'/%3e%3c/svg%3e") center/1em auto no-repeat;
+            border: 0;
+            border-radius: 0.375rem;
+            opacity: 0.5;
+            cursor: pointer;
+        }
+        
+        .btn-close:hover {
+            opacity: 0.75;
+        }
+        
+        /* Estilos para os horários de funcionamento */
+        .list-row {
+            display: flex;
+            align-items: center;
+            padding: 0.75rem 0;
+            border-bottom: 1px solid #e9ecef;
+        }
+        
+        .list-row:last-child {
+            border-bottom: none;
+        }
+        
+        .list-col {
+            flex: 1;
+            padding: 0 0.5rem;
+        }
+        
+        .list-col:first-child {
+            flex: 2;
+        }
+        
+        .checkbox-label {
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            margin: 0;
+        }
+        
+        .checkbox-label input[type="checkbox"] {
+            margin-right: 0.5rem;
+        }
+        
+        .form-control.disabled {
+            background-color: #e9ecef;
+            opacity: 0.6;
+        }
+        
+        /* Estilos para o gap entre botões */
+        .d-flex.gap-2 > * + * {
+            margin-left: 0.5rem;
+        }
+        
+        .d-flex.gap-2 > * {
+            margin-left: 0;
+        }
+        
+        /* Estilos para o mb-3 */
+        .mb-3 {
+            margin-bottom: 1rem;
+        }
+        
+        /* Estilos para o mt-3 */
+        .mt-3 {
+            margin-top: 1rem;
+        }
+        
+        /* Estilos para o text-muted */
+        .text-muted {
+            color: #6c757d;
+        }
+        
+        /* Estilos para o me-1 */
+        .me-1 {
+            margin-right: 0.25rem;
+        }
+        
+        /* Estilos para o me-2 */
+        .me-2 {
+            margin-right: 0.5rem;
+        }
     </style>
 
     <!-- JavaScript Externo -->
@@ -508,6 +1166,404 @@
     <script src="assets/js/modals-loader.js?v=20250810"></script>
     <script src="assets/js/admin.js?v=20250810"></script>
     <script src="assets/js/produtos-admin.js?v=20250810"></script>
+    
+    <!-- Scripts de Configurações Integrados -->
+    <script>
+        // Função para controlar a visibilidade das seções
+        function showSection(sectionId) {
+            // Oculta todas as seções
+            const sections = document.querySelectorAll('.admin-section');
+            sections.forEach(section => {
+                section.classList.remove('active');
+            });
+            
+            // Remove a classe active de todos os botões de navegação
+            const navItems = document.querySelectorAll('.nav-item');
+            navItems.forEach(item => {
+                item.classList.remove('active');
+            });
+            
+            // Exibe a seção selecionada
+            const targetSection = document.getElementById(sectionId + 'Section');
+            if (targetSection) {
+                targetSection.classList.add('active');
+            }
+            
+            // Ativa o botão de navegação correspondente
+            const targetNavItem = document.querySelector(`[onclick="showSection('${sectionId}')"]`);
+            if (targetNavItem) {
+                targetNavItem.classList.add('active');
+            }
+        }
+
+        // Script de configuração da API
+        (function(){
+            try {
+                if (typeof setConfig !== 'function') return;
+                var path = window.location.pathname || '/';
+                var parts = path.split('/').filter(Boolean);
+                var base = '/api/';
+                if (parts.length > 0 && parts[0].toLowerCase() !== 'admin') {
+                    base = '/' + parts[0] + '/api/';
+                }
+                setConfig('API.BASE_URL', base);
+                try { console.debug('[CONFIG] API.BASE_URL =', base); } catch (_) {}
+            } catch (_) {}
+        })();
+
+        // Script de Horários de Funcionamento
+        (function() {
+            const DAYS = [
+                { key: 'monday',    label: 'Segunda-feira' }, { key: 'tuesday',   label: 'Terça-feira' },
+                { key: 'wednesday', label: 'Quarta-feira' }, { key: 'thursday',  label: 'Quinta-feira' },
+                { key: 'friday',    label: 'Sexta-feira' }, { key: 'saturday',  label: 'Sábado' }, { key: 'sunday',    label: 'Domingo' }
+            ];
+            const DEFAULT_HOURS = {
+                monday:    { closed: false, open: '09:00', close: '18:00' }, tuesday:   { closed: false, open: '09:00', close: '18:00' },
+                wednesday: { closed: false, open: '09:00', close: '18:00' }, thursday:  { closed: false, open: '09:00', close: '18:00' },
+                friday:    { closed: false, open: '09:00', close: '18:00' }, saturday:  { closed: false, open: '10:00', close: '14:00' },
+                sunday:    { closed: true,  open: '00:00', close: '00:00' }
+            };
+            const STORAGE_KEY = 'settings.business_hours';
+            
+            function readSavedHours() {
+                try { const raw = localStorage.getItem(STORAGE_KEY); return raw ? ObjectUtils.merge(ObjectUtils.clone(DEFAULT_HOURS), JSON.parse(raw)) : ObjectUtils.clone(DEFAULT_HOURS); } catch (e) { return ObjectUtils.clone(DEFAULT_HOURS); }
+            }
+            
+            async function writeSavedHours(hours) {
+                localStorage.setItem(STORAGE_KEY, JSON.stringify(hours));
+                try { await fetch(getApiUrl('settings/business-hours'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(hours) }); } catch (_) {}
+            }
+            
+            async function fetchServerHoursOrLocal() {
+                try {
+                    const resp = await fetch(getApiUrl('settings/business-hours'));
+                    if (resp.ok) {
+                        const json = await resp.json();
+                        if (json && json.success && json.data) { localStorage.setItem(STORAGE_KEY, JSON.stringify(json.data)); return json.data; }
+                    }
+                } catch (_) {}
+                return readSavedHours();
+            }
+            
+            function showFeedback(message, type = 'success') {
+                const box = document.getElementById('hoursFeedback');
+                box.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger');
+                box.textContent = message;
+                box.style.display = '';
+                setTimeout(() => { box.style.display = 'none'; }, getConfig('UI.TOAST_DURATION') || 3000);
+            }
+            
+            function createRow(dayKey, label, data) {
+                const row = document.createElement('div'); row.className = 'list-row';
+                const nameCol = document.createElement('div'); nameCol.className = 'list-col'; nameCol.innerHTML = '<strong>' + label + '</strong>';
+                const openCol = document.createElement('div'); openCol.className = 'list-col'; const openInput = document.createElement('input'); openInput.type = 'time'; openInput.name = dayKey + '.open'; openInput.value = data.open; openInput.className = 'form-control'; openCol.appendChild(openInput);
+                const closeCol = document.createElement('div'); closeCol.className = 'list-col'; const closeInput = document.createElement('input'); closeInput.type = 'time'; closeInput.name = dayKey + '.close'; closeInput.value = data.close; closeInput.className = 'form-control'; closeCol.appendChild(closeInput);
+                const closedCol = document.createElement('div'); closedCol.className = 'list-col'; const closedLabel = document.createElement('label'); closedLabel.className = 'checkbox-label'; const closedInput = document.createElement('input'); closedInput.type = 'checkbox'; closedInput.name = dayKey + '.closed'; closedInput.checked = !!data.closed; closedLabel.appendChild(closedInput); closedLabel.appendChild(document.createTextNode(' Fechado')); closedCol.appendChild(closedLabel);
+                
+                function toggleDisable() {
+                    const disabled = closedInput.checked; openInput.disabled = disabled; closeInput.disabled = disabled;
+                    if (disabled) { openInput.classList.add('disabled'); closeInput.classList.add('disabled'); } else { openInput.classList.remove('disabled'); closeInput.classList.remove('disabled'); }
+                }
+                closedInput.addEventListener('change', toggleDisable); toggleDisable();
+                row.appendChild(nameCol); row.appendChild(openCol); row.appendChild(closeCol); row.appendChild(closedCol); return row;
+            }
+            
+            function renderForm(hours) {
+                const container = document.getElementById('businessHoursRows'); container.innerHTML = '';
+                const header = document.createElement('div'); header.className = 'list-row'; header.style.fontWeight = '600'; header.innerHTML = '<div class="list-col">Dia</div><div class="list-col">Abertura</div><div class="list-col">Fechamento</div><div class="list-col">Status</div>'; container.appendChild(header);
+                DAYS.forEach((d) => { const row = createRow(d.key, d.label, hours[d.key]); container.appendChild(row); });
+            }
+            
+            function collectForm() {
+                const result = {};
+                DAYS.forEach((d) => { result[d.key] = { open: document.querySelector('input[name="' + d.key + '.open"]').value || '00:00', close: document.querySelector('input[name="' + d.key + '.close"]').value || '00:00', closed: document.querySelector('input[name="' + d.key + '.closed"]').checked }; });
+                return result;
+            }
+            
+            function validateHours(hours) {
+                for (const day of DAYS) {
+                    const h = hours[day.key];
+                    if (!h.closed) { if (!/^\d{2}:\d{2}$/.test(h.open) || !/^\d{2}:\d{2}$/.test(h.close)) return false; if (h.open === '00:00' && h.close === '00:00') continue; if (h.open >= h.close) return false; }
+                }
+                return true;
+            }
+            
+            function applyWeekdaysFromMonday(hours) {
+                const base = hours.monday;
+                ['tuesday','wednesday','thursday','friday'].forEach((k) => { hours[k] = { open: base.open, close: base.close, closed: base.closed }; });
+                return hours;
+            }
+            
+            document.addEventListener('DOMContentLoaded', async function() {
+                let hours = await fetchServerHoursOrLocal(); renderForm(hours);
+                document.getElementById('btnSaveHours').addEventListener('click', function(e) {
+                    e.preventDefault(); let data = collectForm();
+                    if (document.getElementById('applyWeekdays').checked) { data = applyWeekdaysFromMonday(data); renderForm(data); }
+                    if (!validateHours(data)) { showFeedback('Verifique os horários: a abertura deve ser antes do fechamento.', 'error'); return; }
+                    writeSavedHours(data); showFeedback('Horários salvos com sucesso!');
+                });
+                document.getElementById('btnResetHours').addEventListener('click', function() { hours = readSavedHours(); renderForm(hours); showFeedback('Horários recarregados.'); });
+            });
+        })();
+
+        // Script de Configuração de Entrega
+        (function(){
+            async function loadDeliveryConfig() {
+                try {
+                    const bases = (function(){ const res = []; try { res.push(getConfig('API.BASE_URL')); } catch(_) {} res.push('/api/'); try { const path = window.location.pathname || '/'; const p = path.split('/').filter(Boolean); if (p.length > 0) res.push('/' + p[0] + '/api/'); res.push('../../api/'); } catch(_) {} return Array.from(new Set(res.filter(Boolean))); })();
+                    for (const b of bases) {
+                        try {
+                            const r = await fetch(b + 'delivery/config'); const json = await r.json();
+                            if (r.ok && json && json.success && json.data) {
+                                try { setConfig('API.BASE_URL', b); } catch(_) {}
+                                document.getElementById('originAddress').value = json.data.origin_address || ''; document.getElementById('pricePerKm').value = json.data.price_per_km || ''; document.getElementById('minDeliveryFee').value = json.data.min_delivery_fee || ''; document.getElementById('exposePublicKey').checked = !!json.data.expose_public_key;
+                                return;
+                            }
+                        } catch (_) {}
+                    }
+                } catch (_) {}
+            }
+            
+            function showDeliveryFeedback(msg, type='success') {
+                const box = document.getElementById('deliveryFeedback'); box.className = 'alert alert-' + (type==='success'?'success':'danger'); box.textContent = msg; box.style.display = '';
+                setTimeout(()=>{ box.style.display='none'; }, getConfig('UI.TOAST_DURATION') || 3000);
+            }
+            
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('btnReloadDelivery').addEventListener('click', loadDeliveryConfig);
+                document.getElementById('btnSaveDelivery').addEventListener('click', async function(e){
+                    e.preventDefault(); const addr = document.getElementById('originAddress').value.trim(); const ppk = parseFloat(document.getElementById('pricePerKm').value); const key = document.getElementById('mapboxKey').value.trim();
+                    if (!addr || !key || !(ppk > 0)) { showDeliveryFeedback('Preencha endereço, valor por KM (>0) e a chave.', 'error'); return; }
+                    try {
+                        const json = await (async () => {
+                            const bases = (function(){ const res = []; try { res.push(getConfig('API.BASE_URL')); } catch(_) {} res.push('/api/'); try { const path = window.location.pathname || '/'; const p = path.split('/').filter(Boolean); if (p.length > 0) res.push('/' + p[0] + '/api/'); res.push('../../api/'); } catch(_) {} return Array.from(new Set(res.filter(Boolean))); })();
+                            const payload = { origin_address: addr, price_per_km: ppk, min_delivery_fee: parseFloat(document.getElementById('minDeliveryFee').value) || 0, expose_public_key: document.getElementById('exposePublicKey').checked ? 1 : 0, mapbox_api_key: key };
+                            for (const b of bases) {
+                                try { const r = await fetch(b + 'delivery/config', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(payload) }); const j = await r.json(); if (r.ok && j && j.success) { try { setConfig('API.BASE_URL', b); } catch(_) {}; return j; } } catch (_) {}
+                            } throw new Error('network');
+                        })();
+                        if (json && json.success) { showDeliveryFeedback('Configuração salva com sucesso.'); document.getElementById('mapboxKey').value = ''; } else { showDeliveryFeedback((json && json.message) || 'Falha ao salvar configuração.', 'error'); }
+                    } catch (err) { showDeliveryFeedback('Erro de rede ao salvar configuração.', 'error'); }
+                });
+                loadDeliveryConfig();
+            });
+        })();
+
+        // Script de Gerenciamento de Usuários
+        (function(){
+            console.log('Inicializando script de usuários...');
+            console.log('Bootstrap disponível:', typeof bootstrap !== 'undefined');
+            
+            const userModalEl = document.getElementById('userModal');
+            console.log('Elemento do modal:', userModalEl);
+            
+            if (!userModalEl) {
+                console.error('Modal não encontrado!');
+                return;
+            }
+            
+            if (typeof bootstrap === 'undefined') {
+                console.error('Bootstrap não está carregado!');
+                return;
+            }
+            
+            const userModal = new bootstrap.Modal(userModalEl);
+            console.log('Modal Bootstrap criado:', userModal);
+            
+            const userForm = document.getElementById('userForm');
+            const usersTableBody = document.getElementById('usersTableBody');
+            const usersFeedback = document.getElementById('usersFeedback');
+
+            // Função para exibir feedback na aba de usuários
+            function showUserFeedback(message, type = 'success') {
+                usersFeedback.className = 'alert alert-' + (type === 'success' ? 'success' : 'danger');
+                usersFeedback.textContent = message;
+                usersFeedback.style.display = 'block';
+                setTimeout(() => { usersFeedback.style.display = 'none'; }, 4000);
+            }
+
+            // Carrega e renderiza a lista de usuários
+            async function loadUsers() {
+                try {
+                    const response = await fetch(getApiUrl('users'));
+                    const result = await response.json();
+
+                    usersTableBody.innerHTML = '';
+
+                    if (response.ok && result.success) {
+                        result.data.forEach(user => {
+                            const row = document.createElement('tr');
+                            row.innerHTML = `
+                                <td>${user.name}</td>
+                                <td>${user.email}</td>
+                                <td><span class="badge bg-secondary">${user.role}</span></td>
+                                <td>
+                                    <button class="btn btn-sm btn-outline-primary btn-action" data-user-id="${user.id}" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </button>
+                                    <button class="btn btn-sm btn-outline-danger btn-action" data-user-id="${user.id}" title="Excluir">
+                                        <i class="fas fa-trash"></i>
+                                    </button>
+                                </td>
+                            `;
+                            usersTableBody.appendChild(row);
+
+                            // Adiciona eventos aos botões de ação
+                            const editButton = row.querySelector('.btn-outline-primary');
+                            editButton.addEventListener('click', () => openEditModal(user));
+
+                            const deleteButton = row.querySelector('.btn-outline-danger');
+                            deleteButton.addEventListener('click', () => deleteUser(user.id, user.name));
+                        });
+                    } else {
+                        showUserFeedback(result.message || 'Falha ao carregar usuários.', 'error');
+                    }
+                } catch (error) {
+                    showUserFeedback('Erro de rede ao carregar usuários.', 'error');
+                }
+            }
+
+            // Abre o modal para adicionar um novo usuário
+            function openAddModal() {
+                console.log('openAddModal chamada');
+                userForm.reset();
+                document.getElementById('userId').value = '';
+                document.getElementById('userModalLabel').textContent = 'Adicionar Novo Usuário';
+                // Atualiza o texto de ajuda da senha
+                const passwordHelp = document.getElementById('passwordHelpBlock');
+                if (passwordHelp) {
+                    passwordHelp.textContent = 'A senha deve ter no mínimo 6 caracteres.';
+                }
+                console.log('Tentando abrir modal...');
+                userModal.show();
+                console.log('Modal aberto');
+            }
+
+            // Abre o modal para editar um usuário existente
+            function openEditModal(user) {
+                userForm.reset();
+                document.getElementById('userId').value = user.id;
+                document.getElementById('userName').value = user.name;
+                document.getElementById('userEmail').value = user.email;
+                document.getElementById('userRole').value = user.role;
+                document.getElementById('userModalLabel').textContent = 'Editar Usuário';
+                // Atualiza o texto de ajuda da senha
+                const passwordHelp = document.getElementById('passwordHelpBlock');
+                if (passwordHelp) {
+                    passwordHelp.textContent = 'Deixe em branco para manter a senha atual.';
+                }
+                userModal.show();
+            }
+
+            // Salva (cria ou atualiza) um usuário
+            async function saveUser(event) {
+                event.preventDefault();
+
+                const userId = document.getElementById('userId').value;
+                const password = document.getElementById('userPassword').value;
+
+                const payload = {
+                    id: userId || null,
+                    name: document.getElementById('userName').value,
+                    email: document.getElementById('userEmail').value,
+                    role: document.getElementById('userRole').value,
+                };
+
+                if (password) {
+                    if (password.length < 6) {
+                        showUserFeedback('A senha deve ter pelo menos 6 caracteres.', 'error');
+                        return;
+                    }
+                    payload.password = password;
+                } else if (!userId) {
+                    showUserFeedback('O campo senha é obrigatório para novos usuários.', 'error');
+                    return;
+                }
+
+                const endpoint = userId ? getApiUrl('users/update') : getApiUrl('users/create');
+
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        userModal.hide();
+                        showUserFeedback(result.message || 'Usuário salvo com sucesso!');
+                        loadUsers();
+                    } else {
+                        alert('Erro: ' + (result.message || 'Falha ao salvar.'));
+                    }
+
+                } catch (error) {
+                    alert('Erro de rede ao salvar usuário.');
+                }
+            }
+
+            // Exclui um usuário
+            async function deleteUser(userId, userName) {
+                if (!confirm(`Tem certeza que deseja excluir o usuário "${userName}"?`)) {
+                    return;
+                }
+
+                try {
+                    const response = await fetch(getApiUrl('users/delete'), {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ id: userId })
+                    });
+                    const result = await response.json();
+
+                    if (response.ok && result.success) {
+                        showUserFeedback(result.message || 'Usuário excluído com sucesso!');
+                        loadUsers();
+                    } else {
+                        showUserFeedback(result.message || 'Falha ao excluir usuário.', 'error');
+                    }
+                } catch (error) {
+                    showUserFeedback('Erro de rede ao excluir usuário.', 'error');
+                }
+            }
+
+            // Event Listeners
+            document.addEventListener('DOMContentLoaded', function() {
+                document.getElementById('btnAddNewUser').addEventListener('click', openAddModal);
+                userForm.addEventListener('submit', saveUser);
+
+                // Carrega os usuários quando a aba é exibida
+                const usersTab = document.getElementById('users-tab');
+                usersTab.addEventListener('shown.bs.tab', loadUsers);
+                
+                // Carrega os usuários na primeira vez, caso a aba já esteja ativa
+                if (usersTab.classList.contains('active')) {
+                    loadUsers();
+                }
+                
+                // Funcionalidade para revelar/ocultar senha
+                const togglePassword = document.querySelector('#togglePassword');
+                const passwordInput = document.querySelector('#userPassword');
+                
+                if (togglePassword) {
+                    togglePassword.addEventListener('click', function () {
+                        // Seleciona o ícone dentro do botão
+                        const icon = this.querySelector('i');
+                        
+                        // Alterna o tipo do input
+                        const type = passwordInput.getAttribute('type') === 'password' ? 'text' : 'password';
+                        passwordInput.setAttribute('type', type);
+                        
+                        // Alterna a classe do ícone
+                        icon.classList.toggle('fa-eye');
+                        icon.classList.toggle('fa-eye-slash');
+                    });
+                }
+            });
+        })();
+    </script>
     
 </body>
 </html>

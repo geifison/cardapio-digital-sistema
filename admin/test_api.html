@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Teste da API</title>
+    <script src="assets/js/config.js"></script>
+</head>
+<body>
+    <h1>Teste da API</h1>
+    
+    <h2>Teste de Login</h2>
+    <form id="loginForm">
+        <input type="email" id="email" placeholder="Email" value="admin@cardapio.com"><br><br>
+        <input type="password" id="password" placeholder="Senha" value="admin123"><br><br>
+        <button type="submit">Fazer Login</button>
+    </form>
+    
+    <h2>Teste de Criação de Usuário</h2>
+    <form id="userForm">
+        <input type="text" id="userName" placeholder="Nome" value="Usuário Teste"><br><br>
+        <input type="email" id="userEmail" placeholder="Email" value="teste@exemplo.com"><br><br>
+        <input type="password" id="userPassword" placeholder="Senha" value="123456"><br><br>
+        <select id="userRole">
+            <option value="operator">Operador</option>
+            <option value="manager">Gerente</option>
+            <option value="admin">Admin</option>
+        </select><br><br>
+        <button type="submit">Criar Usuário</button>
+    </form>
+    
+    <div id="result"></div>
+    
+    <script>
+        // Teste de login
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const loginData = {
+                email: document.getElementById('email').value,
+                password: document.getElementById('password').value
+            };
+            
+            try {
+                const response = await fetch(getApiUrl('auth/login'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(loginData),
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h3>Resposta do Login:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                    <p>Status: ${response.status}</p>
+                `;
+                
+                if (result.success) {
+                    console.log('Login bem-sucedido!');
+                }
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p>Erro: ${error.message}</p>`;
+            }
+        });
+        
+        // Teste de criação de usuário
+        document.getElementById('userForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const userData = {
+                name: document.getElementById('userName').value,
+                email: document.getElementById('userEmail').value,
+                password: document.getElementById('userPassword').value,
+                role: document.getElementById('userRole').value
+            };
+            
+            try {
+                const response = await fetch(getApiUrl('users/create'), {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(userData),
+                    credentials: 'include'
+                });
+                
+                const result = await response.json();
+                document.getElementById('result').innerHTML = `
+                    <h3>Resposta da Criação de Usuário:</h3>
+                    <pre>${JSON.stringify(result, null, 2)}</pre>
+                    <p>Status: ${response.status}</p>
+                `;
+            } catch (error) {
+                document.getElementById('result').innerHTML = `<p>Erro: ${error.message}</p>`;
+            }
+        });
+        
+        // Mostrar a URL da API
+        console.log('API Base URL:', getApiUrl(''));
+        console.log('URL de teste de usuários:', getApiUrl('users/create'));
+    </script>
+</body>
+</html>
