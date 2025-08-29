@@ -1,0 +1,16 @@
+{
+  "name": "realtime-server",
+  "version": "1.0.0",
+  "description": "Microserviço de tempo real (Socket.IO) para o sistema de cardápio",
+  "main": "index.js",
+  "type": "module",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "node index.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "socket.io": "^4.7.5"
+  }
+}

@@ -1,0 +1,43 @@
+/* Estilos específicos para o MapBox */
+.mapbox-container {
+  width: 100%;
+  height: 400px;
+  min-height: 400px;
+  position: relative;
+  z-index: 0;
+}
+
+.mapbox-container .mapboxgl-map {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Garantir que o modal tenha espaço suficiente para o mapa */
+.dialog-map-content {
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* Estilos para o container do geocoder */
+.geocoder-container {
+  position: relative;
+  z-index: 1;
+  margin-bottom: 8px;
+}
+
+/* Forçar altura do mapa no modal */
+#mapbox-container {
+  height: 400px !important;
+  width: 100% !important;
+}
+
+/* Garantir que o mapbox não tenha overflow */
+.mapboxgl-canvas-container {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.mapboxgl-canvas {
+  width: 100% !important;
+  height: 100% !important;
+}

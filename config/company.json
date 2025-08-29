@@ -1,0 +1,16 @@
+{
+    "name": "Papibu Pizzaria",
+    "document": "47.038.033\/0001-94",
+    "phone": "(71) 9 9949-4975",
+    "email": "papibu.oficial@hotmail.com",
+    "logo_url": "http:\/\/localhost\/cardapio-digital-sistema\/uploads\/68af4ff033fe26.54416444.png",
+    "address": {
+        "zip": "42700-240",
+        "street": "Rua Professor Theócrito Batista",
+        "number": "417",
+        "complement": "",
+        "neighborhood": "",
+        "city": "Lauro de Freitas",
+        "state": "BA"
+    }
+}
