@@ -4,7 +4,8 @@
  */
 class Database {
     // Configurações do banco de dados
-    private $host = 'localhost';
+    private $host = '127.0.0.1';
+    private $port = 3306; // Porta padrão do MySQL
     private $db_name = 'cardapio_digital';
     private $username = 'root';
     private $password = '';
@@ -22,9 +23,9 @@ class Database {
         
         try {
             if ($with_db) {
-                $dsn = "mysql:host=" . $this->host . ";dbname=" . $this->db_name . ";charset=" . $this->charset;
+                $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->db_name};charset={$this->charset}";
             } else {
-                $dsn = "mysql:host=" . $this->host . ";charset=" . $this->charset;
+                $dsn = "mysql:host={$this->host};port={$this->port};charset={$this->charset}";
             }
             
             $options = [

@@ -29,6 +29,8 @@ class OrderController {
                 $order['delivery_fee'] = (float) $order['delivery_fee'];
                 $order['change_amount'] = (float) $order['change_amount'];
                 $order['payment_value'] = $order['payment_value'] ? (float) $order['payment_value'] : null;
+                // payment_status como inteiro (0/1)
+                $order['payment_status'] = isset($order['payment_status']) ? (int)$order['payment_status'] : 0;
             }
             
             echo json_encode([
@@ -65,6 +67,7 @@ class OrderController {
                 $order['delivery_fee'] = (float) $order['delivery_fee'];
                 $order['change_amount'] = (float) $order['change_amount'];
                 $order['payment_value'] = $order['payment_value'] ? (float) $order['payment_value'] : null;
+                $order['payment_status'] = isset($order['payment_status']) ? (int)$order['payment_status'] : 0;
             }
             
             echo json_encode([
@@ -102,6 +105,7 @@ class OrderController {
                 $order['delivery_fee'] = (float) $order['delivery_fee'];
                 $order['change_amount'] = (float) $order['change_amount'];
                 $order['payment_value'] = $order['payment_value'] ? (float) $order['payment_value'] : null;
+                $order['payment_status'] = isset($order['payment_status']) ? (int)$order['payment_status'] : 0;
             }
             
             echo json_encode([
@@ -137,6 +141,7 @@ class OrderController {
                 $order['delivery_fee'] = (float) $order['delivery_fee'];
                 $order['change_amount'] = (float) $order['change_amount'];
                 $order['payment_value'] = $order['payment_value'] ? (float) $order['payment_value'] : null;
+                $order['payment_status'] = isset($order['payment_status']) ? (int)$order['payment_status'] : 0;
                 
                 echo json_encode([
                     'success' => true,
@@ -211,7 +216,7 @@ class OrderController {
                 // Gera número do pedido
                 $order_number = $this->generateOrderNumber();
                 
-                // Calcula valores
+                // Calcule valores
                 $subtotal = $data['subtotal'] ?? 0;
                 $delivery_fee = $data['delivery_fee'] ?? 5.00;
                 if ($order_type !== 'delivery') {
@@ -226,24 +231,26 @@ class OrderController {
                 
                 // Insere o pedido
                 $order_query = "INSERT INTO orders (
-                                  order_number, status, customer_name, customer_phone, customer_address,
-                                  customer_neighborhood, customer_reference, payment_method, payment_value,
+                                  order_number, status, order_type, customer_name, customer_phone, customer_address,
+                                  customer_neighborhood, customer_reference, payment_method, payment_value, payment_status,
                                   total_amount, change_amount, delivery_fee, notes, estimated_delivery_time
                                 ) VALUES (
-                                  :order_number, 'novo', :customer_name, :customer_phone, :customer_address,
-                                  :customer_neighborhood, :customer_reference, :payment_method, :payment_value,
+                                  :order_number, 'novo', :order_type, :customer_name, :customer_phone, :customer_address,
+                                  :customer_neighborhood, :customer_reference, :payment_method, :payment_value, :payment_status,
                                   :total_amount, :change_amount, :delivery_fee, :notes, :estimated_delivery_time
                                 )";
                 
                 $order_stmt = $this->db->prepare($order_query);
                 
                 $order_stmt->bindParam(':order_number', $order_number);
+                $order_stmt->bindParam(':order_type', $order_type);
                 // Preparar valores para evitar problemas de referência
                 $customer_neighborhood = $data['customer_neighborhood'] ?? '';
                 $customer_reference = $data['customer_reference'] ?? '';
                 $payment_value = $data['payment_value'] ?? null;
                 $notes = $data['notes'] ?? '';
                 $estimated_delivery_time = $data['estimated_delivery_time'] ?? 30;
+                $payment_status = 0; // sempre inicia como não pago
                 
                 $order_stmt->bindParam(':customer_name', $data['customer_name']);
                 $order_stmt->bindParam(':customer_phone', $data['customer_phone']);
@@ -252,6 +259,7 @@ class OrderController {
                 $order_stmt->bindParam(':customer_reference', $customer_reference);
                 $order_stmt->bindParam(':payment_method', $data['payment_method']);
                 $order_stmt->bindParam(':payment_value', $payment_value);
+                $order_stmt->bindParam(':payment_status', $payment_status, PDO::PARAM_INT);
                 $order_stmt->bindParam(':total_amount', $total_amount);
                 $order_stmt->bindParam(':change_amount', $change_amount);
                 $order_stmt->bindParam(':delivery_fee', $delivery_fee);
@@ -287,6 +295,17 @@ class OrderController {
                 
                 // Confirma a transação
                 $this->db->commit();
+                
+                // Emite evento SSE
+                EventManager::emit('orders_updated', [
+                    'action' => 'created',
+                    'order_id' => (int)$order_id,
+                    'status' => 'novo'
+                ]);
+                // Notifica microserviço de tempo real (não bloqueante)
+                if (function_exists('notify_realtime')) {
+                    try { notify_realtime('/novo-pedido', ['order_id' => (int)$order_id, 'status' => 'novo']); } catch (\Throwable $__) {}
+                }
                 
                 // Retorna resposta de sucesso
                 echo json_encode([
@@ -397,6 +416,28 @@ class OrderController {
                 $params[':change_amount'] = $change_amount;
             }
 
+            // Atualização do status de pagamento
+            if (isset($data['payment_status'])) {
+                $newPaymentStatus = (int)$data['payment_status'];
+                $currentPaymentStatus = isset($current_order['payment_status']) ? (int)$current_order['payment_status'] : 0;
+
+                // Bloqueia regressão: não permitir voltar de pago (1) para não pago (0)
+                if ($newPaymentStatus === 0 && $currentPaymentStatus === 1) {
+                    http_response_code(400);
+                    echo json_encode([
+                        'error' => true,
+                        'message' => 'Não é permitido reverter o status de pagamento para não pago'
+                    ]);
+                    return;
+                }
+
+                // Permite marcar como pago quando ainda não estiver pago
+                if ($newPaymentStatus === 1 && $currentPaymentStatus !== 1) {
+                    $update_fields[] = 'payment_status = :payment_status';
+                    $params[':payment_status'] = 1;
+                }
+            }
+
             // Outros campos atualizáveis
             $updatable_fields = ['customer_name', 'customer_phone', 'customer_address', 'customer_neighborhood', 'customer_reference', 'notes', 'estimated_delivery_time', 'order_type', 'payment_method', 'payment_value'];
             
@@ -423,6 +464,18 @@ class OrderController {
             $stmt = $this->db->prepare($query);
             
             if ($stmt->execute($params)) {
+                // Emite evento SSE antes de responder
+                $newStatus = isset($data['status']) ? (string)$data['status'] : null;
+                EventManager::emit('orders_updated', [
+                    'action' => 'updated',
+                    'order_id' => (int)$id,
+                    'status' => $newStatus
+                ]);
+                // Notifica microserviço de tempo real (não bloqueante)
+                if (function_exists('notify_realtime')) {
+                    try { notify_realtime('/atualizar-status', ['order_id' => (int)$id, 'status' => $newStatus]); } catch (\Throwable $__) {}
+                }
+                
                 // Retorna o pedido atualizado
                 $this->getById($id);
             } else {
@@ -505,23 +558,52 @@ class OrderController {
                     }
                 }
                 
-                // Atualiza o total do pedido
-                $delivery_fee = floatval($current_order['delivery_fee'] ?? 0);
-                $total_amount = $subtotal + $delivery_fee;
-                
-                $update_query = "UPDATE orders SET total_amount = :total_amount, updated_at = CURRENT_TIMESTAMP WHERE id = :id";
-                $update_stmt = $this->db->prepare($update_query);
-                $update_stmt->bindParam(':total_amount', $total_amount);
-                $update_stmt->bindParam(':id', $id);
-                $update_stmt->execute();
-                
+                // Atualiza total_amount e delivery_fee se enviados
+                $update_order_fields = [];
+                $params = [':id' => $id];
+                if (isset($data['delivery_fee'])) {
+                    $update_order_fields[] = 'delivery_fee = :delivery_fee';
+                    $params[':delivery_fee'] = $data['delivery_fee'];
+                }
+                if (isset($data['total_amount'])) {
+                    $update_order_fields[] = 'total_amount = :total_amount';
+                    $params[':total_amount'] = $data['total_amount'];
+                } else {
+                    // recalcula total usando delivery_fee atual do pedido e os itens
+                    $get_fee_query = "SELECT delivery_fee FROM orders WHERE id = :id";
+                    $get_fee_stmt = $this->db->prepare($get_fee_query);
+                    $get_fee_stmt->bindParam(':id', $id, PDO::PARAM_INT);
+                    $get_fee_stmt->execute();
+                    $row = $get_fee_stmt->fetch(PDO::FETCH_ASSOC);
+                    $delivery_fee = $row ? (float)$row['delivery_fee'] : 0.0;
+                    $new_total = (float)$subtotal + (float)$delivery_fee;
+                    $update_order_fields[] = 'total_amount = :total_amount';
+                    $params[':total_amount'] = number_format($new_total, 2, '.', '');
+                }
+
+                if (!empty($update_order_fields)) {
+                    $update_order_fields[] = 'updated_at = CURRENT_TIMESTAMP';
+                    $update_order_query = "UPDATE orders SET " . implode(', ', $update_order_fields) . " WHERE id = :id";
+                    $update_order_stmt = $this->db->prepare($update_order_query);
+                    $update_order_stmt->execute($params);
+                }
+
                 $this->db->commit();
-                
-                // Retorna o pedido atualizado
+
+                EventManager::emit('orders_updated', [
+                    'action' => 'items_updated',
+                    'order_id' => (int)$id,
+                    'status' => null
+                ]);
+                // Notifica microserviço de tempo real (não bloqueante)
+                if (function_exists('notify_realtime')) {
+                    try { notify_realtime('/atualizar-status', ['order_id' => (int)$id, 'status' => null]); } catch (\Throwable $__) {}
+                }
+
                 $this->getById($id);
-                
+
             } catch (Exception $e) {
-                $this->db->rollBack();
+                $this->db->rollback();
                 throw $e;
             }
             
@@ -534,137 +616,81 @@ class OrderController {
             ]);
         }
     }
-    
-    /**
-     * Exclui um pedido (soft delete)
-     */
-    public function delete($id) {
-        try {
-            // Verifica se o pedido existe
-            $check_query = "SELECT id, status FROM orders WHERE id = :id";
-            $check_stmt = $this->db->prepare($check_query);
-            $check_stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            $check_stmt->execute();
-            
-            $order = $check_stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if (!$order) {
-                http_response_code(404);
-                echo json_encode([
-                    'error' => true,
-                    'message' => 'Pedido não encontrado'
-                ]);
-                return;
-            }
-            
-            // Só permite cancelar pedidos que ainda não foram finalizados
-            if ($order['status'] === 'finalizado') {
-                http_response_code(400);
-                echo json_encode([
-                    'error' => true,
-                    'message' => 'Não é possível cancelar pedido já finalizado'
-                ]);
-                return;
-            }
-            
-            // Marca como cancelado
-            $query = "UPDATE orders SET status = 'cancelado', updated_at = CURRENT_TIMESTAMP WHERE id = :id";
-            $stmt = $this->db->prepare($query);
-            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
-            
-            if ($stmt->execute()) {
-                echo json_encode([
-                    'success' => true,
-                    'message' => 'Pedido cancelado com sucesso'
-                ]);
-            } else {
-                http_response_code(500);
-                echo json_encode([
-                    'error' => true,
-                    'message' => 'Erro ao cancelar pedido'
-                ]);
-            }
-            
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode([
-                'error' => true,
-                'message' => 'Erro ao cancelar pedido',
-                'details' => $e->getMessage()
-            ]);
-        }
-    }
-    
-    /**
-     * Busca os itens de um pedido
-     */
+
     private function getOrderItems($order_id) {
         try {
-            $query = "SELECT * FROM order_items WHERE order_id = :order_id ORDER BY id ASC";
+            $query = "SELECT id, order_id, product_id, product_name, product_price, quantity, subtotal, notes, created_at FROM order_items WHERE order_id = :order_id ORDER BY id ASC";
             $stmt = $this->db->prepare($query);
             $stmt->bindParam(':order_id', $order_id, PDO::PARAM_INT);
             $stmt->execute();
-            
+
             $items = $stmt->fetchAll(PDO::FETCH_ASSOC);
-            
-            // Converte valores numéricos
             foreach ($items as &$item) {
-                $item['product_price'] = (float) $item['product_price'];
-                $item['subtotal'] = (float) $item['subtotal'];
-                $item['quantity'] = (int) $item['quantity'];
+                $item['product_price'] = (float)$item['product_price'];
+                $item['quantity'] = (int)$item['quantity'];
+                $item['subtotal'] = (float)$item['subtotal'];
+                // notes pode ser null
+                if (!isset($item['notes'])) {
+                    $item['notes'] = '';
+                }
             }
-            
             return $items;
-            
         } catch (Exception $e) {
+            // Em caso de erro ao carregar itens, retorne array vazio para não quebrar a listagem
             return [];
         }
     }
-    
-    /**
-     * Gera um número único para o pedido
-     */
+
     private function generateOrderNumber() {
-        $timestamp = date('ymd');
-        $random = str_pad(mt_rand(1, 9999), 4, '0', STR_PAD_LEFT);
-        return $timestamp . $random;
+        // Formato: YYYYMMDD-XXXX (aleatório) para fácil leitura e unicidade
+        $prefix = date('Ymd');
+        $rand = strtoupper(substr(bin2hex(random_bytes(4)), 0, 4));
+        return $prefix . '-' . $rand;
     }
 
-    /**
-     * Retorna estado global de pausa (DB ou arquivo)
-     */
     private function getGlobalPauseState() {
-        // 1) Tenta banco de dados (tabela opcional settings_flags)
+        // Tenta ler do banco (settings_flags: key 'orders_paused'), cai para arquivo JSON se falhar
+        $default = ['paused' => false, 'message' => ''];
         try {
-            if ($this->db) {
-                $stmt = $this->db->prepare("SELECT flag_value, extra FROM settings_flags WHERE flag_key = :key LIMIT 1");
-                $stmt->execute([':key' => 'orders_paused']);
-                $row = $stmt->fetch();
-                if ($row) {
-                    $paused = (string)$row['flag_value'] === '1';
-                    $message = isset($row['extra']) ? (string)$row['extra'] : '';
-                    return [ 'paused' => $paused, 'message' => $message ];
+            $sql = "SELECT flag_value, extra FROM settings_flags WHERE flag_key = :key LIMIT 1";
+            $stmt = $this->db->prepare($sql);
+            $key = 'orders_paused';
+            $stmt->bindParam(':key', $key, PDO::PARAM_STR);
+            $stmt->execute();
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $paused = (string)($row['flag_value'] ?? '0') === '1';
+                $message = '';
+                if (!empty($row['extra'])) {
+                    $decoded = json_decode($row['extra'], true);
+                    if (is_array($decoded) && isset($decoded['message'])) {
+                        $message = (string)$decoded['message'];
+                    }
                 }
+                return ['paused' => $paused, 'message' => $message];
             }
         } catch (Exception $e) {
             // ignora e tenta arquivo
         }
 
-        // 2) Fallback: arquivo de configuração
+        // Fallback para arquivo de configuração
         try {
-            $configDir = realpath(__DIR__ . '/../../config');
-            if ($configDir === false) { $configDir = __DIR__ . '/../../config'; }
-            $file = $configDir . DIRECTORY_SEPARATOR . 'pause_state.json';
-            if (!is_file($file)) return [ 'paused' => false, 'message' => '' ];
-            $content = @file_get_contents($file);
-            if ($content === false) return [ 'paused' => false, 'message' => '' ];
-            $json = json_decode($content, true);
-            if (!is_array($json)) return [ 'paused' => false, 'message' => '' ];
-            return [ 'paused' => (bool)($json['paused'] ?? false), 'message' => (string)($json['message'] ?? '') ];
+            $file = __DIR__ . '/../../config/pause_state.json';
+            if (file_exists($file)) {
+                $json = json_decode(file_get_contents($file), true);
+                if (is_array($json) && array_key_exists('paused', $json)) {
+                    return [
+                        'paused' => (bool)$json['paused'],
+                        'message' => isset($json['message']) ? (string)$json['message'] : ''
+                    ];
+                }
+            }
         } catch (Exception $e) {
-            return [ 'paused' => false, 'message' => '' ];
+            // retorna default
         }
+        return $default;
     }
 }
+
 ?>
 

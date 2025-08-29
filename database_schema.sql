@@ -7,10 +7,12 @@ CREATE TABLE IF NOT EXISTS users (
     name VARCHAR(255) NOT NULL,
     email VARCHAR(191) UNIQUE NOT NULL, -- Corrigido para 191 para evitar erro de 'key too long' com utf8mb4
     password VARCHAR(255) NOT NULL,
-    role ENUM('admin', 'manager', 'operator') DEFAULT 'operator',
+    role ENUM('admin', 'manager', 'operator', 'kitchen', 'delivery') DEFAULT 'operator',
+    user_img VARCHAR(255), -- caminho ou URL da imagem do usuário
+    user_phone VARCHAR(20), -- telefone do usuário
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela de categorias de produtos
 CREATE TABLE IF NOT EXISTS categories (
@@ -22,7 +24,7 @@ CREATE TABLE IF NOT EXISTS categories (
     active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela de produtos
 CREATE TABLE IF NOT EXISTS products (
@@ -42,18 +44,20 @@ CREATE TABLE IF NOT EXISTS products (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     FOREIGN KEY (category_id) REFERENCES categories(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela de pedidos
 CREATE TABLE IF NOT EXISTS orders (
     id INT AUTO_INCREMENT PRIMARY KEY,
     order_number VARCHAR(20) UNIQUE NOT NULL,
     status ENUM('novo', 'aceito', 'producao', 'entrega', 'finalizado', 'cancelado') DEFAULT 'novo',
+    payment_status ENUM('0', '1') NOT NULL DEFAULT '0' AFTER payment_method; -- 0 = não pago, 1 = pago
     customer_name VARCHAR(255) NOT NULL,
     customer_phone VARCHAR(20) NOT NULL,
     customer_address TEXT,
     customer_neighborhood VARCHAR(255),
     customer_reference TEXT,
+    order_type ENUM('delivery', 'retirada', 'balcao') NOT NULL DEFAULT 'delivery',
     payment_method ENUM('dinheiro', 'cartao', 'pix') NOT NULL,
     payment_value DECIMAL(10, 2), -- valor que o cliente vai pagar (para troco)
     total_amount DECIMAL(10, 2) NOT NULL,
@@ -67,7 +71,7 @@ CREATE TABLE IF NOT EXISTS orders (
     completed_at TIMESTAMP NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela de itens do pedido
 CREATE TABLE IF NOT EXISTS order_items (
@@ -82,7 +86,7 @@ CREATE TABLE IF NOT EXISTS order_items (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
     FOREIGN KEY (product_id) REFERENCES products(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela de adicionais/extras (opcional para futuras implementações)
 CREATE TABLE IF NOT EXISTS product_extras (
@@ -93,7 +97,7 @@ CREATE TABLE IF NOT EXISTS product_extras (
     active TINYINT(1) DEFAULT 1,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (product_id) REFERENCES products(id) ON DELETE CASCADE
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Criação da tabela para relacionar extras com itens do pedido
 CREATE TABLE IF NOT EXISTS order_item_extras (
@@ -105,13 +109,13 @@ CREATE TABLE IF NOT EXISTS order_item_extras (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (order_item_id) REFERENCES order_items(id) ON DELETE CASCADE,
     FOREIGN KEY (extra_id) REFERENCES product_extras(id)
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 -- Inserção de dados iniciais
 
 -- Usuário administrador padrão (senha: admin123)
 INSERT INTO users (name, email, password, role) VALUES 
-('Administrador', 'admin@cardapio.com', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'admin');
+('Administrador', 'diretor@gsite.com.br', '$2y$10$Vnz5bL3onS7kTc9jqes/q.vFa1OPivz9AbK9lWZICp/F4Ji69bDVO', 'admin');
 
 -- Categorias iniciais
 INSERT INTO categories (name, description, display_order) VALUES 
@@ -163,7 +167,7 @@ CREATE TABLE IF NOT EXISTS settings_business_hours (
     open_time TIME NOT NULL DEFAULT '00:00:00',
     close_time TIME NOT NULL DEFAULT '00:00:00',
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
 INSERT INTO settings_business_hours (weekday, closed, open_time, close_time) VALUES
 ('monday',    0, '09:00:00', '18:00:00'),
@@ -223,4 +227,23 @@ CREATE TABLE IF NOT EXISTS delivery_quote_cache (
     fee DECIMAL(10, 2) NOT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
+-- =============================
+-- Informações da Empresa
+-- =============================
+CREATE TABLE `company_info` (
+  id INT NOT NULL AUTO_INCREMENT,
+  company_name VARCHAR(255) NOT NULL,
+  logo_url TEXT,
+  company_color CHAR(7) NOT NULL,
+  latitude DECIMAL(10,8) NOT NULL,
+  longitude DECIMAL(11,8) NOT NULL,
+  address TEXT COMMENT 'opcional: cache do endereço gerado via geocoding reverso',
+  zip_code VARCHAR(20),
+  phone VARCHAR(20) NOT NULL,
+  cnpj VARCHAR(20) NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+  updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

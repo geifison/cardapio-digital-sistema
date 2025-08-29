@@ -1,20 +1,21 @@
 /**
- * Sistema de Cardápio Digital
+ * Sistema de CardÃ¡pio Digital
  * JavaScript Principal
  */
 
-// Configurações globais
+// ConfiguraÃ§Ãµes globais
 const CONFIG = {
     API_BASE_URL: 'api/',
     DELIVERY_FEE: 5.00,
     CURRENCY: 'R$',
     REFRESH_INTERVAL: 5000,
     USE_SSE: true,
-    STORE_ADDRESS: null, // endereço da loja física (apenas exibido/uso de referência)
-    DELIVERY: { ENABLED: true }
+    STORE_ADDRESS: null, // endereÃ§o da loja fÃ­sica (apenas exibido/uso de referÃªncia)
+    DELIVERY: { ENABLED: true },
+    SOCKET_URL: (typeof window !== 'undefined' && window.SOCKET_URL) ? window.SOCKET_URL : 'http://localhost:3000'
 };
 
-// Carrega chave pública (se permitido) e prepara Autofill/Confirm
+// Carrega chave pÃºblica (se permitido) e prepara Autofill/Confirm
 async function maybeInitMapboxAutofill() {
     try {
         const resp = await fetch(CONFIG.API_BASE_URL + 'delivery/public-key');
@@ -60,14 +61,150 @@ async function injectStylesheetOnce(href) {
     document.head.appendChild(l);
 }
 
-// Controle de horários de funcionamento (carregado do backend)
+// ===== Integração Socket.IO =====
+let socketInstance = null;
+let currentWatchingOrderId = null;
+
+/**
+ * Garante que Socket.IO esteja carregado
+ */
+async function ensureSocketIoLoaded() {
+    if (typeof io !== 'undefined') return;
+    await injectScriptOnce('https://cdn.socket.io/4.7.5/socket.io.min.js');
+}
+
+/**
+ * Inicializa cliente Socket.IO conectando ao namespace /client
+ */
+function ensureClientSocket() {
+    if (socketInstance) return socketInstance;
+    
+    try {
+        if (typeof io === 'undefined') return null;
+        
+        socketInstance = io(CONFIG.SOCKET_URL + '/client', {
+            transports: ['websocket', 'polling'],
+            forceNew: false
+        });
+        
+        socketInstance.on('connect', () => {
+            console.log('[Socket.IO] Conectado ao namespace /client');
+        });
+        
+        socketInstance.on('disconnect', () => {
+            console.log('[Socket.IO] Desconectado');
+        });
+        
+        socketInstance.on('order:update', (event) => {
+            console.log('[Socket.IO] Recebido order:update:', event);
+            updateSuccessModalStatus(event);
+        });
+        
+        return socketInstance;
+    } catch (error) {
+        console.error('[Socket.IO] Erro na inicialização:', error);
+        return null;
+    }
+}
+
+/**
+ * Inicia acompanhamento de pedido específico
+ */
+function watchOrder(orderId) {
+    if (!socketInstance || !orderId) return;
+    
+    try {
+        // Para acompanhamento anterior se existir
+        if (currentWatchingOrderId) {
+            cleanupOrderListener();
+        }
+        
+        currentWatchingOrderId = orderId;
+        socketInstance.emit('watch:order', { orderId });
+        console.log(`[Socket.IO] Acompanhando pedido ${orderId}`);
+    } catch (error) {
+        console.error('[Socket.IO] Erro ao acompanhar pedido:', error);
+    }
+}
+
+/**
+ * Para acompanhamento atual
+ */
+function cleanupOrderListener() {
+    if (currentWatchingOrderId) {
+        console.log(`[Socket.IO] Parando acompanhamento do pedido ${currentWatchingOrderId}`);
+        currentWatchingOrderId = null;
+    }
+}
+
+/**
+ * Converte status técnico para texto amigável
+ */
+function statusToHuman(status) {
+    const statusMap = {
+        'novo': 'Pedido recebido',
+        'confirmado': 'Pedido confirmado',
+        'preparando': 'Preparando pedido',
+        'pronto': 'Pedido pronto',
+        'saiu_entrega': 'Saiu para entrega',
+        'entregue': 'Pedido entregue',
+        'retirado': 'Pedido retirado',
+        'cancelado': 'Pedido cancelado'
+    };
+    return statusMap[status] || status;
+}
+
+/**
+ * Atualiza modal de sucesso com status em tempo real
+ */
+function updateSuccessModalStatus(event) {
+    if (!event || !event.order_id) return;
+    
+    const successModal = document.getElementById('successModal');
+    if (!successModal || !successModal.classList.contains('show')) return;
+    
+    // Verifica se é o pedido que estamos acompanhando
+    if (currentWatchingOrderId && parseInt(currentWatchingOrderId) !== parseInt(event.order_id)) {
+        return;
+    }
+    
+    try {
+        const statusEl = successModal.querySelector('#orderStatus');
+        const timeEl = successModal.querySelector('#estimatedTime');
+        
+        if (statusEl) {
+            statusEl.textContent = statusToHuman(event.status);
+        }
+        
+        // Atualizar tempo estimado baseado no status
+        if (timeEl && event.status) {
+            const timeMap = {
+                'novo': '30-40 minutos',
+                'confirmado': '25-35 minutos',
+                'preparando': '15-25 minutos',
+                'pronto': 'Pedido pronto!',
+                'saiu_entrega': '10-15 minutos',
+                'entregue': 'Entregue!',
+                'retirado': 'Retirado!'
+            };
+            
+            if (timeMap[event.status]) {
+                timeEl.textContent = timeMap[event.status];
+            }
+        }
+    } catch (error) {
+        console.error('[Socket.IO] Erro ao atualizar modal:', error);
+    }
+}
+
+// Controle de horÃ¡rios de funcionamento (carregado do backend)
 let businessHours = null;
 let isWithinBusinessHours = true;
 // Pausa global de pedidos (carregada do backend)
 let isOrdersPaused = false;
 let pauseMessage = '';
 
-// Estado global da aplicação
+// Estado global da aplicaÃ§Ã£o
 let appState = {
     categories: [],
     products: [],
@@ -81,7 +218,7 @@ let appState = {
     deliveryCalculating: false
 };
 
-// Inicialização da aplicação
+// InicializaÃ§Ã£o da aplicaÃ§Ã£o
 document.addEventListener('DOMContentLoaded', function() {
 	initializeApp();
 });
@@ -105,7 +242,7 @@ function getPOSModeParam() {
     }
 }
 
-// ===== Modo de Edição de Pedido =====
+// ===== Modo de EdiÃ§Ã£o de Pedido =====
 function isEditMode() {
     try {
         const url = new URL(window.location.href);
@@ -138,7 +275,7 @@ function getEditOrderNumber() {
 }
 
 /**
- * Inicializa a aplicação
+ * Inicializa a aplicaÃ§Ã£o
  */
 async function initializeApp() {
     try {
@@ -152,6 +289,12 @@ async function initializeApp() {
         setupEventListeners();
         // Inicializa Mapbox Autofill/Confirm de forma opcional, se habilitado no backend
         try { await maybeInitMapboxAutofill(); } catch (_) {}
+        // Inicializar Socket.IO client
+        if (typeof window !== 'undefined' && !isPOSMode()) {
+            await ensureSocketIoLoaded();
+            ensureClientSocket();
+        }
+        
         if (CONFIG.USE_SSE && !isPOSMode()) {
             startSSE();
         } else if (!isPOSMode()) {
@@ -162,17 +305,17 @@ async function initializeApp() {
             applyPOSUX();
         }
         
-        // Aplica modo de edição se necessário
+        // Aplica modo de ediÃ§Ã£o se necessÃ¡rio
         if (isEditMode()) {
             applyEditMode();
         }
     } catch (error) {
-        console.error('Erro ao inicializar aplicação:', error);
-        showError('Erro ao carregar o cardápio. Tente recarregar a página.');
+        console.error('Erro ao inicializar aplicaÃ§Ã£o:', error);
+        showError('Erro ao carregar o cardÃ¡pio. Tente recarregar a pÃ¡gina.');
     }
 }
 
-// Detecta dinamicamente a BASE da API no frontend (sem quebrar quando o projeto está em subpasta)
+// Detecta dinamicamente a BASE da API no frontend (sem quebrar quando o projeto estÃ¡ em subpasta)
 async function ensureApiBaseUrl() {
     try {
         const bases = (function(){
@@ -195,7 +338,7 @@ async function ensureApiBaseUrl() {
                     CONFIG.API_BASE_URL = b;
                     return b;
                 }
-            } catch(_) { /* tenta próximo */ }
+            } catch(_) { /* tenta prÃ³ximo */ }
             try {
                 const r2 = await fetch(b + 'settings/business-hours');
                 if (r2.ok) {
@@ -239,13 +382,13 @@ async function loadBusinessHours() {
         }
     } catch (_) {}
     businessHours = null;
-    isWithinBusinessHours = true; // fallback: não bloquear
+    isWithinBusinessHours = true; // fallback: nÃ£o bloquear
 }
 
 function checkNowWithinBusinessHours(hours) {
     try {
         const now = new Date();
-        const dayIdx = now.getDay(); // 0=Domingo ... 6=Sábado
+        const dayIdx = now.getDay(); // 0=Domingo ... 6=SÃ¡bado
         const map = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'];
         const key = map[dayIdx];
         const d = hours[key];
@@ -277,13 +420,13 @@ function applyBusinessHoursUI() {
                 banner.style.padding = '10px 16px';
                 banner.style.textAlign = 'center';
                 banner.style.fontWeight = '600';
-                banner.innerHTML = '<i class="fas fa-clock"></i> Estamos fechados no momento. Consulte nossos horários.';
+                banner.innerHTML = '<i class="fa-solid fa-clock"></i> Estamos fechados no momento. Consulte nossos horÃ¡rios.';
                 const header = document.querySelector('.header') || document.body.firstElementChild;
                 document.body.insertBefore(banner, header ? header.nextSibling : document.body.firstChild);
             }
-            // Desabilitar botões de adicionar ao carrinho
+            // Desabilitar botÃµes de adicionar ao carrinho
             document.addEventListener('click', interceptAddToCart, true);
-            // Desabilitar botões de checkout
+            // Desabilitar botÃµes de checkout
             const checkoutBtns = document.querySelectorAll('.checkout-btn, .btn-checkout');
             checkoutBtns.forEach(btn => btn.disabled = true);
         } else {
@@ -318,12 +461,12 @@ function applyPauseUI() {
                         </svg>
                     </div>
                     <h2 class="text-2xl font-bold text-gray-900">Pedidos pausados temporariamente</h2>
-                    <p class="text-gray-600 mt-3 leading-relaxed">Devido ao grande número de pedidos, estamos temporariamente pausando novas solicitações.</p>
-                    <p class="text-gray-500 mt-6 text-sm">Pedimos desculpas pelo transtorno e agradecemos pela preferência.</p>
+                    <p class="text-gray-600 mt-3 leading-relaxed">Devido ao grande nÃºmero de pedidos, estamos temporariamente pausando novas solicitaÃ§Ãµes.</p>
+                    <p class="text-gray-500 mt-6 text-sm">Pedimos desculpas pelo transtorno e agradecemos pela preferÃªncia.</p>
                 </div>`;
             document.body.appendChild(overlay);
         }
-        // Garante que o overlay fique acima de qualquer elemento da página
+        // Garante que o overlay fique acima de qualquer elemento da pÃ¡gina
         if (overlay && overlay.style) {
             overlay.style.zIndex = '2147483647'; // topo absoluto
         }
@@ -369,7 +512,7 @@ function ensureTailwindCdnAndInterFont() {
             script.src = 'https://cdn.tailwindcss.com';
             document.head.appendChild(script);
         }
-        // Aplica família Inter no body, como no layout
+        // Aplica famÃ­lia Inter no body, como no layout
         document.body.style.fontFamily = "'Inter', sans-serif";
     } catch (_) { /* noop */ }
 }
@@ -385,14 +528,14 @@ function interceptAddToCart(e) {
             if (isOrdersPaused) {
                 alert(pauseMessage && pauseMessage.trim() !== '' ? pauseMessage : 'Pedidos temporariamente pausados.');
             } else {
-                alert('Estamos fechados no momento. Por favor, volte dentro do horário de funcionamento.');
+                alert('Estamos fechados no momento. Por favor, volte dentro do horÃ¡rio de funcionamento.');
             }
         }
     } catch (_) { /* noop */ }
 }
 
 /**
- * Atualização automática do cardápio (near real-time)
+ * AtualizaÃ§Ã£o automÃ¡tica do cardÃ¡pio (near real-time)
  */
 let autoRefreshTimer = null;
 let isRefreshing = false;
@@ -400,7 +543,7 @@ function startAutoRefresh() {
     if (autoRefreshTimer) clearInterval(autoRefreshTimer);
     autoRefreshTimer = setInterval(async () => {
         if (document.hidden || isRefreshing) return;
-        // Se SSE está ativo, não fazer polling para evitar "piscadas"
+        // Se SSE estÃ¡ ativo, nÃ£o fazer polling para evitar "piscadas"
         if (CONFIG.USE_SSE && sseSource) return;
         try {
             isRefreshing = true;
@@ -426,7 +569,7 @@ function startAutoRefresh() {
 }
 
 /**
- * Atualização reativa com SSE (sem polling)
+ * AtualizaÃ§Ã£o reativa com SSE (sem polling)
  */
 let sseSource = null;
 let refreshScheduled = false;
@@ -467,12 +610,12 @@ function startSSE() {
             scheduleRefresh();
         });
         sseSource.addEventListener('pizza_sizes_updated', () => {
-            // Atualiza pizza builder com renderização incremental
+            // Atualiza pizza builder com renderizaÃ§Ã£o incremental
             scheduleRefresh();
             if (document.getElementById('pizzaBuilderModal')?.classList.contains('show')) {
                 // Recarrega dados de pizza apenas quando o modal estiver aberto
                 loadPizzaData().then(() => {
-                    // Mantém passo atual
+                    // MantÃ©m passo atual
                     updatePizzaStep();
                 });
             }
@@ -506,11 +649,11 @@ function startSSE() {
         });
         sseSource.onmessage = () => {};
         sseSource.onerror = () => {
-            // Não fazer fallback imediato para evitar recarregamentos duplos e "piscadas"
-            // O EventSource tentará reconectar automaticamente.
+            // NÃ£o fazer fallback imediato para evitar recarregamentos duplos e "piscadas"
+            // O EventSource tentarÃ¡ reconectar automaticamente.
         };
     } catch (_) {
-        // Mantém a página estável; não aplica fallback imediato
+        // MantÃ©m a pÃ¡gina estÃ¡vel; nÃ£o aplica fallback imediato
     }
 }
 
@@ -524,24 +667,24 @@ async function loadCategories() {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                // Garante que apenas categorias ativas venham do backend; mas filtra por segurança
+                // Garante que apenas categorias ativas venham do backend; mas filtra por seguranÃ§a
                 appState.categories = Array.isArray(data.data) ? data.data.filter(c => c.active === 1 || c.active === true) : [];
                 renderCategories();
             } else {
                 throw new Error(data.message || 'Erro ao carregar categorias');
             }
         } else {
-            throw new Error('Erro na requisição das categorias');
+            throw new Error('Erro na requisiÃ§Ã£o das categorias');
         }
     } catch (error) {
         console.error('Erro ao carregar categorias:', error);
         // Fallback para dados simulados em caso de erro
         appState.categories = [
-            { id: 1, name: 'Lanches', description: 'Hambúrgueres e sanduíches' },
+            { id: 1, name: 'Lanches', description: 'HambÃºrgueres e sanduÃ­ches' },
             { id: 2, name: 'Pizzas', description: 'Pizzas tradicionais e especiais' },
             { id: 3, name: 'Bebidas', description: 'Refrigerantes e sucos' },
             { id: 4, name: 'Sobremesas', description: 'Doces e sobremesas' },
-            { id: 5, name: 'Pratos Executivos', description: 'Refeições completas' }
+            { id: 5, name: 'Pratos Executivos', description: 'RefeiÃ§Ãµes completas' }
         ];
         renderCategories();
     }
@@ -563,7 +706,7 @@ async function loadProducts() {
                 throw new Error(data.message || 'Erro ao carregar produtos');
             }
         } else {
-            throw new Error('Erro na requisição dos produtos');
+            throw new Error('Erro na requisiÃ§Ã£o dos produtos');
         }
     } catch (error) {
         console.error('Erro ao carregar produtos:', error);
@@ -572,8 +715,8 @@ async function loadProducts() {
             {
                 id: 1,
                 category_id: 1,
-                name: 'X-Burger Clássico',
-                description: 'Hambúrguer bovino, queijo, alface, tomate, cebola e molho especial',
+                name: 'X-Burger ClÃ¡ssico',
+                description: 'HambÃºrguer bovino, queijo, alface, tomate, cebola e molho especial',
                 price: 15.90,
                 image_url: null,
                 is_vegetarian: false,
@@ -585,7 +728,7 @@ async function loadProducts() {
                 id: 2,
                 category_id: 1,
                 name: 'X-Salada',
-                description: 'Hambúrguer bovino, queijo, alface, tomate, cebola, ovo e batata palha',
+                description: 'HambÃºrguer bovino, queijo, alface, tomate, cebola, ovo e batata palha',
                 price: 18.90,
                 image_url: null,
                 is_vegetarian: false,
@@ -597,7 +740,7 @@ async function loadProducts() {
                 id: 3,
                 category_id: 1,
                 name: 'X-Vegetariano',
-                description: 'Hambúrguer de soja, queijo, alface, tomate, cebola e molho especial',
+                description: 'HambÃºrguer de soja, queijo, alface, tomate, cebola e molho especial',
                 price: 16.90,
                 image_url: null,
                 is_vegetarian: true,
@@ -609,7 +752,7 @@ async function loadProducts() {
                 id: 4,
                 category_id: 2,
                 name: 'Pizza Margherita',
-                description: 'Molho de tomate, mussarela, manjericão e azeite',
+                description: 'Molho de tomate, mussarela, manjericÃ£o e azeite',
                 price: 32.90,
                 image_url: null,
                 is_vegetarian: true,
@@ -671,7 +814,7 @@ async function loadProducts() {
 }
 
 /**
- * Renderiza as categorias na navegação
+ * Renderiza as categorias na navegaÃ§Ã£o
  */
 function renderCategories() {
     const categoriesList = document.getElementById('categoriesList');
@@ -734,33 +877,33 @@ function createProductCard(product) {
     const badges = [];
     if (product.is_vegetarian) badges.push('<span class="badge vegetarian">Vegetariano</span>');
     if (product.is_spicy) badges.push('<span class="badge spicy">Picante</span>');
-    if (product.is_gluten_free) badges.push('<span class="badge gluten-free">Sem Glúten</span>');
+    if (product.is_gluten_free) badges.push('<span class="badge gluten-free">Sem GlÃºten</span>');
     
-    // Determinar o preço a ser exibido
+    // Determinar o preÃ§o a ser exibido
     let displayPrice = product.price;
     let priceLabel = '';
     let showPrice = true;
     
-    // Se for produto de pizza gerenciável, usar preço mínimo
+    // Se for produto de pizza gerenciÃ¡vel, usar preÃ§o mÃ­nimo
     if (product.product_type === 'pizza' && product.min_price > 0) {
         displayPrice = product.min_price;
         priceLabel = '<span class="price-label">A partir de</span>';
     }
     
-    // Verificar se deve exibir o preço:
-    // category_value é OPCIONAL - se definido (> 0), funciona como controle de exibição
-    // se não definido (0 ou null), exibe preço normalmente
+    // Verificar se deve exibir o preÃ§o:
+    // category_value Ã© OPCIONAL - se definido (> 0), funciona como controle de exibiÃ§Ã£o
+    // se nÃ£o definido (0 ou null), exibe preÃ§o normalmente
     const hasCategoryValue = product.category_value && parseFloat(product.category_value) > 0;
     const hasPrice = displayPrice && parseFloat(displayPrice) > 0;
     
     if (!hasPrice) {
-        // Se não tem preço, nunca exibe
+        // Se nÃ£o tem preÃ§o, nunca exibe
         showPrice = false;
     } else if (hasCategoryValue) {
-        // Se tem category_value definido, só exibe se também tiver preço
+        // Se tem category_value definido, sÃ³ exibe se tambÃ©m tiver preÃ§o
         showPrice = hasPrice;
     } else {
-        // Se category_value é 0 ou null, exibe preço normalmente
+        // Se category_value Ã© 0 ou null, exibe preÃ§o normalmente
         showPrice = hasPrice;
     }
     
@@ -768,7 +911,7 @@ function createProductCard(product) {
         <div class="product-image">
             ${product.image_url ? 
                 `<img src="${product.image_url}" alt="${product.name}">` : 
-                '<i class="fas fa-utensils"></i>'
+                '<i class="fa-solid fa-utensils"></i>'
             }
             <div class="product-badges">
                 ${badges.join('')}
@@ -785,7 +928,7 @@ function createProductCard(product) {
                     </div>
                 ` : '<div class="product-price-container"></div>'}
                 <button class="add-to-cart" onclick="addToCart(${product.id})">
-                    <i class="fas fa-plus"></i>
+                    <i class="fa-solid fa-plus"></i>
                     Adicionar
                 </button>
             </div>
@@ -883,18 +1026,18 @@ function addToCart(productId) {
         if (isOrdersPaused) {
             showError(pauseMessage && pauseMessage.trim() !== '' ? pauseMessage : 'Pedidos temporariamente pausados.');
         } else {
-            showError('Estamos fechados no momento. Por favor, volte dentro do horário de funcionamento.');
+            showError('Estamos fechados no momento. Por favor, volte dentro do horÃ¡rio de funcionamento.');
         }
         return;
     }
     const product = appState.products.find(p => p.id === productId);
     if (!product) return;
     
-    // Verificar se é um produto tipo pizza gerenciável
+    // Verificar se Ã© um produto tipo pizza gerenciÃ¡vel
     // Abrir Pizza Builder quando:
     // - for o produto especial "Monte Sua Pizza"
     // - product_type === 'pizza'
-    // - ou quando o backend tiver anexado configurações de pizza (ex.: pizza_sizes/pizza_flavors)
+    // - ou quando o backend tiver anexado configuraÃ§Ãµes de pizza (ex.: pizza_sizes/pizza_flavors)
     if (
         product.name === 'Monte Sua Pizza' ||
         String(product.product_type || '').toLowerCase() === 'pizza' ||
@@ -923,7 +1066,7 @@ function addToCart(productId) {
 }
 
 /**
- * Animação visual: miniatura voando até o carrinho (footer bar)
+ * AnimaÃ§Ã£o visual: miniatura voando atÃ© o carrinho (footer bar)
  */
 function animateAddToCart(productId) {
     const productCard = document.querySelector(`.product-card[data-product-id="${productId}"]`);
@@ -1005,7 +1148,7 @@ function updateCartItemQuantity(productId, newQuantity) {
 }
 
 /**
- * Atualiza a exibição do carrinho
+ * Atualiza a exibiÃ§Ã£o do carrinho
  */
 function updateCartDisplay() {
     const cartCount = document.getElementById('cartCount');
@@ -1025,11 +1168,11 @@ function updateCartDisplay() {
     
     const totalItems = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
     const subtotal = appState.cart.reduce((sum, item) => {
-        // Produtos sem preço não contribuem para o subtotal
+        // Produtos sem preÃ§o nÃ£o contribuem para o subtotal
         const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
         return sum + (price * item.quantity);
     }, 0);
-    // No resumo do carrinho (sidebar), a entrega será calculada no checkout
+    // No resumo do carrinho (sidebar), a entrega serÃ¡ calculada no checkout
     const total = subtotal;
     
     if (cartCount) cartCount.textContent = totalItems;
@@ -1044,13 +1187,13 @@ function updateCartDisplay() {
         cartEmpty.style.display = 'none';
         cartFooter.style.display = 'block';
         
-        // Em modo de edição do POS, atualiza o botão do carrinho
+        // Em modo de ediÃ§Ã£o do POS, atualiza o botÃ£o do carrinho
         if (isEditMode() && isPOSMode()) {
             const checkoutButton = document.getElementById('checkoutButton');
             if (checkoutButton) {
-                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                checkoutButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar AlteraÃ§Ãµes';
                 checkoutButton.onclick = saveOrderFromCart;
-                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+                checkoutButton.title = 'Clique para salvar as alteraÃ§Ãµes do pedido diretamente do carrinho';
             }
         }
         
@@ -1063,19 +1206,19 @@ function updateCartDisplay() {
         if (cartSubtotal) cartSubtotal.textContent = formatCurrency(subtotal);
         if (deliveryFee) deliveryFee.textContent = 'A calcular';
         if (cartTotal) cartTotal.textContent = formatCurrency(total);
-        // Atualiza barra do rodapé: mostra apenas subtotal (sem entrega)
+        // Atualiza barra do rodapÃ©: mostra apenas subtotal (sem entrega)
         if (footerBar && footerCount && footerSubtotal) {
             footerCount.textContent = totalItems;
             footerSubtotal.textContent = formatCurrency(subtotal);
             footerBar.style.display = 'block';
         }
-        // Atualiza sugestão dinâmica
+        // Atualiza sugestÃ£o dinÃ¢mica
         try { updateSuggestionButton(suggestionBtn, suggestionTextEl); } catch(_) {}
     }
 }
 
 /**
- * Atualiza o botão de sugestão com base nas categorias do carrinho/sistema
+ * Atualiza o botÃ£o de sugestÃ£o com base nas categorias do carrinho/sistema
  */
 function updateSuggestionButton(suggestionBtn, textEl) {
     if (!suggestionBtn || !textEl) return;
@@ -1094,7 +1237,7 @@ function updateSuggestionButton(suggestionBtn, textEl) {
     const hasBebida = bebidasId ? cart.some(ci => String(ci.product.category_id) === String(bebidasId)) : false;
     const hasSobremesa = sobremesasId ? cart.some(ci => String(ci.product.category_id) === String(sobremesasId)) : false;
 
-    // Função para menor preço de uma categoria
+    // FunÃ§Ã£o para menor preÃ§o de uma categoria
     const minPriceInCategory = (catId) => {
         const list = products.filter(p => String(p.category_id) === String(catId) && parseFloat(p.price) > 0);
         if (!list.length) return null;
@@ -1114,7 +1257,7 @@ function updateSuggestionButton(suggestionBtn, textEl) {
         label = `Adicione uma sobremesa a partir de ${priceText}`.trim();
         action = 'sobremesas';
     } else {
-        // se categorias não existirem ou ambas já presentes
+        // se categorias nÃ£o existirem ou ambas jÃ¡ presentes
         label = 'Continuar comprando';
         action = 'continue';
     }
@@ -1125,7 +1268,7 @@ function updateSuggestionButton(suggestionBtn, textEl) {
 }
 
 /**
- * Clique no botão de sugestão
+ * Clique no botÃ£o de sugestÃ£o
  */
 function handleSuggestionClick(btn) {
     if (!btn) return;
@@ -1136,14 +1279,14 @@ function handleSuggestionClick(btn) {
         const target = (appState.categories || []).find(c => String(c.name || '').toLowerCase() === targetName);
         if (target) {
             try { filterByCategory(target.id); } catch(_) {}
-            // mantém carrinho aberto para ver sugestão? Melhor fechar para visualizar produtos
+            // mantÃ©m carrinho aberto para ver sugestÃ£o? Melhor fechar para visualizar produtos
             closeCart();
         } else {
             // fallback
             closeCart();
         }
     } else {
-        // Continuar comprando → levar para a aba geral (Todos)
+        // Continuar comprando â†’ levar para a aba geral (Todos)
         try { filterByCategory(null); } catch(_) {}
         closeCart();
     }
@@ -1156,14 +1299,14 @@ function createCartItem(item) {
     const cartItem = document.createElement('div');
     cartItem.className = 'cart-item';
     
-    // Verificar se deve exibir o preço (apenas se produto tiver preço)
+    // Verificar se deve exibir o preÃ§o (apenas se produto tiver preÃ§o)
     const showPrice = item.product.price && parseFloat(item.product.price) > 0;
     
     cartItem.innerHTML = `
         <div class="cart-item-image">
             ${item.product.image_url ? 
                 `<img src="${item.product.image_url}" alt="${item.product.name}">` : 
-                '<i class="fas fa-utensils"></i>'
+                '<i class="fa-solid fa-utensils"></i>'
             }
         </div>
         <div class="cart-item-info">
@@ -1171,16 +1314,16 @@ function createCartItem(item) {
             ${showPrice ? `<div class="cart-item-price">${formatCurrency(item.product.price)}</div>` : ''}
             <div class="quantity-controls">
                 <button class="quantity-btn" onclick="updateCartItemQuantity(${item.product.id}, ${item.quantity - 1})">
-                    <i class="fas fa-minus"></i>
+                    <i class="fa-solid fa-minus"></i>
                 </button>
                 <span class="quantity">${item.quantity}</span>
                 <button class="quantity-btn" onclick="updateCartItemQuantity(${item.product.id}, ${item.quantity + 1})">
-                    <i class="fas fa-plus"></i>
+                    <i class="fa-solid fa-plus"></i>
                 </button>
             </div>
         </div>
         <button class="remove-item" onclick="removeFromCart(${item.product.id})">
-            <i class="fas fa-trash"></i>
+            <i class="fa-solid fa-trash"></i>
         </button>
     `;
     
@@ -1188,7 +1331,7 @@ function createCartItem(item) {
 }
 
 /**
- * Alterna a exibição do carrinho
+ * Alterna a exibiÃ§Ã£o do carrinho
  */
 function toggleCart() {
     const cartSidebar = document.getElementById('cartSidebar');
@@ -1207,7 +1350,7 @@ function toggleCart() {
         cartSidebar.classList.remove('open');
         cartOverlay.classList.remove('show');
         document.body.style.overflow = '';
-        // Reexibe a barra do rodapé se houver itens
+        // Reexibe a barra do rodapÃ© se houver itens
         if (footerBar) {
             const totalItems = appState.cart.reduce((sum, item) => sum + item.quantity, 0);
             if (totalItems > 0) footerBar.style.display = 'block';
@@ -1234,7 +1377,7 @@ function initCartSwipeGesture() {
 
     function onStart(e) {
         try {
-            // Evita conflito com rolagem interna: só inicia se estiver no topo
+            // Evita conflito com rolagem interna: sÃ³ inicia se estiver no topo
             if (content && content.scrollTop > 0) return;
         } catch(_) {}
         state.isDragging = true;
@@ -1242,7 +1385,7 @@ function initCartSwipeGesture() {
         state.lastY = state.startY;
         state.lastTime = performance.now();
         sheet.style.transition = 'none';
-        // Evita rolagem da página durante o gesto
+        // Evita rolagem da pÃ¡gina durante o gesto
         if (e.cancelable) e.preventDefault();
     }
 
@@ -1265,7 +1408,7 @@ function initCartSwipeGesture() {
         state.isDragging = false;
         sheet.style.transition = 'transform 0.2s ease';
         const closeByDistance = state.deltaY > 120;
-        const closeByVelocity = state.velocity > 0.6; // 0.6 px/ms ~ rápido
+        const closeByVelocity = state.velocity > 0.6; // 0.6 px/ms ~ rÃ¡pido
         if (closeByDistance || closeByVelocity) {
             closeCart();
             sheet.style.transform = '';
@@ -1278,7 +1421,7 @@ function initCartSwipeGesture() {
     target.addEventListener('touchmove', onMove, { passive: false });
     target.addEventListener('touchend', onEnd, { passive: true });
 
-    // Marca como inicializado para não duplicar listeners
+    // Marca como inicializado para nÃ£o duplicar listeners
     sheet.dataset.swipeInitialized = '1';
 }
 
@@ -1302,7 +1445,7 @@ function closeCart() {
 }
 
 /**
- * Rola até o menu de categorias
+ * Rola atÃ© o menu de categorias
  */
 function scrollToMenu() {
     const categoriesNav = document.querySelector('.categories-nav');
@@ -1314,16 +1457,16 @@ function scrollToMenu() {
  */
 function proceedToCheckout() {
     if (appState.cart.length === 0) {
-        // Em modo de edição do POS, não mostra erro se o carrinho estiver vazio
+        // Em modo de ediÃ§Ã£o do POS, nÃ£o mostra erro se o carrinho estiver vazio
         if (isEditMode() && isPOSMode()) {
-            showError('Adicione itens ao carrinho antes de salvar as alterações do pedido.');
+            showError('Adicione itens ao carrinho antes de salvar as alteraÃ§Ãµes do pedido.');
             return;
         }
-        showError('Seu carrinho está vazio!');
+        showError('Seu carrinho estÃ¡ vazio!');
         return;
     }
     
-    // Em modo de edição do POS Balcão, salva direto do carrinho
+    // Em modo de ediÃ§Ã£o do POS BalcÃ£o, salva direto do carrinho
     if (isEditMode() && isPOSMode()) {
         saveOrderFromCart();
         return;
@@ -1336,13 +1479,13 @@ function proceedToCheckout() {
     showCheckoutModal();
 }
 
-// Autocomplete de endereço com base na área selecionada (OSM Overpass via backend)
+// Autocomplete de endereÃ§o com base na Ã¡rea selecionada (OSM Overpass via backend)
 async function setupAddressAutocomplete() {
     const streetInput = document.getElementById('addressStreet');
     const neighInput = document.getElementById('customerNeighborhood');
     if (!streetInput && !neighInput) return;
 
-    // Cria datalists se não existirem
+    // Cria datalists se nÃ£o existirem
     let streetList = document.getElementById('streetSuggestions');
     if (!streetList) {
         streetList = document.createElement('datalist');
@@ -1357,7 +1500,7 @@ async function setupAddressAutocomplete() {
     }
 
     try {
-        // Autocomplete desativado por remoção do módulo de áreas
+        // Autocomplete desativado por remoÃ§Ã£o do mÃ³dulo de Ã¡reas
         streetList.innerHTML = '';
         neighList.innerHTML = '';
     } catch (_) { /* silencioso */ }
@@ -1461,10 +1604,10 @@ let checkoutProgressHandlersAttached = false;
 function initCheckoutWizard() {
     checkoutCurrentStep = 1;
     updateCheckoutStepUI();
-    // Configura rótulo inicial do botão primário
+    // Configura rÃ³tulo inicial do botÃ£o primÃ¡rio
     const primaryBtn = document.getElementById('checkoutPrimaryBtn');
     if (primaryBtn) {
-        primaryBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Continuar';
+        primaryBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuar';
     }
     const backBtn = document.getElementById('checkoutBackBtn');
     if (backBtn) backBtn.disabled = true;
@@ -1488,7 +1631,7 @@ function setupCheckoutProgressClicks() {
 }
 
 function updateCheckoutStepUI() {
-    // Passos de conteúdo
+    // Passos de conteÃºdo
     for (let i = 1; i <= CHECKOUT_TOTAL_STEPS; i++) {
         const stepEl = document.getElementById('checkout-step-' + i);
         if (stepEl) stepEl.classList.toggle('active', i === checkoutCurrentStep);
@@ -1500,15 +1643,15 @@ function updateCheckoutStepUI() {
         el.classList.toggle('active', stepIndex === checkoutCurrentStep);
         el.classList.toggle('completed', stepIndex < checkoutCurrentStep);
     });
-    // Botões
+    // BotÃµes
     const backBtn = document.getElementById('checkoutBackBtn');
     const primaryBtn = document.getElementById('checkoutPrimaryBtn');
     if (backBtn) backBtn.disabled = checkoutCurrentStep === 1;
     if (primaryBtn) {
         if (checkoutCurrentStep < CHECKOUT_TOTAL_STEPS) {
-            primaryBtn.innerHTML = '<i class="fas fa-arrow-right"></i> Continuar';
+            primaryBtn.innerHTML = '<i class="fa-solid fa-arrow-right"></i> Continuar';
         } else {
-            primaryBtn.innerHTML = '<i class="fas fa-check"></i> Confirmar Pedido';
+            primaryBtn.innerHTML = '<i class="fa-solid fa-check"></i> Confirmar Pedido';
         }
     }
     // Atualiza totais quando entrar nos passos 3-5
@@ -1525,23 +1668,23 @@ function prevCheckoutStep() {
 }
 
 function nextCheckoutStepOrSubmit() {
-    // Validação por passo antes de avançar
+    // ValidaÃ§Ã£o por passo antes de avanÃ§ar
     if (!validateCurrentStep()) return;
     if (checkoutCurrentStep < CHECKOUT_TOTAL_STEPS) {
         const orderType = getSelectedOrderType();
-        // Se for pular endereço (não-delivery), salta do 2 para o 4
+        // Se for pular endereÃ§o (nÃ£o-delivery), salta do 2 para o 4
         if (checkoutCurrentStep === 2 && orderType !== 'delivery') {
             checkoutCurrentStep = 4;
         } else {
             checkoutCurrentStep++;
         }
-        // Cálculo de entrega quando avançar do passo 3
+        // CÃ¡lculo de entrega quando avanÃ§ar do passo 3
         if (checkoutCurrentStep === 4) {
             try { verifyDeliveryAreaFromForm(); } catch(_) {}
         }
         updateCheckoutStepUI();
     } else {
-        // Último passo: enviar
+        // Ãšltimo passo: enviar
         submitOrder();
     }
 }
@@ -1551,13 +1694,13 @@ function validateCurrentStep() {
     const fd = new FormData(form);
     const orderType = getSelectedOrderType();
     if (checkoutCurrentStep === 1) {
-        // Tipo do pedido: sem validação extra
+        // Tipo do pedido: sem validaÃ§Ã£o extra
         return true;
     }
     if (checkoutCurrentStep === 2) {
         if (!hasValue(fd.get('customerName'))) { showError('Informe o nome.'); return false; }
         const phone = (fd.get('customerPhone') || '').trim();
-        if (!isValidBrazilPhone(phone)) { showError('Informe um telefone válido (DDD + número).'); return false; }
+        if (!isValidBrazilPhone(phone)) { showError('Informe um telefone vÃ¡lido (DDD + nÃºmero).'); return false; }
         return true;
     }
     if (checkoutCurrentStep === 3) {
@@ -1569,11 +1712,11 @@ function validateCurrentStep() {
         const zip = fd.get('addressZip');
         const reference = fd.get('customerReference');
         if (!hasValue(street) || !hasValue(number) || !hasValue(neighborhood) || !hasValue(city) || !hasValue(zip) || !hasValue(reference)) {
-            showError('Preencha todos os campos de endereço obrigatórios.');
+            showError('Preencha todos os campos de endereÃ§o obrigatÃ³rios.');
             return false;
         }
         if (!isValidBrazilCEP(zip)) {
-            showError('CEP inválido. Use o formato 00000-000.');
+            showError('CEP invÃ¡lido. Use o formato 00000-000.');
             return false;
         }
         return true;
@@ -1595,11 +1738,11 @@ function validateCurrentStep() {
         }
         return true;
     }
-    // Passo 5: sem validação extra aqui
+    // Passo 5: sem validaÃ§Ã£o extra aqui
     return true;
 }
 
-// ===== Endereço: ViaCEP + verificação de área =====
+// ===== EndereÃ§o: ViaCEP + verificaÃ§Ã£o de Ã¡rea =====
 let addressVerifyTimer = null;
 function attachCheckoutAddressListeners() {
     const cepEl = document.getElementById('addressZip');
@@ -1628,7 +1771,7 @@ function attachCheckoutAddressListeners() {
             if (streetEl) { streetEl.value = data.logradouro || ''; }
             if (neighEl) { neighEl.value = data.bairro || ''; }
             if (cityEl) { cityEl.value = `${data.localidade || ''} - ${data.uf || ''}`.trim(); }
-            // Campos automáticos ficam readonly
+            // Campos automÃ¡ticos ficam readonly
             if (streetEl) streetEl.readOnly = true;
             if (neighEl) neighEl.readOnly = true;
             if (cityEl) cityEl.readOnly = true;
@@ -1652,11 +1795,11 @@ function attachCheckoutAddressListeners() {
         el.addEventListener('input', debouncedVerify);
     });
 
-    // Máscara leve/normalização da cidade: manter padrão "Cidade - UF"
+    // MÃ¡scara leve/normalizaÃ§Ã£o da cidade: manter padrÃ£o "Cidade - UF"
     if (cityEl) {
         cityEl.addEventListener('input', function(e) {
             const v = String(e.target.value || '').trim();
-            // se vier só cidade, tenta preservar; se já tem UF, garante formato XX maiúsculo
+            // se vier sÃ³ cidade, tenta preservar; se jÃ¡ tem UF, garante formato XX maiÃºsculo
             const parts = v.split('-').map(s => s.trim()).filter(Boolean);
             if (parts.length === 2) {
                 const city = parts[0];
@@ -1673,7 +1816,7 @@ async function verifyDeliveryAreaFromForm() {
 		if (orderType !== 'delivery') return;
 		const form = document.getElementById('checkoutForm');
 		const formData = new FormData(form);
-		// Requer rua, número, bairro, cidade e CEP
+		// Requer rua, nÃºmero, bairro, cidade e CEP
 		const requiredOk = hasValue(formData.get('addressStreet')) && hasValue(formData.get('addressNumber')) && hasValue(formData.get('customerNeighborhood')) && hasValue(formData.get('addressCity')) && hasValue(formData.get('addressZip'));
 		if (!requiredOk) {
 			appState.deliveryArea = null;
@@ -1713,7 +1856,7 @@ async function verifyDeliveryAreaFromForm() {
 			} catch (_) { /* fallback abaixo */ }
 			finally { appState.deliveryCalculating = false; }
 		}
-		// Fallback: taxa padrão
+		// Fallback: taxa padrÃ£o
 		appState.deliveryArea = null;
 		appState.deliveryFee = CONFIG.DELIVERY_FEE;
         appState.deliveryDistanceKm = null;
@@ -1733,7 +1876,7 @@ async function submitOrder() {
     const form = document.getElementById('checkoutForm');
     const formData = new FormData(form);
     
-    // Validação básica
+    // ValidaÃ§Ã£o bÃ¡sica
     if (!validateCheckoutForm(formData)) {
         return;
     }
@@ -1741,14 +1884,14 @@ async function submitOrder() {
     const isDelivery = orderType === 'delivery';
     const deliveryAddress = isDelivery ? buildDeliveryAddress(formData) : '';
 
-    // Garante cálculo da taxa de entrega antes do envio (sem fallback silencioso)
+    // Garante cÃ¡lculo da taxa de entrega antes do envio (sem fallback silencioso)
     let deliveryFeeValue = 0;
     if (isDelivery) {
         try {
             if (appState.deliveryFee === null) {
                 const requiredOk = hasValue(formData.get('addressStreet')) && hasValue(formData.get('addressNumber')) && hasValue(formData.get('customerNeighborhood')) && hasValue(formData.get('addressCity')) && hasValue(formData.get('addressZip'));
                 if (!requiredOk) {
-                    showError('Preencha o endereço completo para calcular a entrega.');
+                    showError('Preencha o endereÃ§o completo para calcular a entrega.');
                     return;
                 }
                 const payload = {
@@ -1769,7 +1912,7 @@ async function submitOrder() {
                     appState.deliveryDistanceKm = (typeof data.distance_km === 'number') ? data.distance_km : null;
                     populateCheckoutTotalsOnly();
                 } else {
-                    showError((data && data.message) ? data.message : 'Não foi possível calcular a taxa de entrega. Verifique o endereço.');
+                    showError((data && data.message) ? data.message : 'NÃ£o foi possÃ­vel calcular a taxa de entrega. Verifique o endereÃ§o.');
                     return;
                 }
             }
@@ -1788,7 +1931,7 @@ async function submitOrder() {
     let orderData;
     
     if (isEditMode()) {
-        // Modo de edição: apenas itens do carrinho
+        // Modo de ediÃ§Ã£o: apenas itens do carrinho
         orderData = {
             items: appState.cart.map(item => ({
                 product_id: item.product.id,
@@ -1799,7 +1942,7 @@ async function submitOrder() {
             }))
         };
     } else {
-        // Modo de criação: todos os dados
+        // Modo de criaÃ§Ã£o: todos os dados
         orderData = {
             customer_name: formData.get('customerName'),
             customer_phone: formData.get('customerPhone'),
@@ -1829,11 +1972,11 @@ async function submitOrder() {
         };
     }
     
-    // Para delivery, constrói o endereço completo usando buildDeliveryAddress
-    // que já está implementada e funciona corretamente
+    // Para delivery, constrÃ³i o endereÃ§o completo usando buildDeliveryAddress
+    // que jÃ¡ estÃ¡ implementada e funciona corretamente
     
     try {
-        // Se Autofill/Confirm estiver disponível, opcionalmente confirmar endereço antes de enviar
+        // Se Autofill/Confirm estiver disponÃ­vel, opcionalmente confirmar endereÃ§o antes de enviar
         if (typeof window.__MapboxConfirmAddress === 'function') {
             const form = document.getElementById('checkoutForm');
             const formData = new FormData(form);
@@ -1847,7 +1990,7 @@ async function submitOrder() {
         }
         showLoadingOverlay();
         
-        // Determina se é edição ou novo pedido
+        // Determina se Ã© ediÃ§Ã£o ou novo pedido
         const isEditing = isEditMode();
         const editOrderId = getEditOrderId();
         
@@ -1887,10 +2030,10 @@ async function submitOrder() {
             closeCheckoutModal();
             
             if (isEditing) {
-                // Modo de edição: mostra mensagem de sucesso e fecha
+                // Modo de ediÃ§Ã£o: mostra mensagem de sucesso e fecha
                 showSuccess(`Pedido #${orderNumber} atualizado com sucesso!`);
                 
-                // Se POS em modo de edição: notifica o admin e fecha
+                // Se POS em modo de ediÃ§Ã£o: notifica o admin e fecha
                 if (isPOSMode()) {
                     try {
                         const ch = new BroadcastChannel('pos-orders');
@@ -1908,8 +2051,9 @@ async function submitOrder() {
                     }
                 }
             } else {
-                // Modo de criação: mostra modal de sucesso
-                showSuccessModal(orderNumber);
+                // Modo de criaÃ§Ã£o: mostra modal de sucesso
+                const orderId = data.data.order_id;
+                showSuccessModal(orderNumber, orderId);
                 appState.lastSubmittedOrderPayload = { orderNumber, orderData };
                 
                 // Limpa o carrinho
@@ -1960,7 +2104,7 @@ async function submitOrder() {
 }
 
 /**
- * Valida o formulário de checkout
+ * Valida o formulÃ¡rio de checkout
  */
 function validateCheckoutForm(formData) {
     const orderType = getSelectedOrderType();
@@ -1971,10 +2115,10 @@ function validateCheckoutForm(formData) {
     }
     const phone = (formData.get('customerPhone') || '').trim();
     if (!isValidBrazilPhone(phone)) {
-        showError('Informe um telefone válido (DDD + número).');
+        showError('Informe um telefone vÃ¡lido (DDD + nÃºmero).');
         return false;
     }
-    // Delivery: validar endereço completo e CEP
+    // Delivery: validar endereÃ§o completo e CEP
     if (orderType === 'delivery') {
         const street = formData.get('addressStreet');
         const number = formData.get('addressNumber');
@@ -1983,17 +2127,17 @@ function validateCheckoutForm(formData) {
         const zip = formData.get('addressZip');
         const reference = formData.get('customerReference');
         if (!hasValue(street) || !hasValue(number) || !hasValue(neighborhood) || !hasValue(city) || !hasValue(zip) || !hasValue(reference)) {
-            showError('Preencha todos os campos de endereço obrigatórios (Rua, Número, Bairro, Cidade, CEP e Referência).');
+            showError('Preencha todos os campos de endereÃ§o obrigatÃ³rios (Rua, NÃºmero, Bairro, Cidade, CEP e ReferÃªncia).');
             return false;
         }
         if (!isValidBrazilCEP(zip)) {
-            showError('CEP inválido. Use o formato 00000-000.');
+            showError('CEP invÃ¡lido. Use o formato 00000-000.');
             return false;
         }
     }
-    // Retirada/Balcão: não solicita endereço
+    // Retirada/BalcÃ£o: nÃ£o solicita endereÃ§o
     
-    // Validação específica para pagamento em dinheiro
+    // ValidaÃ§Ã£o especÃ­fica para pagamento em dinheiro
     const paymentMethod = formData.get('paymentMethod');
     const paymentValue = formData.get('paymentValue');
     const totalAmount = appState.cart.reduce((sum, item) => {
@@ -2010,20 +2154,20 @@ function validateCheckoutForm(formData) {
 }
 
 /**
- * Retorna o rótulo do campo para mensagens de erro
+ * Retorna o rÃ³tulo do campo para mensagens de erro
  */
 function getFieldLabel(fieldName) {
     const labels = {
         customerName: 'Nome Completo',
         customerPhone: 'Telefone',
-        customerAddress: 'Endereço',
+        customerAddress: 'EndereÃ§o',
         customerNeighborhood: 'Bairro'
     };
     return labels[fieldName] || fieldName;
 }
 
 /**
- * Gera um número de pedido único
+ * Gera um nÃºmero de pedido Ãºnico
  */
 function generateOrderNumber() {
     const timestamp = Date.now();
@@ -2034,12 +2178,29 @@ function generateOrderNumber() {
 /**
  * Exibe o modal de sucesso
  */
-function showSuccessModal(orderNumber) {
+function showSuccessModal(orderNumber, orderId) {
     const successModal = document.getElementById('successModal');
     const orderNumberElement = document.getElementById('orderNumber');
     
-    orderNumberElement.textContent = orderNumber;
-    successModal.classList.add('show');
+    if (orderNumberElement) {
+        orderNumberElement.textContent = orderNumber;
+    }
+
+    if (successModal) {
+        const statusEl = successModal.querySelector('#orderStatus');
+        const timeEl = successModal.querySelector('#estimatedTime');
+        if (statusEl) statusEl.textContent = statusToHuman('novo');
+        if (timeEl) timeEl.textContent = '30-40 minutos';
+    }
+
+    try { ensureClientSocket(); } catch (_) { /* noop */ }
+    if (orderId) {
+        try { watchOrder(orderId); } catch (_) { /* noop */ }
+    }
+
+    if (successModal) {
+        successModal.classList.add('show');
+    }
     document.body.style.overflow = 'hidden';
 }
 
@@ -2047,8 +2208,9 @@ function showSuccessModal(orderNumber) {
  * Fecha o modal de sucesso
  */
 function closeSuccessModal() {
+    try { cleanupOrderListener(); } catch (_) { /* noop */ }
     const successModal = document.getElementById('successModal');
-    successModal.classList.remove('show');
+    if (successModal) successModal.classList.remove('show');
     document.body.style.overflow = '';
 }
 
@@ -2056,7 +2218,7 @@ function closeSuccessModal() {
 function openWhatsAppWithOrder() {
     try {
         const payload = appState.lastSubmittedOrderPayload;
-        const number = '5571993210590'; // +55 71 99321-0590 (somente dígitos no wa.me)
+        const number = '5571993210590'; // +55 71 99321-0590 (somente dÃ­gitos no wa.me)
         if (!payload || !payload.orderData) {
             const url = `https://wa.me/${number}`;
             window.open(url, '_blank');
@@ -2081,7 +2243,7 @@ function openWhatsAppWithOrder() {
                         }
                     });
                 }
-                linesLocal.push(`Unitário: ${formatCurrency(unit)}`);
+                linesLocal.push(`UnitÃ¡rio: ${formatCurrency(unit)}`);
                 linesLocal.push(`Subtotal: ${formatCurrency(lineSubtotal)}`);
                 return linesLocal.join('\n');
             })
@@ -2090,24 +2252,24 @@ function openWhatsAppWithOrder() {
         const subtotalText = formatCurrency(orderData.subtotal || subtotalItems || 0);
         const deliveryText = formatCurrency(orderData.delivery_fee || 0);
         const totalText = formatCurrency(orderData.total_amount || 0);
-        const typeText = (orderData.order_type === 'delivery') ? 'ENTREGA' : (orderData.order_type === 'retirada' ? 'RETIRADA' : 'BALCÃO');
+        const typeText = (orderData.order_type === 'delivery') ? 'ENTREGA' : (orderData.order_type === 'retirada' ? 'RETIRADA' : 'BALCÃƒO');
         const addressText = orderData.order_type === 'delivery' ? (orderData.customer_address || '') : '';
         const changeText = (orderData.payment_method === 'dinheiro' && orderData.payment_value)
             ? `\nTroco: ${formatCurrency(orderData.change_amount || 0)}`
             : '';
-        const notesText = orderData.notes ? `\nObservações: ${orderData.notes}` : '';
-        const paymentMap = { dinheiro: 'Dinheiro', cartao: 'Cartão', pix: 'PIX' };
+        const notesText = orderData.notes ? `\nObservaÃ§Ãµes: ${orderData.notes}` : '';
+        const paymentMap = { dinheiro: 'Dinheiro', cartao: 'CartÃ£o', pix: 'PIX' };
         const paymentLabel = paymentMap[String(orderData.payment_method || '').toLowerCase()] || String(orderData.payment_method || '').toUpperCase();
         const lines = [
-            `✅ PEDIDO: *#${orderNumber}*`,
+            `âœ… PEDIDO: *#${orderNumber}*`,
             ``,
             `TIPO: ${typeText}`,
             `CLIENTE: ${orderData.customer_name}`,
             `TELEFONE: ${orderData.customer_phone}`,
             ...(orderData.order_type === 'delivery' ? [
-                `ENDEREÇO: ${addressText}`,
+                `ENDEREÃ‡O: ${addressText}`,
                 (orderData.customer_neighborhood ? `BAIRRO: ${orderData.customer_neighborhood}` : ''),
-                (orderData.customer_reference ? `REFERÊNCIA: ${orderData.customer_reference}` : '')
+                (orderData.customer_reference ? `REFERÃŠNCIA: ${orderData.customer_reference}` : '')
             ] : []),
             ``,
             `${itemsText}`,
@@ -2119,7 +2281,7 @@ function openWhatsAppWithOrder() {
             `Pagamento: ${paymentLabel}${changeText}`,
             `${notesText}`,
             ``,
-            `🕐 Tempo estimado: 30 min`
+            `ðŸ• Tempo estimado: 30 min`
         ].filter(Boolean);
         const text = encodeURIComponent(lines.join('\n'));
         const url = `https://wa.me/${number}?text=${text}`;
@@ -2145,44 +2307,44 @@ function applyPOSUX() {
         // Garante que o carrinho inicie fechado
         if (appState.isCartOpen) toggleCart();
         
-        // Se estiver em modo de edição, aplica as configurações específicas
+        // Se estiver em modo de ediÃ§Ã£o, aplica as configuraÃ§Ãµes especÃ­ficas
         if (isEditMode()) {
-            // Ajusta o botão do carrinho para modo de edição
+            // Ajusta o botÃ£o do carrinho para modo de ediÃ§Ã£o
             const checkoutButton = document.getElementById('checkoutButton');
             if (checkoutButton) {
-                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                checkoutButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar AlteraÃ§Ãµes';
                 checkoutButton.onclick = saveOrderFromCart;
-                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+                checkoutButton.title = 'Clique para salvar as alteraÃ§Ãµes do pedido diretamente do carrinho';
             }
         }
     } catch (_) { /* noop */ }
 }
 
-// Ajustes de UX quando rodando em modo de edição de pedido
+// Ajustes de UX quando rodando em modo de ediÃ§Ã£o de pedido
 function applyEditMode() {
     try {
         const orderId = getEditOrderId();
         const orderNumber = getEditOrderNumber();
         
         if (orderId && orderNumber) {
-            // Altera o título para indicar edição
+            // Altera o tÃ­tulo para indicar ediÃ§Ã£o
             const posTitle = document.getElementById('posTitle');
             if (posTitle) {
                 if (isPOSMode()) {
-                    posTitle.innerHTML = `POS - Balcão <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
+                    posTitle.innerHTML = `POS - BalcÃ£o <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
                 } else {
-                    posTitle.innerHTML = `POS - Balcão <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
+                    posTitle.innerHTML = `POS - BalcÃ£o <span style="font-size: 0.8em; color: #666;">(Editando Pedido #${orderNumber})</span>`;
                 }
             }
             
-            // Carrega o pedido para edição
+            // Carrega o pedido para ediÃ§Ã£o
             loadOrderForEdit(orderId);
         }
     } catch (_) { /* noop */ }
 }
 
 /**
- * Adiciona informação de modo de edição no carrinho
+ * Adiciona informaÃ§Ã£o de modo de ediÃ§Ã£o no carrinho
  */
 function addEditModeInfoToCart() {
     try {
@@ -2195,7 +2357,7 @@ function addEditModeInfoToCart() {
             existingInfo.remove();
         }
         
-        // Verifica se já existe uma mensagem similar
+        // Verifica se jÃ¡ existe uma mensagem similar
         if (document.querySelector('.edit-mode-info')) {
             return;
         }
@@ -2206,25 +2368,25 @@ function addEditModeInfoToCart() {
         infoDiv.className = 'edit-mode-info';
         infoDiv.innerHTML = `
             <div style="background: #e3f2fd; border: 1px solid #2196f3; border-radius: 8px; padding: 12px; margin: 12px 0; text-align: center;">
-                <i class="fas fa-edit" style="color: #2196f3; margin-right: 8px;"></i>
+                <i class="fa-solid fa-pen-to-square" style="color: #2196f3; margin-right: 8px;"></i>
                 <strong>Editando Pedido</strong><br>
                 <small style="color: #666;">
                     Adicione ou remova itens do carrinho.<br>
-                    <strong>Clique em "Salvar Alterações" para confirmar as mudanças.</strong>
+                    <strong>Clique em "Salvar AlteraÃ§Ãµes" para confirmar as mudanÃ§as.</strong>
                 </small>
             </div>
         `;
         
-        // Insere no início do carrinho
+        // Insere no inÃ­cio do carrinho
         cartContent.insertBefore(infoDiv, cartContent.firstChild);
         
     } catch (error) {
-        console.error('Erro ao adicionar info de modo de edição:', error);
+        console.error('Erro ao adicionar info de modo de ediÃ§Ã£o:', error);
     }
 }
 
 /**
- * Salva pedido diretamente do carrinho (modo de edição do POS Balcão)
+ * Salva pedido diretamente do carrinho (modo de ediÃ§Ã£o do POS BalcÃ£o)
  */
 async function saveOrderFromCart() {
     try {
@@ -2234,17 +2396,17 @@ async function saveOrderFromCart() {
         console.log('saveOrderFromCart: isPOSMode() =', isPOSMode());
         
         if (!orderId) {
-            showError('ID do pedido não encontrado. Recarregue a página e tente novamente.');
+            showError('ID do pedido nÃ£o encontrado. Recarregue a pÃ¡gina e tente novamente.');
             return;
         }
         
-        // Valida se há itens no carrinho
+        // Valida se hÃ¡ itens no carrinho
         if (appState.cart.length === 0) {
-            showError('Adicione itens ao carrinho antes de salvar as alterações do pedido.');
+            showError('Adicione itens ao carrinho antes de salvar as alteraÃ§Ãµes do pedido.');
             return;
         }
         
-        // Resolve um product_id válido para cada item (evita IDs sintéticos que quebram FK)
+        // Resolve um product_id vÃ¡lido para cada item (evita IDs sintÃ©ticos que quebram FK)
         function resolveProductIdForCartItem(cartItem) {
             try {
                 const rawId = cartItem && cartItem.product && cartItem.product.id;
@@ -2277,8 +2439,8 @@ async function saveOrderFromCart() {
 
         const hasInvalid = mappedItems.some(it => !it.product_id || isNaN(parseInt(it.product_id, 10)) || parseInt(it.product_id, 10) <= 0);
         if (hasInvalid) {
-            console.warn('saveOrderFromCart: item com product_id inválido detectado', mappedItems);
-            showError('Não foi possível identificar o produto de um dos itens do carrinho. Remova-o e adicione novamente.');
+            console.warn('saveOrderFromCart: item com product_id invÃ¡lido detectado', mappedItems);
+            showError('NÃ£o foi possÃ­vel identificar o produto de um dos itens do carrinho. Remova-o e adicione novamente.');
             return;
         }
 
@@ -2323,7 +2485,7 @@ async function saveOrderFromCart() {
             hideLoadingOverlay();
             
             // Mostra mensagem de sucesso
-            showSuccess(`Pedido #${(data.data && data.data.order_number) || orderId} atualizado com sucesso! As alterações foram salvas.`);
+            showSuccess(`Pedido #${(data.data && data.data.order_number) || orderId} atualizado com sucesso! As alteraÃ§Ãµes foram salvas.`);
             
             // Notifica o admin e fecha o POS
             try {
@@ -2348,7 +2510,7 @@ async function saveOrderFromCart() {
                     }, '*');
                 } catch (_) { /* noop */ }
                 
-                // Fecha a aba/janela do POS após mostrar sucesso
+                // Fecha a aba/janela do POS apÃ³s mostrar sucesso
                 setTimeout(() => {
                     try {
                         window.close();
@@ -2369,31 +2531,31 @@ async function saveOrderFromCart() {
     } catch (error) {
         hideLoadingOverlay();
         console.error('Erro ao salvar pedido do carrinho:', error);
-        showError('Erro ao salvar pedido. Verifique a conexão e tente novamente.');
+        showError('Erro ao salvar pedido. Verifique a conexÃ£o e tente novamente.');
     }
 }
 
 /**
- * Carrega um pedido existente para edição (apenas itens do carrinho)
+ * Carrega um pedido existente para ediÃ§Ã£o (apenas itens do carrinho)
  */
 async function loadOrderForEdit(orderId) {
     try {
         const response = await fetch(CONFIG.API_BASE_URL + `orders/${orderId}`);
         if (!response.ok) {
-            showError('Erro ao carregar pedido para edição');
+            showError('Erro ao carregar pedido para ediÃ§Ã£o');
             return;
         }
         
         const data = await response.json();
         if (!data.success || !data.data) {
-            showError('Pedido não encontrado');
+            showError('Pedido nÃ£o encontrado');
             return;
         }
         
         const order = data.data;
         
         // Debug: log dos dados do pedido
-        console.log('Dados do pedido carregados para edição:', order);
+        console.log('Dados do pedido carregados para ediÃ§Ã£o:', order);
         
         // Limpa o carrinho atual
         appState.cart = [];
@@ -2416,13 +2578,13 @@ async function loadOrderForEdit(orderId) {
             });
         }
         
-        // Atualiza a exibição do carrinho
+        // Atualiza a exibiÃ§Ã£o do carrinho
         updateCartDisplay();
         
-        // Em modo de edição, NÃO preenche os campos do formulário
-        // Apenas carrega os itens no carrinho e mantém os valores originais
+        // Em modo de ediÃ§Ã£o, NÃƒO preenche os campos do formulÃ¡rio
+        // Apenas carrega os itens no carrinho e mantÃ©m os valores originais
         
-        // Adiciona mensagem informativa no carrinho se estiver em modo de edição do POS
+        // Adiciona mensagem informativa no carrinho se estiver em modo de ediÃ§Ã£o do POS
         if (isPOSMode()) {
             // Aguarda um pouco para garantir que o carrinho foi renderizado
             setTimeout(() => {
@@ -2430,30 +2592,30 @@ async function loadOrderForEdit(orderId) {
             }, 200);
         }
         
-        // Define taxa de entrega no estado da aplicação (preserva valor original)
+        // Define taxa de entrega no estado da aplicaÃ§Ã£o (preserva valor original)
         if (order.delivery_fee > 0) {
             appState.deliveryFee = order.delivery_fee;
         }
         
-        // Altera os textos dos botões para indicar edição
+        // Altera os textos dos botÃµes para indicar ediÃ§Ã£o
         const checkoutButton = document.getElementById('checkoutButton');
         if (checkoutButton) {
             if (isPOSMode()) {
-                // No POS Balcão em modo de edição, salva direto do carrinho
-                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+                // No POS BalcÃ£o em modo de ediÃ§Ã£o, salva direto do carrinho
+                checkoutButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar AlteraÃ§Ãµes';
                 checkoutButton.onclick = saveOrderFromCart;
                 
                 // Adiciona tooltip explicativo
-                checkoutButton.title = 'Clique para salvar as alterações do pedido diretamente do carrinho';
+                checkoutButton.title = 'Clique para salvar as alteraÃ§Ãµes do pedido diretamente do carrinho';
             } else {
-                checkoutButton.innerHTML = '<i class="fas fa-save"></i> Salvar Edição de Pedido';
+                checkoutButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar EdiÃ§Ã£o de Pedido';
             }
         }
         
 
     } catch (error) {
-        console.error('Erro ao carregar pedido para edição:', error);
-        showError('Erro ao carregar pedido para edição');
+        console.error('Erro ao carregar pedido para ediÃ§Ã£o:', error);
+        showError('Erro ao carregar pedido para ediÃ§Ã£o');
     }
 }
 
@@ -2474,7 +2636,7 @@ function hideLoadingOverlay() {
 }
 
 /**
- * Exibe animação do carrinho
+ * Exibe animaÃ§Ã£o do carrinho
  */
 function showCartAnimation() {
     const cartCount = document.getElementById('cartCount');
@@ -2489,58 +2651,73 @@ function showCartAnimation() {
  * Configura os event listeners
  */
 function setupEventListeners() {
-    // Event listener para mudança no método de pagamento
-    document.querySelectorAll('input[name="paymentMethod"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const moneySection = document.getElementById('moneySection');
-            if (this.value === 'dinheiro') {
-                moneySection.style.display = 'block';
+    // Event listener para mudança no método de pagamento (existência verificada)
+    const paymentMethodRadios = document.querySelectorAll('input[name="paymentMethod"]');
+    if (paymentMethodRadios && paymentMethodRadios.length) {
+        paymentMethodRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const moneySection = document.getElementById('moneySection');
+                const paymentValueEl = document.getElementById('paymentValue');
+                const changeDisplayEl = document.getElementById('changeDisplay');
+                if (this.value === 'dinheiro') {
+                    if (moneySection) moneySection.style.display = 'block';
+                } else {
+                    if (moneySection) moneySection.style.display = 'none';
+                    if (paymentValueEl) paymentValueEl.value = '';
+                    if (changeDisplayEl) changeDisplayEl.style.display = 'none';
+                }
+            });
+        });
+    }
+    
+    // Event listener para tipo de pedido (existência verificada)
+    const orderTypeRadios = document.querySelectorAll('input[name="orderType"]');
+    if (orderTypeRadios && orderTypeRadios.length) {
+        orderTypeRadios.forEach(radio => {
+            radio.addEventListener('change', function() {
+                const addressSection = document.getElementById('deliveryAddressSection');
+                const isDelivery = this.value === 'delivery';
+                if (addressSection) addressSection.style.display = isDelivery ? 'block' : 'none';
+                // Atualiza totais (taxa de entrega somente delivery)
+                if (typeof populateCheckoutTotalsOnly === 'function') {
+                    populateCheckoutTotalsOnly();
+                }
+            });
+        });
+    }
+
+    // Event listener para cálculo do troco (existência verificada)
+    const paymentValueInput = document.getElementById('paymentValue');
+    if (paymentValueInput) {
+        paymentValueInput.addEventListener('input', function() {
+            const paymentValue = parseFloat(this.value) || 0;
+            const orderType = getSelectedOrderType();
+            const totalAmount = appState.cart.reduce((sum, item) => {
+                const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
+                return sum + (price * item.quantity);
+            }, 0) + (orderType === 'delivery' ? CONFIG.DELIVERY_FEE : 0);
+            const changeDisplay = document.getElementById('changeDisplay');
+            const changeAmount = document.getElementById('changeAmount');
+            
+            if (paymentValue > totalAmount) {
+                const change = paymentValue - totalAmount;
+                if (changeAmount) changeAmount.textContent = formatCurrency(change);
+                if (changeDisplay) changeDisplay.style.display = 'block';
             } else {
-                moneySection.style.display = 'none';
-                document.getElementById('paymentValue').value = '';
-                document.getElementById('changeDisplay').style.display = 'none';
+                if (changeDisplay) changeDisplay.style.display = 'none';
             }
         });
-    });
+    }
     
-    // Event listener para tipo de pedido
-    document.querySelectorAll('input[name="orderType"]').forEach(radio => {
-        radio.addEventListener('change', function() {
-            const addressSection = document.getElementById('deliveryAddressSection');
-            const isDelivery = this.value === 'delivery';
-            if (addressSection) addressSection.style.display = isDelivery ? 'block' : 'none';
-            // Atualiza totais (taxa de entrega somente delivery)
-            populateCheckoutTotalsOnly();
-        });
-    });
-
-    // Event listener para cálculo do troco
-    document.getElementById('paymentValue').addEventListener('input', function() {
-        const paymentValue = parseFloat(this.value) || 0;
-        const orderType = getSelectedOrderType();
-        const totalAmount = appState.cart.reduce((sum, item) => {
-            const price = item.product.price && parseFloat(item.product.price) > 0 ? parseFloat(item.product.price) : 0;
-            return sum + (price * item.quantity);
-        }, 0) + (orderType === 'delivery' ? CONFIG.DELIVERY_FEE : 0);
-        const changeDisplay = document.getElementById('changeDisplay');
-        const changeAmount = document.getElementById('changeAmount');
-        
-        if (paymentValue > totalAmount) {
-            const change = paymentValue - totalAmount;
-            changeAmount.textContent = formatCurrency(change);
-            changeDisplay.style.display = 'block';
-        } else {
-            changeDisplay.style.display = 'none';
-        }
-    });
-    
-    // Event listener para fechar modais com ESC
+    // Event listener para fechar modais com ESC (com verificações de existência)
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
-            if (document.getElementById('checkoutModal').classList.contains('show')) {
+            const checkoutModalEl = document.getElementById('checkoutModal');
+            if (checkoutModalEl && checkoutModalEl.classList.contains('show')) {
                 closeCheckoutModal();
             }
-            if (document.getElementById('successModal').classList.contains('show')) {
+            const successModalEl = document.getElementById('successModal');
+            if (successModalEl && successModalEl.classList.contains('show')) {
                 closeSuccessModal();
             }
             if (appState.isCartOpen) {
@@ -2594,7 +2771,7 @@ function hasValue(v) {
 
 function isValidBrazilPhone(input) {
     const digits = String(input || '').replace(/\D/g, '');
-    // Exige 11 dígitos (DDD + 9 dígitos), com '9' iniciando o número de celular
+    // Exige 11 dÃ­gitos (DDD + 9 dÃ­gitos), com '9' iniciando o nÃºmero de celular
     if (digits.length !== 11) return false;
     const ddd = parseInt(digits.slice(0, 2), 10);
     if (Number.isNaN(ddd) || ddd < 11 || ddd > 99) return false;
@@ -2641,7 +2818,7 @@ function populateCheckoutTotalsOnly() {
             checkoutDeliveryFee.textContent = (deliveryFeeValue === null) ? 'A calcular' : formatCurrency(deliveryFeeValue);
             const dist = appState.deliveryDistanceKm;
             if (typeof dist === 'number' && !Number.isNaN(dist)) {
-                checkoutDeliveryFee.setAttribute('title', 'Distância estimada: ' + dist.toFixed(2) + ' km');
+                checkoutDeliveryFee.setAttribute('title', 'DistÃ¢ncia estimada: ' + dist.toFixed(2) + ' km');
             } else {
                 checkoutDeliveryFee.removeAttribute('title');
             }
@@ -2654,7 +2831,7 @@ function populateCheckoutTotalsOnly() {
 }
 
 /**
- * Formata valor monetário
+ * Formata valor monetÃ¡rio
  */
 function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', {
@@ -2667,7 +2844,7 @@ function formatCurrency(value) {
  * Exibe mensagem de erro
  */
 function showError(message) {
-    // Implementação simples - pode ser melhorada com um sistema de notificações mais sofisticado
+    // ImplementaÃ§Ã£o simples - pode ser melhorada com um sistema de notificaÃ§Ãµes mais sofisticado
     alert(message);
 }
 
@@ -2675,7 +2852,7 @@ function showError(message) {
  * Exibe mensagem de sucesso
  */
 function showSuccess(message) {
-    // Implementação simples - pode ser melhorada com um sistema de notificações mais sofisticado
+    // ImplementaÃ§Ã£o simples - pode ser melhorada com um sistema de notificaÃ§Ãµes mais sofisticado
     alert(message);
 }
 
@@ -2687,7 +2864,7 @@ function showSuccess(message) {
 const pizzaBuilderState = {
     currentStep: 1,
     selectedSize: null,
-    // Mantém compatibilidade: armazenaremos cada seleção como { id, name, description, category }
+    // MantÃ©m compatibilidade: armazenaremos cada seleÃ§Ã£o como { id, name, description, category }
     // e controlaremos "partes" por sabor via contador separado
     selectedFlavors: [],
     selectedBorder: null,
@@ -2703,12 +2880,12 @@ const pizzaBuilderState = {
 
 // Controle de partes por sabor (ex.: { [flavorId]: count })
 let flavorPartsMap = {};
-// Flag para evitar auto-avançar ao voltar para Step 2
+// Flag para evitar auto-avanÃ§ar ao voltar para Step 2
 let partsChangedInThisStep = false;
-// Controle para não duplicar handler de clique da barra de progresso
+// Controle para nÃ£o duplicar handler de clique da barra de progresso
 let pizzaProgressHandlersAttached = false;
 
-// Cores para o círculo da pizza
+// Cores para o cÃ­rculo da pizza
 const PIZZA_COLORS = [
     '#ff6b6b', '#4ecdc4', '#45b7d1', '#96ceb4',
     '#feca57', '#ff9ff3', '#54a0ff', '#5f27cd'
@@ -2725,18 +2902,18 @@ function openPizzaBuilder(product = null) {
     // Armazenar produto atual no estado
     pizzaBuilderState.currentProduct = product;
     
-    // Atualizar título do modal com o nome do produto
+    // Atualizar tÃ­tulo do modal com o nome do produto
     const titleElement = document.getElementById('pizzaBuilderTitle');
     if (titleElement && product && product.name) {
-        titleElement.textContent = `🍕 ${product.name}`;
+        titleElement.textContent = `ðŸ• ${product.name}`;
     } else {
-        titleElement.textContent = '🍕 Monte Sua Pizza';
+        titleElement.textContent = 'ðŸ• Monte Sua Pizza';
     }
     
-    // Habilitar clique na barra de progresso para voltar em passos concluídos
+    // Habilitar clique na barra de progresso para voltar em passos concluÃ­dos
     setupPizzaProgressClicks();
 
-    // Carregar dados se ainda não foram carregados
+    // Carregar dados se ainda nÃ£o foram carregados
     if (pizzaBuilderState.sizes.length === 0) {
         loadPizzaData();
     } else {
@@ -2757,7 +2934,7 @@ function closePizzaBuilder() {
 }
 
 /**
- * Carrega todos os dados necessários para o pizza builder
+ * Carrega todos os dados necessÃ¡rios para o pizza builder
  */
 async function loadPizzaData() {
     try {
@@ -2772,15 +2949,15 @@ async function loadPizzaData() {
                     throw new Error('Erro ao carregar tamanhos');
                 }
             } else {
-                throw new Error('Erro na requisição de tamanhos');
+                throw new Error('Erro na requisiÃ§Ã£o de tamanhos');
             }
         } catch (error) {
 
             // Fallback para dados fixos
             pizzaBuilderState.sizes = [
-                { id: 1, name: 'Média', slices: 6, max_flavors: 2, description: 'Pizza média com 6 fatias' },
+                { id: 1, name: 'MÃ©dia', slices: 6, max_flavors: 2, description: 'Pizza mÃ©dia com 6 fatias' },
                 { id: 2, name: 'Grande', slices: 8, max_flavors: 2, description: 'Pizza grande com 8 fatias' },
-                { id: 3, name: 'Família', slices: 12, max_flavors: 3, description: 'Pizza família com 12 fatias' }
+                { id: 3, name: 'FamÃ­lia', slices: 12, max_flavors: 3, description: 'Pizza famÃ­lia com 12 fatias' }
             ];
         }
         
@@ -2795,14 +2972,14 @@ async function loadPizzaData() {
                     throw new Error('Erro ao carregar sabores');
                 }
             } else {
-                throw new Error('Erro na requisição de sabores');
+                throw new Error('Erro na requisiÃ§Ã£o de sabores');
             }
         } catch (error) {
 
             // Fallback para dados fixos
             pizzaBuilderState.flavors = [
                 // Tradicionais
-                { id: 1, name: 'Margherita', category: 'tradicional', description: 'Molho de tomate, mussarela e manjericão' },
+                { id: 1, name: 'Margherita', category: 'tradicional', description: 'Molho de tomate, mussarela e manjericÃ£o' },
                 { id: 2, name: 'Pepperoni', category: 'tradicional', description: 'Molho de tomate, mussarela e pepperoni' },
                 { id: 3, name: 'Quatro Queijos', category: 'tradicional', description: 'Molho de tomate e quatro tipos de queijo' },
                 { id: 4, name: 'Calabresa', category: 'tradicional', description: 'Molho de tomate, mussarela e calabresa' },
@@ -2835,7 +3012,7 @@ async function loadPizzaData() {
             // Queijos
             { id: 1, name: 'Mussarela Extra', category: 'queijos', price: 3.00, description: 'Queijo mussarela adicional' },
             { id: 2, name: 'Catupiry', category: 'queijos', price: 4.00, description: 'Catupiry cremoso' },
-            { id: 3, name: 'Parmesão', category: 'queijos', price: 3.50, description: 'Parmesão ralado' },
+            { id: 3, name: 'ParmesÃ£o', category: 'queijos', price: 3.50, description: 'ParmesÃ£o ralado' },
             
             // Carnes
             { id: 4, name: 'Pepperoni Extra', category: 'carnes', price: 5.00, description: 'Pepperoni adicional' },
@@ -2845,13 +3022,13 @@ async function loadPizzaData() {
             // Vegetais
             { id: 7, name: 'Cebola', category: 'vegetais', price: 2.00, description: 'Cebola caramelizada' },
             { id: 8, name: 'Tomate', category: 'vegetais', price: 1.50, description: 'Tomate fresco' },
-            { id: 9, name: 'Pimentão', category: 'vegetais', price: 2.00, description: 'Pimentão colorido' }
+            { id: 9, name: 'PimentÃ£o', category: 'vegetais', price: 2.00, description: 'PimentÃ£o colorido' }
         ];
 
         renderPizzaStep1();
         
     } catch (error) {
-        console.error('❌ Erro ao carregar dados do pizza:', error);
+        console.error('âŒ Erro ao carregar dados do pizza:', error);
         showError('Erro ao carregar dados. Tente novamente.');
     }
 }
@@ -2862,16 +3039,16 @@ async function loadPizzaData() {
 function renderPizzaStep1() {
     const sizesGrid = document.getElementById('sizesGrid');
 
-    // Se temos um produto específico, usar apenas seus tamanhos
+    // Se temos um produto especÃ­fico, usar apenas seus tamanhos
     let availableSizes = pizzaBuilderState.sizes;
     
     if (pizzaBuilderState.currentProduct && pizzaBuilderState.currentProduct.product_type === 'pizza' && pizzaBuilderState.currentProduct.pizza_sizes) {
-        // Filtrar apenas os tamanhos disponíveis para este produto
+        // Filtrar apenas os tamanhos disponÃ­veis para este produto
         const productSizeIds = pizzaBuilderState.currentProduct.pizza_sizes.map(ps => ps.id);
         availableSizes = pizzaBuilderState.sizes.filter(size => productSizeIds.includes(size.id));
     }
 
-    // Se não temos tamanhos disponíveis, mostrar todos (fallback para "Monte Sua Pizza")
+    // Se nÃ£o temos tamanhos disponÃ­veis, mostrar todos (fallback para "Monte Sua Pizza")
     if (availableSizes.length === 0) {
         availableSizes = pizzaBuilderState.sizes;
     }
@@ -2900,10 +3077,10 @@ function renderSizeCardsOptimized(container, sizes) {
             fragment.appendChild(card);
         }
         card.innerHTML = `
-            <div class="size-icon">🍕</div>
+            <div class="size-icon">ðŸ•</div>
             <div class="size-name">${size.name}</div>
             <div class="size-info">
-                ${size.slices} fatias • Até ${size.max_flavors} sabor${size.max_flavors > 1 ? 'es' : ''}
+                ${size.slices} fatias â€¢ AtÃ© ${size.max_flavors} sabor${size.max_flavors > 1 ? 'es' : ''}
             </div>
             <div class="size-description">${size.description}</div>
             <div class="size-price">R$ ${parseFloat(size.price || 0).toFixed(2)}</div>
@@ -2926,13 +3103,13 @@ function selectPizzaSize(size) {
     pizzaBuilderState.selectedSize = size;
     pizzaBuilderState.maxFlavors = size.max_flavors;
     
-    // Avançar automaticamente para Sabores
+    // AvanÃ§ar automaticamente para Sabores
     pizzaBuilderState.currentStep = 2;
     updatePizzaStep();
 }
 
 /**
- * Avança para o próximo step
+ * AvanÃ§a para o prÃ³ximo step
  */
 function nextPizzaStep() {
     if (pizzaBuilderState.currentStep < 4) {
@@ -2947,7 +3124,7 @@ function nextPizzaStep() {
 function previousPizzaStep() {
     if (pizzaBuilderState.currentStep > 1) {
         pizzaBuilderState.currentStep--;
-        // Evita auto-avançar ao retornar ao Step 2
+        // Evita auto-avanÃ§ar ao retornar ao Step 2
         if (pizzaBuilderState.currentStep === 2) partsChangedInThisStep = false;
         updatePizzaStep();
     }
@@ -2975,11 +3152,11 @@ function updatePizzaStep() {
     // Mostrar step atual
     document.getElementById(`step-${pizzaBuilderState.currentStep}`).classList.add('active');
 
-    // Renderizar conteúdo do step
+    // Renderizar conteÃºdo do step
     switch (pizzaBuilderState.currentStep) {
         case 1:
             renderPizzaStep1();
-            // Esconder botão de continuar quando não estiver no passo 2
+            // Esconder botÃ£o de continuar quando nÃ£o estiver no passo 2
             const continueBtn = document.getElementById('flavorsContinue');
             if (continueBtn) continueBtn.style.display = 'none';
             break;
@@ -2988,13 +3165,13 @@ function updatePizzaStep() {
             break;
         case 3:
             renderPizzaStep4();
-            // Esconder botão de continuar quando não estiver no passo 2
+            // Esconder botÃ£o de continuar quando nÃ£o estiver no passo 2
             const continueBtn3 = document.getElementById('flavorsContinue');
             if (continueBtn3) continueBtn3.style.display = 'none';
             break;
         case 4:
             renderPizzaStep5();
-            // Esconder botão de continuar quando não estiver no passo 2
+            // Esconder botÃ£o de continuar quando nÃ£o estiver no passo 2
             const continueBtn4 = document.getElementById('flavorsContinue');
             if (continueBtn4) continueBtn4.style.display = 'none';
             break;
@@ -3010,13 +3187,13 @@ function renderPizzaStep2() {
     document.getElementById('maxFlavors').textContent = pizzaBuilderState.selectedSize.max_flavors;
     document.getElementById('selectedSizeName').textContent = pizzaBuilderState.selectedSize.name;
     document.getElementById('selectedSizeInfo').textContent = 
-        `${pizzaBuilderState.selectedSize.slices} fatias • Até ${pizzaBuilderState.selectedSize.max_flavors} sabor${pizzaBuilderState.selectedSize.max_flavors > 1 ? 'es' : ''}`;
+        `${pizzaBuilderState.selectedSize.slices} fatias â€¢ AtÃ© ${pizzaBuilderState.selectedSize.max_flavors} sabor${pizzaBuilderState.selectedSize.max_flavors > 1 ? 'es' : ''}`;
 
     renderPizzaFlavors();
     renderPizzaCircle();
     updateSelectedFlavorsInfo();
     syncPartsCounters();
-    // Ao entrar no passo, só auto-avança se o usuário mudar algo
+    // Ao entrar no passo, sÃ³ auto-avanÃ§a se o usuÃ¡rio mudar algo
     partsChangedInThisStep = false;
     updateContinueByParts();
 }
@@ -3027,23 +3204,23 @@ function renderPizzaStep2() {
 function renderPizzaFlavors() {
     const flavorsGrid = document.getElementById('flavorsGrid');
 
-    // Se temos um produto específico, usar apenas seus sabores
+    // Se temos um produto especÃ­fico, usar apenas seus sabores
     let availableFlavors = pizzaBuilderState.flavors;
     
     if (pizzaBuilderState.currentProduct && pizzaBuilderState.currentProduct.product_type === 'pizza' && pizzaBuilderState.currentProduct.pizza_flavors) {
-        // Filtrar apenas os sabores disponíveis para este produto
+        // Filtrar apenas os sabores disponÃ­veis para este produto
         const productFlavorIds = pizzaBuilderState.currentProduct.pizza_flavors.map(pf => pf.id);
         availableFlavors = pizzaBuilderState.flavors.filter(flavor => productFlavorIds.includes(flavor.id));
     }
 
-    // Se não temos sabores disponíveis, mostrar todos (fallback)
+    // Se nÃ£o temos sabores disponÃ­veis, mostrar todos (fallback)
     if (availableFlavors.length === 0) {
         availableFlavors = pizzaBuilderState.flavors;
     }
 
     renderFlavorCardsOptimized(flavorsGrid, availableFlavors, pizzaBuilderState.selectedSize?.id);
 
-    // Aplicar estado visual (itens já selecionados/numeração e bloqueio ao atingir limite)
+    // Aplicar estado visual (itens jÃ¡ selecionados/numeraÃ§Ã£o e bloqueio ao atingir limite)
     updateFlavorSelectionUI();
 }
 
@@ -3065,7 +3242,7 @@ function renderFlavorCardsOptimized(container, flavors, sizeId) {
                 <button type="button" class="flavor-decrease btn-circle btn-muted" data-flavor-id="${id}" aria-label="Diminuir">-</button>
                 <span class="flavor-parts" data-flavor-id="${id}">0</span>
                 <button type="button" class="flavor-increase btn-circle btn-muted" data-flavor-id="${id}" aria-label="Aumentar">+</button>
-                <button type="button" class="flavor-remove btn-circle btn-danger-outline" data-flavor-id="${id}" aria-label="Remover" style="display:none;">×</button>
+                <button type="button" class="flavor-remove btn-circle btn-danger-outline" data-flavor-id="${id}" aria-label="Remover" style="display:none;">Ã—</button>
             </div>
         `;
         if (!card) {
@@ -3077,7 +3254,7 @@ function renderFlavorCardsOptimized(container, flavors, sizeId) {
             card.innerHTML = html;
             fragment.appendChild(card);
         } else {
-            // Atualiza conteúdo apenas se mudar
+            // Atualiza conteÃºdo apenas se mudar
             if (card.innerHTML !== html) card.innerHTML = html;
         }
     });
@@ -3090,7 +3267,7 @@ function renderFlavorCardsOptimized(container, flavors, sizeId) {
 }
 
 /**
- * Obtém o preço de um sabor para um tamanho específico
+ * ObtÃ©m o preÃ§o de um sabor para um tamanho especÃ­fico
  */
 function getFlavorPrice(flavorId, sizeId) {
     return 0.00;
@@ -3100,7 +3277,7 @@ function getFlavorPrice(flavorId, sizeId) {
  * Seleciona um sabor
  */
 function selectPizzaFlavor(flavor) {
-    // Não usado diretamente; controles +/− cuidam da seleção proporcional por partes
+    // NÃ£o usado diretamente; controles +/âˆ’ cuidam da seleÃ§Ã£o proporcional por partes
     // Mantemos por compatibilidade caso seja chamado: incrementa 1 parte
     if (!pizzaBuilderState.selectedSize) return;
     const max = pizzaBuilderState.selectedSize.max_flavors;
@@ -3157,7 +3334,7 @@ function updateFlavorCounter(flavorCard, flavorId) {
     }
 }
 
-// Atualiza UI dos cards de sabor (numeração e bloqueio quando atingir limite)
+// Atualiza UI dos cards de sabor (numeraÃ§Ã£o e bloqueio quando atingir limite)
 function updateFlavorSelectionUI() {
     const max = pizzaBuilderState.selectedSize ? pizzaBuilderState.selectedSize.max_flavors : pizzaBuilderState.maxFlavors;
     const selectedIds = Object.keys(flavorPartsMap).filter(id => flavorPartsMap[id] > 0).map(id => parseInt(id, 10));
@@ -3182,7 +3359,7 @@ function updateFlavorSelectionUI() {
         }
     });
     
-    // Bloquear não selecionados quando atingir o limite
+    // Bloquear nÃ£o selecionados quando atingir o limite
     const reachedMax = getUsedParts() >= max;
     document.querySelectorAll('.flavor-card').forEach(card => {
         if (card.classList.contains('selected')) {
@@ -3203,11 +3380,11 @@ function updateSelectedFlavorsInfo() {
         ? ` - Selecionados: ${getFormattedFlavorsText(pizzaBuilderState.selectedFlavors)}` 
         : '';
     
-    infoEl.innerHTML = `Selecione até <span id="maxFlavors">${max}</span> sabor${max > 1 ? 'es' : ''} - Você pode selecionar o mesmo sabor múltiplas vezes${selectedText}`;
+    infoEl.innerHTML = `Selecione atÃ© <span id="maxFlavors">${max}</span> sabor${max > 1 ? 'es' : ''} - VocÃª pode selecionar o mesmo sabor mÃºltiplas vezes${selectedText}`;
 }
 
 /**
- * Renderiza o círculo da pizza
+ * Renderiza o cÃ­rculo da pizza
  */
 function renderPizzaCircle() {
     const pizzaCircle = document.getElementById('pizzaCircle');
@@ -3326,7 +3503,7 @@ async function renderPizzaStep5() {
 }
 
 /**
- * Calcula o preço da pizza
+ * Calcula o preÃ§o da pizza
  */
 async function calculatePizzaPrice() {
     try {
@@ -3358,23 +3535,23 @@ async function calculatePizzaPrice() {
 }
 
 /**
- * Calcula preço localmente (fallback)
+ * Calcula preÃ§o localmente (fallback)
  */
 function calculatePizzaPriceLocally() {
     let totalPrice = 0;
     
-    // 1. Preço do tamanho (base)
+    // 1. PreÃ§o do tamanho (base)
     if (pizzaBuilderState.selectedSize && pizzaBuilderState.selectedSize.price) {
         totalPrice += parseFloat(pizzaBuilderState.selectedSize.price);
     }
     // 2. Adicional proporcional por sabor (placeholder: se houver tabelas futuras)
-    // Mantemos compatível com a lógica atual: sem acréscimos por sabor por padrão
-    // 3. Preço da borda (se selecionada)
+    // Mantemos compatÃ­vel com a lÃ³gica atual: sem acrÃ©scimos por sabor por padrÃ£o
+    // 3. PreÃ§o da borda (se selecionada)
     if (pizzaBuilderState.selectedBorder && pizzaBuilderState.selectedBorder.price) {
         totalPrice += parseFloat(pizzaBuilderState.selectedBorder.price);
     }
     
-    // 4. Preço dos extras (somar todos os extras selecionados)
+    // 4. PreÃ§o dos extras (somar todos os extras selecionados)
     pizzaBuilderState.selectedExtras.forEach(extra => {
         if (extra.price) {
             totalPrice += parseFloat(extra.price);
@@ -3415,7 +3592,7 @@ function renderPizzaPreview() {
  */
 function addPizzaToCart() {
     try {
-        // Calcula preço localmente (mais confiável que API neste fluxo)
+        // Calcula preÃ§o localmente (mais confiÃ¡vel que API neste fluxo)
         calculatePizzaPriceLocally();
 
         // Usar nome do produto atual ou "Monte Sua Pizza" como fallback
@@ -3429,13 +3606,13 @@ function addPizzaToCart() {
         const notesParts = [];
         notesParts.push(`Sabores: ${getFormattedFlavorsTextByParts()}`);
         if (pizzaBuilderState.selectedExtras.length > 0) notesParts.push(`Adicionais: ${pizzaBuilderState.selectedExtras.map(e => e.name).join(', ')}`);
-        if (prefs.length > 0) notesParts.push(`Preferências: ${prefs.join(', ')}`);
-        if (observations) notesParts.push(`Observações: ${observations}`);
+        if (prefs.length > 0) notesParts.push(`PreferÃªncias: ${prefs.join(', ')}`);
+        if (observations) notesParts.push(`ObservaÃ§Ãµes: ${observations}`);
         const notes = notesParts.join(' | ');
 
         const cartItem = {
             product: {
-                id: pizzaBuilderState.currentProduct ? pizzaBuilderState.currentProduct.id : -Date.now(), // Usar ID do produto ou sintético
+                id: pizzaBuilderState.currentProduct ? pizzaBuilderState.currentProduct.id : -Date.now(), // Usar ID do produto ou sintÃ©tico
                 name: productName,
                 price: pizzaBuilderState.currentPrice,
                 image_url: pizzaBuilderState.currentProduct ? pizzaBuilderState.currentProduct.image_url : null
@@ -3456,13 +3633,13 @@ function addPizzaToCart() {
 }
 
 /**
- * Atualiza a exibição do botão de continuar
+ * Atualiza a exibiÃ§Ã£o do botÃ£o de continuar
  */
 function updateContinueButton() {
     const continueBtn = document.getElementById('flavorsContinue');
     if (!continueBtn) return;
     
-    // Mostrar botão se pelo menos 1 sabor selecionado e não atingiu o máximo
+    // Mostrar botÃ£o se pelo menos 1 sabor selecionado e nÃ£o atingiu o mÃ¡ximo
     if (pizzaBuilderState.selectedFlavors.length > 0 && 
         pizzaBuilderState.selectedFlavors.length < pizzaBuilderState.maxFlavors) {
         continueBtn.style.display = 'block';
@@ -3480,7 +3657,7 @@ function continueFromFlavors() {
         return;
     }
     
-    // Ir para o próximo passo
+    // Ir para o prÃ³ximo passo
     pizzaBuilderState.currentStep = 3;
     updatePizzaStep();
 }
@@ -3499,7 +3676,7 @@ function resetPizzaBuilder() {
     pizzaBuilderState.currentProduct = null;
     flavorPartsMap = {};
     
-    // Esconder botão de continuar
+    // Esconder botÃ£o de continuar
     const continueBtn = document.getElementById('flavorsContinue');
     if (continueBtn) {
         continueBtn.style.display = 'none';
@@ -3531,7 +3708,7 @@ function syncPartsCounters() {
         const id = parseInt(span.dataset.flavorId, 10);
         span.textContent = String(flavorPartsMap[id] || 0);
     });
-    // Mostra/esconde botão remover
+    // Mostra/esconde botÃ£o remover
     document.querySelectorAll('.flavor-remove').forEach(btn => {
         const id = parseInt(btn.dataset.flavorId, 10);
         btn.style.display = (flavorPartsMap[id] || 0) > 0 ? 'inline-flex' : 'none';
@@ -3539,7 +3716,7 @@ function syncPartsCounters() {
 }
 
 function onPartsChange() {
-    // Remover sabores com 0 partes do array de seleção
+    // Remover sabores com 0 partes do array de seleÃ§Ã£o
     pizzaBuilderState.selectedFlavors = pizzaBuilderState.selectedFlavors.filter(f => (flavorPartsMap[f.id] || 0) > 0);
     updateFlavorSelectionUI();
     renderPizzaCircle();
@@ -3580,7 +3757,7 @@ function onRemoveFlavor(e) {
 function updateContinueByParts() {
     const max = pizzaBuilderState.selectedSize ? pizzaBuilderState.selectedSize.max_flavors : 0;
     const used = getUsedParts();
-    // Avanço imediato ao completar as partes
+    // AvanÃ§o imediato ao completar as partes
     if (used === max && max > 0 && partsChangedInThisStep) {
         pizzaBuilderState.currentStep = 3;
         updatePizzaStep();
@@ -3604,7 +3781,7 @@ function showPizzaAddSuccessModal() {
     const overlay = document.getElementById('pizzaAddSuccess');
     if (!overlay) return;
     overlay.classList.add('show');
-    // Botões
+    // BotÃµes
     const continueBtn = document.getElementById('btnContinueShopping');
     const goToCartBtn = document.getElementById('btnGoToCart');
     if (continueBtn) {
@@ -3623,7 +3800,7 @@ function showPizzaAddSuccessModal() {
     }
 }
 
-// Permite clicar em passos concluídos da barra de progresso para voltar
+// Permite clicar em passos concluÃ­dos da barra de progresso para voltar
 function setupPizzaProgressClicks() {
     if (pizzaProgressHandlersAttached) return;
     const container = document.querySelector('.pizza-progress');
@@ -3633,7 +3810,7 @@ function setupPizzaProgressClicks() {
         if (!stepEl) return;
         const targetStep = parseInt(stepEl.dataset.step, 10);
         if (Number.isNaN(targetStep)) return;
-        // Só permite voltar para passos anteriores já concluídos
+        // SÃ³ permite voltar para passos anteriores jÃ¡ concluÃ­dos
         if (stepEl.classList.contains('completed') && targetStep < pizzaBuilderState.currentStep) {
             pizzaBuilderState.currentStep = targetStep;
             partsChangedInThisStep = false;
@@ -3644,7 +3821,7 @@ function setupPizzaProgressClicks() {
 }
 
 
-// ===== Persistência do Último Pedido (localStorage) + Repetição com 1 clique =====
+// ===== PersistÃªncia do Ãšltimo Pedido (localStorage) + RepetiÃ§Ã£o com 1 clique =====
 (function() {
 	const LAST_ORDER_STORAGE_KEY = 'cds:lastOrderV1';
 
@@ -3708,19 +3885,19 @@ function setupPizzaProgressClicks() {
 
 	function ensureRepeatLastOrderButton() {
 		try {
-			// Remove versões antigas dentro do carrinho
+			// Remove versÃµes antigas dentro do carrinho
 			['repeatLastOrderBtn', 'repeatLastOrderBtnEmpty'].forEach(id => {
 				const el = document.getElementById(id);
 				if (el && el.parentNode) el.parentNode.removeChild(el);
 			});
 
-			// Remove versões antigas do header
+			// Remove versÃµes antigas do header
 			const oldTopArea = document.getElementById('repeatLastOrderTopArea');
 			if (oldTopArea && oldTopArea.parentNode) {
 				oldTopArea.parentNode.removeChild(oldTopArea);
 			}
 
-			// Remove botões antigos do header
+			// Remove botÃµes antigos do header
 			const oldBtn = document.getElementById('repeatLastOrderBtnTop');
 			if (oldBtn && oldBtn.parentNode) {
 				oldBtn.parentNode.removeChild(oldBtn);
@@ -3728,14 +3905,14 @@ function setupPizzaProgressClicks() {
 
 			const headerActions = document.getElementById('headerActions');
 			if (!headerActions) {
-				// Se o header ainda não estiver carregado, tenta novamente em breve
+				// Se o header ainda nÃ£o estiver carregado, tenta novamente em breve
 				setTimeout(ensureRepeatLastOrderButton, 100);
 				return;
 			}
 			
 			const hasLast = !!getLastOrderFromLocalStorage();
 			if (!hasLast) {
-				// Se não há pedido anterior, remove o botão se existir
+				// Se nÃ£o hÃ¡ pedido anterior, remove o botÃ£o se existir
 				const existingBtn = document.getElementById('repeatLastOrderBtnTop');
 				if (existingBtn && existingBtn.parentNode) {
 					existingBtn.parentNode.removeChild(existingBtn);
@@ -3743,25 +3920,25 @@ function setupPizzaProgressClicks() {
 				return;
 			}
 
-			// Verifica se o botão já existe
+			// Verifica se o botÃ£o jÃ¡ existe
 			const existingBtn = document.getElementById('repeatLastOrderBtnTop');
 			if (existingBtn) {
-				return; // Botão já existe, não cria outro
+				return; // BotÃ£o jÃ¡ existe, nÃ£o cria outro
 			}
 
-			// Cria o botão no header
+			// Cria o botÃ£o no header
 			ensureRepeatLastOrderStyles();
 			const btn = document.createElement('button');
 			btn.id = 'repeatLastOrderBtnTop';
 			btn.className = 'btn-repeat-last-order';
-			btn.innerHTML = '<i class="fas fa-undo"></i><span>Repetir último pedido</span>';
+			btn.innerHTML = '<i class="fa-solid fa-rotate-left"></i><span>Repetir Ãºltimo pedido</span>';
 			btn.onclick = repeatLastOrder;
 			
-			// Adiciona o botão ao header
+			// Adiciona o botÃ£o ao header
 			headerActions.appendChild(btn);
 			
 			// Log para debug
-			console.log('✅ Botão "repetir último pedido" adicionado ao header');
+			console.log('âœ… BotÃ£o "repetir Ãºltimo pedido" adicionado ao header');
 		} catch(_) { /* noop */ }
 	}
 
@@ -3773,7 +3950,7 @@ function setupPizzaProgressClicks() {
 				return;
 			}
 			const od = data.order;
-			// Reconstrói carrinho
+			// ReconstrÃ³i carrinho
 			const items = (od.items || []).map((it, idx) => {
 				const found = (appState.products || []).find(p => String(p.id) === String(it.product_id));
 				const product = found || {
@@ -3801,7 +3978,7 @@ function setupPizzaProgressClicks() {
 				} catch(_) { /* noop */ }
 			}, 50);
 		} catch (error) {
-			showError('Não foi possível repetir o pedido.');
+			showError('NÃ£o foi possÃ­vel repetir o pedido.');
 		}
 	}
 
@@ -3828,7 +4005,7 @@ function setupPizzaProgressClicks() {
 			const payValEl = document.getElementById('paymentValue');
 			if (payValEl) payValEl.value = (od.payment_value || '')
 			
-			// Endereço
+			// EndereÃ§o
 			const raw = od.__rawAddress || null;
 			if (orderType === 'delivery') {
 				const zipEl = document.getElementById('addressZip');
@@ -3847,18 +4024,18 @@ function setupPizzaProgressClicks() {
 					if (refEl) refEl.value = raw.customerReference || '';
 					if (compEl) compEl.value = raw.addressComplement || '';
 				} else {
-					// Fallback: preenche somente os campos genéricos a partir de customer_address
+					// Fallback: preenche somente os campos genÃ©ricos a partir de customer_address
 					if (refEl) refEl.value = od.customer_reference || '';
 				}
 			}
 		} catch(_) { /* noop */ }
 	}
 
-	// Monkey patch do submitOrder para salvar no localStorage após sucesso
+	// Monkey patch do submitOrder para salvar no localStorage apÃ³s sucesso
 	document.addEventListener('DOMContentLoaded', function() {
 		try {
 			ensureRepeatLastOrderButton();
-			// Garante que após atualizar o carrinho o botão seja reavaliado, sem alterar a função existente
+			// Garante que apÃ³s atualizar o carrinho o botÃ£o seja reavaliado, sem alterar a funÃ§Ã£o existente
 			if (typeof window.updateCartDisplay === 'function' && !window.__updateCartDisplayPatched) {
 				const originalUpdate = window.updateCartDisplay;
 				window.updateCartDisplay = function() {
@@ -3905,7 +4082,7 @@ function setupPizzaProgressClicks() {
 		} catch(_) { /* noop */ }
 	});
 
-	// Fallback adicional: garante o botão após carregamento completo (desktop)
+	// Fallback adicional: garante o botÃ£o apÃ³s carregamento completo (desktop)
 	window.addEventListener('load', function() {
 		try {
 			ensureRepeatLastOrderButton();
@@ -3914,4 +4091,6 @@ function setupPizzaProgressClicks() {
 		} catch(_) { /* noop */ }
 	});
 })();
+
+
 

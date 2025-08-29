@@ -1,7 +1,7 @@
 /**
- * Gerenciamento de Produtos e Categorias - Seção Admin
- * Integrado diretamente na seção "Produtos" do painel admin
- * Interface idêntica ao testes/index.php
+ * Gerenciamento de Produtos e Categorias - SeÃ§Ã£o Admin
+ * Integrado diretamente na seÃ§Ã£o "Produtos" do painel admin
+ * Interface idÃªntica ao testes/index.php
  */
 
 class ProdutosAdminManager {
@@ -13,52 +13,52 @@ class ProdutosAdminManager {
     }
 
     async init() {
-        console.log('🚀 Inicializando ProdutosAdminManager...');
+        console.log('ðŸš€ Inicializando ProdutosAdminManager...');
         await this.waitForModals();
         await this.loadData();
         this.setupEventListeners();
         this.renderCategories();
         this.applyFilters();
         this.isLoaded = true;
-        console.log('✅ ProdutosAdminManager inicializado com sucesso!');
+        console.log('âœ… ProdutosAdminManager inicializado com sucesso!');
     }
 
     // Aguarda os modais serem carregados
     async waitForModals() {
         return new Promise((resolve) => {
             let attempts = 0;
-            const maxAttempts = 50; // 5 segundos máximo
+            const maxAttempts = 50; // 5 segundos mÃ¡ximo
             
             const checkModals = () => {
                 const productModal = document.getElementById('productModal');
                 const categoryModal = document.getElementById('categoryModal');
                 
                 if (productModal && categoryModal) {
-                    console.log('✅ Modais encontrados para produtos admin!');
+                    console.log('âœ… Modais encontrados para produtos admin!');
                     resolve();
                 } else {
                     attempts++;
                     if (attempts < maxAttempts) {
-                        console.log(`⏳ Aguardando modais para produtos admin... (${attempts}/${maxAttempts})`);
+                        console.log(`â³ Aguardando modais para produtos admin... (${attempts}/${maxAttempts})`);
                         setTimeout(checkModals, 100);
                     } else {
-                        console.log('⚠️ Timeout ao aguardar modais, tentando recarregar...');
+                        console.log('âš ï¸ Timeout ao aguardar modais, tentando recarregar...');
                         if (typeof loadModals === 'function') {
                             loadModals().then(() => {
                                 setTimeout(() => {
                                     const productModal = document.getElementById('productModal');
                                     const categoryModal = document.getElementById('categoryModal');
                                     if (productModal && categoryModal) {
-                                        console.log('✅ Modais carregados após retry!');
+                                        console.log('âœ… Modais carregados apÃ³s retry!');
                                         resolve();
                                     } else {
-                                        console.error('❌ Falha ao carregar modais após retry');
+                                        console.error('âŒ Falha ao carregar modais apÃ³s retry');
                                         resolve(); // Continua mesmo sem modais
                                     }
                                 }, 500);
                             });
                         } else {
-                            console.error('❌ Função loadModals não encontrada');
+                            console.error('âŒ FunÃ§Ã£o loadModals nÃ£o encontrada');
                             resolve(); // Continua mesmo sem modais
                         }
                     }
@@ -71,7 +71,7 @@ class ProdutosAdminManager {
 
     async loadData() {
         try {
-            console.log('📡 Usando dados de appState...');
+            console.log('ðŸ“¡ Usando dados de appState...');
 
             const needsLoad = !window.appState ||
                 !Array.isArray(appState.categories) || !Array.isArray(appState.products) ||
@@ -97,10 +97,10 @@ class ProdutosAdminManager {
             // Preencher select de categorias
             this.populateCategoryFilter();
 
-            console.log(`✅ Dados carregados: ${this.categories.length} categorias, ${this.products.length} produtos`);
+            console.log(`âœ… Dados carregados: ${this.categories.length} categorias, ${this.products.length} produtos`);
 
         } catch (error) {
-            console.error('❌ Erro ao carregar dados:', error);
+            console.error('âŒ Erro ao carregar dados:', error);
             this.categories = [];
             this.products = [];
             this.filteredData = [];
@@ -111,7 +111,7 @@ class ProdutosAdminManager {
         const filterSelect = document.getElementById('produtos-filter-category');
         if (!filterSelect) return;
 
-        // Manter a opção "Todas as Categorias"
+        // Manter a opÃ§Ã£o "Todas as Categorias"
         filterSelect.innerHTML = '<option value="all">Todas as Categorias</option>';
         
         // Adicionar categorias
@@ -140,7 +140,7 @@ class ProdutosAdminManager {
             filterStatus.addEventListener('change', () => this.applyFilters());
         }
 
-        // Event listener para clicks no container do acordeão
+        // Event listener para clicks no container do acordeÃ£o
         const accordionContainer = document.getElementById('produtos-accordion-container');
         if (accordionContainer) {
             accordionContainer.addEventListener('click', (event) => this.handleAccordionClick(event));
@@ -157,7 +157,7 @@ class ProdutosAdminManager {
         if (this.filteredData.length === 0) {
             container.innerHTML = `
                 <div class="no-data">
-                    <i class="fas fa-inbox"></i>
+                    <i class="fa-solid fa-inbox"></i>
                     <p>Nenhuma categoria encontrada</p>
                 </div>
             `;
@@ -188,7 +188,7 @@ class ProdutosAdminManager {
                     </span>
                     <div class="produtos-category-actions">
                         <div class="produtos-actions-menu">
-                            <button class="produtos-btn-icon" data-action="toggle-menu" title="Mais opções">
+                            <button class="produtos-btn-icon" data-action="toggle-menu" title="Mais opÃ§Ãµes">
                                 <i class="fa-solid fa-ellipsis-vertical"></i>
                             </button>
                             <div class="produtos-dropdown-menu">
@@ -237,7 +237,7 @@ class ProdutosAdminManager {
                 ${metaHtml}
                 <div class="produtos-product-actions">
                     <div class="produtos-actions-menu">
-                        <button class="produtos-btn-icon" data-action="toggle-menu" title="Mais opções">
+                        <button class="produtos-btn-icon" data-action="toggle-menu" title="Mais opÃ§Ãµes">
                             <i class="fa-solid fa-ellipsis-vertical"></i>
                         </button>
                         <div class="produtos-dropdown-menu">
@@ -263,7 +263,7 @@ class ProdutosAdminManager {
         const accordionButton = target.closest('.produtos-accordion-button');
         const actionTarget = target.closest('[data-action]');
 
-        // Lógica para abrir/fechar o acordeão
+        // LÃ³gica para abrir/fechar o acordeÃ£o
         if (accordionButton && !actionTarget) {
             accordionButton.classList.toggle('active');
             const content = accordionButton.nextElementSibling;
@@ -274,11 +274,11 @@ class ProdutosAdminManager {
             }
         }
         
-        // Lógica para os botões de ação
+        // LÃ³gica para os botÃµes de aÃ§Ã£o
         if (actionTarget) {
             const action = actionTarget.dataset.action;
 
-            // Lógica para o menu de 3 pontinhos
+            // LÃ³gica para o menu de 3 pontinhos
             if (action === 'toggle-menu') {
                 const dropdown = actionTarget.nextElementSibling;
                 // Fecha outros menus abertos
@@ -287,13 +287,13 @@ class ProdutosAdminManager {
                 });
                 dropdown.classList.toggle('show');
             } else {
-                // Ações de Categoria
+                // AÃ§Ãµes de Categoria
                 const categoryItem = target.closest('.produtos-accordion-item');
                 if (categoryItem && action.includes('category')) {
                     this.handleCategoryAction(action, categoryItem.dataset.categoryId, actionTarget);
                 }
                 
-                // Ações de Produto
+                // AÃ§Ãµes de Produto
                 const productItem = target.closest('.produtos-product-item');
                 if (productItem && action.includes('product')) {
                     this.handleProductAction(action, productItem.dataset.productId, actionTarget);
@@ -322,8 +322,8 @@ class ProdutosAdminManager {
                     break;
             }
         } catch (error) {
-            console.error('Erro na ação da categoria:', error);
-            this.showError('Erro ao executar ação. Tente novamente.');
+            console.error('Erro na aÃ§Ã£o da categoria:', error);
+            this.showError('Erro ao executar aÃ§Ã£o. Tente novamente.');
         }
     }
 
@@ -341,8 +341,8 @@ class ProdutosAdminManager {
                     break;
             }
         } catch (error) {
-            console.error('Erro na ação do produto:', error);
-            this.showError('Erro ao executar ação. Tente novamente.');
+            console.error('Erro na aÃ§Ã£o do produto:', error);
+            this.showError('Erro ao executar aÃ§Ã£o. Tente novamente.');
         }
     }
 
@@ -350,7 +350,7 @@ class ProdutosAdminManager {
         try {
             const category = this.categories.find(c => c.id == id);
             if (!category) {
-                throw new Error('Categoria não encontrada no estado local');
+                throw new Error('Categoria nÃ£o encontrada no estado local');
             }
 
             // API de categorias exige payload completo no PUT
@@ -458,10 +458,10 @@ class ProdutosAdminManager {
     }
 
     async editCategory(id) {
-        // Verificar se os modais estão disponíveis primeiro
+        // Verificar se os modais estÃ£o disponÃ­veis primeiro
         const categoryModal = document.getElementById('categoryModal');
         if (!categoryModal) {
-            this.showError('Modal de categoria não foi carregado. Aguarde ou recarregue a página.');
+            this.showError('Modal de categoria nÃ£o foi carregado. Aguarde ou recarregue a pÃ¡gina.');
             return;
         }
 
@@ -469,23 +469,57 @@ class ProdutosAdminManager {
         if (typeof window.showCategoryModal === 'function') {
             window.showCategoryModal(id);
         } else {
-            this.showError('Função de modal de categoria não está disponível.');
+            this.showError('FunÃ§Ã£o de modal de categoria nÃ£o estÃ¡ disponÃ­vel.');
         }
     }
 
     async editProduct(id) {
-        // Verificar se os modais estão disponíveis primeiro
+        // Verificar se os modais estÃ£o disponÃ­veis primeiro
         const productModal = document.getElementById('productModal');
         if (!productModal) {
-            this.showError('Modal de produto não foi carregado. Aguarde ou recarregue a página.');
+            this.showError('Modal de produto nÃ£o foi carregado. Aguarde ou recarregue a pÃ¡gina.');
             return;
         }
 
+        // Deep link: abrir modal de ediÃ§Ã£o se URL contiver ?edit_product_id=ID
+        (function () {
+          try {
+            const params = new URLSearchParams(window.location.search);
+            const pid = params.get('edit_product_id');
+            if (!pid) return;
+        
+            const id = parseInt(pid, 10);
+            if (Number.isNaN(id) || id <= 0) return;
+        
+            const trigger = async () => {
+              try {
+                if (typeof ensureModalsLoaded === 'function') {
+                  await ensureModalsLoaded();
+                }
+                if (typeof window.editProduct === 'function') {
+                  window.editProduct(id);
+                } else {
+                  console.error('DeepLink: funÃ§Ã£o editProduct nÃ£o estÃ¡ disponÃ­vel.');
+                }
+              } catch (err) {
+                console.error('DeepLink: erro ao acionar ediÃ§Ã£o do produto:', err);
+              }
+            };
+        
+            if (document.readyState === 'complete') {
+              trigger();
+            } else {
+              window.addEventListener('load', trigger, { once: true });
+            }
+          } catch (e) {
+            console.error('DeepLink: falha ao processar parÃ£metros da URL:', e);
+          }
+        })();
         // Usar modal existente
         if (typeof window.editProduct === 'function') {
             window.editProduct(id);
         } else {
-            this.showError('Função de modal de produto não está disponível.');
+            this.showError('FunÃ§Ã£o de modal de produto nÃ£o estÃ¡ disponÃ­vel.');
         }
     }
 
@@ -493,11 +527,11 @@ class ProdutosAdminManager {
         const category = this.categories.find(c => c.id == id);
         if (!category) return;
 
-        // Verificar se há produtos na categoria
+        // Verificar se hÃ¡ produtos na categoria
         const productsInCategory = this.products.filter(p => p.category_id == id);
         
         if (productsInCategory.length > 0) {
-            this.showError(`Não é possível excluir a categoria "${category.name}" pois ela possui ${productsInCategory.length} produto(s). Reclassifique os produtos primeiro.`);
+            this.showError(`NÃ£o Ã© possÃ­vel excluir a categoria "${category.name}" pois ela possui ${productsInCategory.length} produto(s). Reclassifique os produtos primeiro.`);
             return;
         }
 
@@ -512,7 +546,7 @@ class ProdutosAdminManager {
                     this.filteredData = this.filteredData.filter(c => c.id != id);
                     this.renderCategories();
                     this.populateCategoryFilter();
-                    this.showSuccess('Categoria excluída com sucesso!');
+                    this.showSuccess('Categoria excluÃ­da com sucesso!');
                 } else {
                     throw new Error('Erro ao excluir categoria');
                 }
@@ -538,7 +572,7 @@ class ProdutosAdminManager {
                     this.products = this.products.filter(p => parseInt(p.id, 10) !== numericId);
                     this.updateFilteredData();
                     this.renderCategories();
-                    this.showSuccess('Produto excluído com sucesso!');
+                    this.showSuccess('Produto excluÃ­do com sucesso!');
                 } else {
                     throw new Error('Erro ao excluir produto');
                 }
@@ -578,7 +612,7 @@ class ProdutosAdminManager {
                 }
             });
 
-            // Verificar se a categoria deve ser visível
+            // Verificar se a categoria deve ser visÃ­vel
             const categoryNameMatch = categoryName.includes(nameQuery);
             const categoryFilterMatch = categoryQuery === 'all' || categoryQuery === categoryId;
             const categoryStatusMatch = (statusQuery === 'all') || (statusQuery === 'active' && categoryActive) || (statusQuery === 'inactive' && !categoryActive);
@@ -598,14 +632,14 @@ class ProdutosAdminManager {
         }));
     }
 
-    // Função para recarregar dados (chamada após salvar via modais)
+    // FunÃ§Ã£o para recarregar dados (chamada apÃ³s salvar via modais)
     async reloadData() {
         await this.loadData();
         this.renderCategories();
         this.applyFilters();
     }
 
-    // Funções utilitárias
+    // FunÃ§Ãµes utilitÃ¡rias
     escapeHtml(text) {
         if (!text) return '';
         const div = document.createElement('div');
@@ -629,7 +663,7 @@ class ProdutosAdminManager {
         const isTrue = (v) => v === true || v === 1 || v === '1';
         if (isTrue(product.is_vegetarian)) flags.push('<span class="feature-badge vegetarian">Vegetariano</span>');
         if (isTrue(product.is_vegan)) flags.push('<span class="feature-badge vegan">Vegano</span>');
-        if (isTrue(product.is_gluten_free)) flags.push('<span class="feature-badge gluten-free">Sem Glúten</span>');
+        if (isTrue(product.is_gluten_free)) flags.push('<span class="feature-badge gluten-free">Sem GlÃºten</span>');
         if (isTrue(product.is_spicy)) flags.push('<span class="feature-badge spicy">Picante</span>');
         if (flags.length === 0) return '';
         return `<div class="produtos-product-meta" style="display:flex; flex-wrap:wrap; gap:6px; align-items:center; margin-top:6px;">${flags.join('\n')}</div>`;
@@ -639,14 +673,14 @@ class ProdutosAdminManager {
         if (!text) return '';
         const clean = text.toString();
         if (clean.length <= maxLength) return clean;
-        return clean.slice(0, maxLength - 1) + '…';
+        return clean.slice(0, maxLength - 1) + 'â€¦';
     }
 
     showSuccess(message) {
         if (typeof window.showSuccess === 'function') {
             window.showSuccess(message);
         } else {
-            alert('✅ ' + message);
+            alert('âœ… ' + message);
         }
     }
 
@@ -654,7 +688,7 @@ class ProdutosAdminManager {
         if (typeof window.showError === 'function') {
             window.showError(message);
         } else {
-            alert('❌ ' + message);
+            alert('âŒ ' + message);
         }
     }
 
@@ -662,46 +696,46 @@ class ProdutosAdminManager {
         if (typeof window.showInfo === 'function') {
             window.showInfo(message);
         } else {
-            alert('ℹ️ ' + message);
+            alert('â„¹ï¸ ' + message);
         }
     }
 }
 
-// Instância global para ser acessada de outras partes do admin
+// InstÃ¢ncia global para ser acessada de outras partes do admin
 window.produtosAdminManager = null;
 
-// Função para inicializar a seção de produtos
+// FunÃ§Ã£o para inicializar a seÃ§Ã£o de produtos
 async function initProdutosAdmin() {
-    console.log('🚀 Iniciando produtos admin...');
+    console.log('ðŸš€ Iniciando produtos admin...');
     
-    // Garantir que os modais estão carregados primeiro
+    // Garantir que os modais estÃ£o carregados primeiro
     await ensureModalsLoaded();
     
     if (!window.produtosAdminManager) {
-        console.log('📦 Criando nova instância do ProdutosAdminManager...');
+        console.log('ðŸ“¦ Criando nova instÃ¢ncia do ProdutosAdminManager...');
         window.produtosAdminManager = new ProdutosAdminManager();
         await window.produtosAdminManager.init();
     } else if (window.produtosAdminManager.isLoaded) {
-        // Se já foi carregado, apenas reinicia a interface
-        console.log('🔄 Reiniciando interface existente...');
+        // Se jÃ¡ foi carregado, apenas reinicia a interface
+        console.log('ðŸ”„ Reiniciando interface existente...');
         window.produtosAdminManager.renderCategories();
         window.produtosAdminManager.applyFilters();
     }
 }
 
-// Função para garantir que os modais estão carregados
+// FunÃ§Ã£o para garantir que os modais estÃ£o carregados
 async function ensureModalsLoaded() {
-    console.log('🔍 Verificando se modais estão carregados...');
+    console.log('ðŸ” Verificando se modais estÃ£o carregados...');
     
     const modalsContainer = document.getElementById('modals-container');
     if (!modalsContainer) {
-        console.error('❌ Container de modais não encontrado!');
+        console.error('âŒ Container de modais nÃ£o encontrado!');
         return;
     }
     
-    // Se o container está vazio, tenta carregar
+    // Se o container estÃ¡ vazio, tenta carregar
     if (!modalsContainer.innerHTML.trim()) {
-        console.log('📦 Container vazio, carregando modais...');
+        console.log('ðŸ“¦ Container vazio, carregando modais...');
         if (typeof loadModals === 'function') {
             await loadModals();
         }
@@ -714,47 +748,48 @@ async function ensureModalsLoaded() {
     const categoryModal = document.getElementById('categoryModal');
     
     if (!productModal || !categoryModal) {
-        console.warn('⚠️ Modais não foram carregados, mas continuando...');
-        console.log('productModal:', productModal ? '✅' : '❌');
-        console.log('categoryModal:', categoryModal ? '✅' : '❌');
+        console.warn('âš ï¸ Modais nÃ£o foram carregados, mas continuando...');
+        console.log('productModal:', productModal ? 'âœ…' : 'âŒ');
+        console.log('categoryModal:', categoryModal ? 'âœ…' : 'âŒ');
     } else {
-        console.log('✅ Modais verificados e disponíveis!');
+        console.log('âœ… Modais verificados e disponÃ­veis!');
     }
 }
 
-// Função para recarregar dados (chamada após salvar via modais)
+// FunÃ§Ã£o para recarregar dados (chamada apÃ³s salvar via modais)
 function reloadProdutosAdmin() {
     if (window.produtosAdminManager && window.produtosAdminManager.isLoaded) {
         window.produtosAdminManager.reloadData();
     }
 }
 
-// Função para debug - verificar se os modais estão carregados
+// FunÃ§Ã£o para debug - verificar se os modais estÃ£o carregados
 function debugModalsStatus() {
     console.log('=== DEBUG MODAIS ===');
-    console.log('productModal:', document.getElementById('productModal') ? '✅ Encontrado' : '❌ Não encontrado');
-    console.log('categoryModal:', document.getElementById('categoryModal') ? '✅ Encontrado' : '❌ Não encontrado');
-    console.log('modals-container:', document.getElementById('modals-container') ? '✅ Encontrado' : '❌ Não encontrado');
-    console.log('showCategoryModal função:', typeof window.showCategoryModal);
-    console.log('editProduct função:', typeof window.editProduct);
-    console.log('showAddProductModal função:', typeof window.showAddProductModal);
+    console.log('productModal:', document.getElementById('productModal') ? 'âœ… Encontrado' : 'âŒ NÃ£o encontrado');
+    console.log('categoryModal:', document.getElementById('categoryModal') ? 'âœ… Encontrado' : 'âŒ NÃ£o encontrado');
+    console.log('modals-container:', document.getElementById('modals-container') ? 'âœ… Encontrado' : 'âŒ NÃ£o encontrado');
+    console.log('showCategoryModal funÃ§Ã£o:', typeof window.showCategoryModal);
+    console.log('editProduct funÃ§Ã£o:', typeof window.editProduct);
+    console.log('showAddProductModal funÃ§Ã£o:', typeof window.showAddProductModal);
     console.log('===================');
 }
 
-// Função para forçar recarga dos modais
+// FunÃ§Ã£o para forÃ§ar recarga dos modais
 async function forceReloadModals() {
-    console.log('🔄 Forçando recarga dos modais...');
+    console.log('ðŸ”„ ForÃ§ando recarga dos modais...');
     if (typeof loadModals === 'function') {
         await loadModals();
-        console.log('✅ Modais recarregados!');
+        console.log('âœ… Modais recarregados!');
         debugModalsStatus();
     } else {
-        console.error('❌ Função loadModals não disponível');
+        console.error('âŒ FunÃ§Ã£o loadModals nÃ£o disponÃ­vel');
     }
 }
 
-// Exportar funções para uso global
+// Exportar funÃ§Ãµes para uso global
 window.initProdutosAdmin = initProdutosAdmin;
 window.reloadProdutosAdmin = reloadProdutosAdmin;
 window.debugModalsStatus = debugModalsStatus;
 window.forceReloadModals = forceReloadModals;
+

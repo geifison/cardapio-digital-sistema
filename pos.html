@@ -1,9 +1,9 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="pt-BR">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>POS - Cardápio Digital</title>
+  <title>POS - CardÃ¡pio Digital</title>
   <link rel="stylesheet" href="assets/css/style.css" />
   <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet" />
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
@@ -13,7 +13,7 @@
     .header .logo h1 { font-size: 18px; }
   </style>
   <script>
-    // Garante o parâmetro pos=1 na URL para o app.js reconhecer o modo POS
+    // Garante o parÃ¢metro pos=1 na URL para o app.js reconhecer o modo POS
     (function ensurePOSParam() {
       try {
         var url = new URL(window.location.href);
@@ -25,7 +25,7 @@
     })();
   </script>
   <script>
-    // Permite receber 'mode' da janela abridora via hash ou query; já será passado na URL pelo admin
+    // Permite receber 'mode' da janela abridora via hash ou query; jÃ¡ serÃ¡ passado na URL pelo admin
   </script>
 </head>
 <body>
@@ -34,11 +34,11 @@
     <div class="container">
       <div class="header-content">
         <div class="logo">
-          <i class="fas fa-cash-register"></i>
-          <h1 id="posTitle">POS - Balcão</h1>
+          <i class="fa-solid fa-cash-register"></i>
+          <h1 id="posTitle">POS - BalcÃ£o</h1>
         </div>
         <div class="cart-toggle" onclick="toggleCart()">
-          <i class="fas fa-shopping-cart"></i>
+          <i class="fa-solid fa-cart-shopping"></i>
           <span class="cart-count" id="cartCount">0</span>
         </div>
       </div>
@@ -53,7 +53,7 @@
 
   <main class="main-content">
     <div class="container">
-      <!-- Ações rápidas do POS -->
+      <!-- AÃ§Ãµes rÃ¡pidas do POS -->
       <div style="display:flex; justify-content:flex-end; align-items:center; gap:12px; margin:12px 0;">
       </div>
       <div class="content-wrapper">
@@ -66,14 +66,14 @@
 
   <div class="cart-sidebar" id="cartSidebar">
     <div class="cart-header">
-      <h3><i class="fas fa-shopping-cart"></i> Pedido do Balcão</h3>
-      <button class="close-cart" onclick="toggleCart()"><i class="fas fa-times"></i></button>
+      <h3><i class="fa-solid fa-cart-shopping"></i> Pedido do BalcÃ£o</h3>
+      <button class="close-cart" onclick="toggleCart()"><i class="fa-solid fa-times"></i></button>
     </div>
     <div class="cart-content">
       <div class="cart-items" id="cartItems"></div>
       <div class="cart-empty" id="cartEmpty">
-        <i class="fas fa-shopping-cart"></i>
-        <p>Seu carrinho está vazio</p>
+        <i class="fa-solid fa-cart-shopping"></i>
+        <p>Seu carrinho estÃ¡ vazio</p>
         <small>Adicione alguns itens</small>
       </div>
     </div>
@@ -83,7 +83,7 @@
         <div class="summary-row"><span>Taxa de entrega:</span><span id="deliveryFee">R$ 5,00</span></div>
         <div class="summary-row total"><span>Total:</span><span id="cartTotal">R$ 0,00</span></div>
       </div>
-      <button class="checkout-btn" id="checkoutButton" onclick="proceedToCheckout()"><i class="fas fa-credit-card"></i> Finalizar Pedido</button>
+      <button class="checkout-btn" id="checkoutButton" onclick="proceedToCheckout()"><i class="fa-solid fa-credit-card"></i> Finalizar Pedido</button>
     </div>
   </div>
 
@@ -91,49 +91,49 @@
   <div class="modal-overlay" id="checkoutModal">
     <div class="modal">
       <div class="modal-header">
-        <h3><i class="fas fa-clipboard-list"></i> <span id="checkoutModalTitle">Finalizar Pedido</span></h3>
-        <button class="close-modal" onclick="closeCheckoutModal()"><i class="fas fa-times"></i></button>
+        <h3><i class="fa-solid fa-clipboard-list"></i> <span id="checkoutModalTitle">Finalizar Pedido</span></h3>
+        <button class="close-modal" onclick="closeCheckoutModal()"><i class="fa-solid fa-times"></i></button>
       </div>
       <div class="modal-content">
         <form id="checkoutForm">
           <div class="form-section">
-            <h4><i class="fas fa-receipt"></i> Tipo de Pedido</h4>
+            <h4><i class="fa-solid fa-receipt"></i> Tipo de Pedido</h4>
             <div class="payment-options order-type-options">
-              <label class="payment-option"><input type="radio" name="orderType" value="retirada"><span class="payment-label"><i class="fas fa-bag-shopping"></i> Retirada</span></label>
-              <label class="payment-option"><input type="radio" name="orderType" value="delivery"><span class="payment-label"><i class="fas fa-truck"></i> Delivery</span></label>
-              <label class="payment-option" data-pos-only="true" id="orderTypeBalcaoWrapper"><input type="radio" name="orderType" value="balcao" checked><span class="payment-label"><i class="fas fa-store"></i> Balcão</span></label>
+              <label class="payment-option"><input type="radio" name="orderType" value="retirada"><span class="payment-label"><i class="fa-solid fa-bag-shopping"></i> Retirada</span></label>
+              <label class="payment-option"><input type="radio" name="orderType" value="delivery"><span class="payment-label"><i class="fa-solid fa-truck"></i> Delivery</span></label>
+              <label class="payment-option" data-pos-only="true" id="orderTypeBalcaoWrapper"><input type="radio" name="orderType" value="balcao" checked><span class="payment-label"><i class="fa-solid fa-store"></i> BalcÃ£o</span></label>
             </div>
           </div>
           <div class="form-section">
-            <h4><i class="fas fa-user"></i> Dados Pessoais</h4>
-            <div class="form-group"><label for="customerName">Nome/Identificação *</label><input type="text" id="customerName" name="customerName" required></div>
+            <h4><i class="fa-solid fa-user"></i> Dados Pessoais</h4>
+            <div class="form-group"><label for="customerName">Nome/IdentificaÃ§Ã£o *</label><input type="text" id="customerName" name="customerName" required></div>
             <div class="form-group"><label for="customerPhone">Telefone *</label><input type="tel" id="customerPhone" name="customerPhone" placeholder="(XX) XXXXX-XXXX" maxlength="15" required></div>
           </div>
           <div class="form-section" id="deliveryAddressSection">
-            <h4><i class="fas fa-map-marker-alt"></i> Endereço para Entrega</h4>
+            <h4><i class="fa-solid fa-location-dot"></i> EndereÃ§o para Entrega</h4>
             <div class="form-group"><label for="addressStreet">Rua *</label><input type="text" id="addressStreet" name="addressStreet"></div>
-            <div class="form-group"><label for="addressNumber">Número *</label><input type="text" id="addressNumber" name="addressNumber"></div>
+            <div class="form-group"><label for="addressNumber">NÃºmero *</label><input type="text" id="addressNumber" name="addressNumber"></div>
             <div class="form-group"><label for="customerNeighborhood">Bairro *</label><input type="text" id="customerNeighborhood" name="customerNeighborhood"></div>
             <div class="form-group"><label for="addressCity">Cidade *</label><input type="text" id="addressCity" name="addressCity"></div>
             <div class="form-group"><label for="addressZip">CEP *</label><input type="text" id="addressZip" name="addressZip" placeholder="00000-000" maxlength="9"></div>
-            <div class="form-group"><label for="customerReference">Referência *</label><input type="text" id="customerReference" name="customerReference"></div>
+            <div class="form-group"><label for="customerReference">ReferÃªncia *</label><input type="text" id="customerReference" name="customerReference"></div>
             <div class="form-group"><label for="addressComplement">Complemento (opcional)</label><input type="text" id="addressComplement" name="addressComplement"></div>
           </div>
           <div class="form-section">
-            <h4><i class="fas fa-credit-card"></i> Pagamento</h4>
+            <h4><i class="fa-solid fa-credit-card"></i> Pagamento</h4>
             <div class="payment-options">
-              <label class="payment-option"><input type="radio" name="paymentMethod" value="dinheiro" checked><span class="payment-label"><i class="fas fa-money-bill-wave"></i> Dinheiro</span></label>
-              <label class="payment-option"><input type="radio" name="paymentMethod" value="cartao"><span class="payment-label"><i class="fas fa-credit-card"></i> Cartão</span></label>
-              <label class="payment-option"><input type="radio" name="paymentMethod" value="pix"><span class="payment-label"><i class="fas fa-qrcode"></i> PIX</span></label>
+              <label class="payment-option"><input type="radio" name="paymentMethod" value="dinheiro" checked><span class="payment-label"><i class="fa-solid fa-money-bill-wave"></i> Dinheiro</span></label>
+              <label class="payment-option"><input type="radio" name="paymentMethod" value="cartao"><span class="payment-label"><i class="fa-solid fa-credit-card"></i> CartÃ£o</span></label>
+              <label class="payment-option"><input type="radio" name="paymentMethod" value="pix"><span class="payment-label"><i class="fa-solid fa-qrcode"></i> PIX</span></label>
             </div>
             <div class="money-section" id="moneySection">
-              <div class="form-group"><label for="paymentValue">Valor para troco</label><input type="number" id="paymentValue" name="paymentValue" step="0.01" min="0"><small>Deixe em branco se não precisar</small></div>
+              <div class="form-group"><label for="paymentValue">Valor para troco</label><input type="number" id="paymentValue" name="paymentValue" step="0.01" min="0"><small>Deixe em branco se nÃ£o precisar</small></div>
               <div class="change-display" id="changeDisplay" style="display:none;"><span>Troco: <strong id="changeAmount">R$ 0,00</strong></span></div>
             </div>
           </div>
           <div class="form-section">
-            <h4><i class="fas fa-sticky-note"></i> Observações</h4>
-            <div class="form-group"><textarea id="orderNotes" name="orderNotes" rows="2" placeholder="Observações gerais"></textarea></div>
+            <h4><i class="fa-solid fa-note-sticky"></i> ObservaÃ§Ãµes</h4>
+            <div class="form-group"><textarea id="orderNotes" name="orderNotes" rows="2" placeholder="ObservaÃ§Ãµes gerais"></textarea></div>
           </div>
           <div class="order-summary">
             <h4>Resumo do Pedido</h4>
@@ -148,22 +148,22 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn-secondary" onclick="closeCheckoutModal()">Voltar</button>
-        <button type="button" class="btn-primary" id="confirmOrderButton" onclick="submitOrder()"><i class="fas fa-check"></i> Confirmar Pedido</button>
+        <button type="button" class="btn-primary" id="confirmOrderButton" onclick="submitOrder()"><i class="fa-solid fa-check"></i> Confirmar Pedido</button>
       </div>
     </div>
   </div>
 
-  <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"><i class="fas fa-spinner fa-spin"></i><p>Processando seu pedido...</p></div></div>
-  <div class="modal-overlay" id="successModal"><div class="modal success-modal"><div class="modal-content"><div class="success-icon"><i class="fas fa-check-circle"></i></div><h3>Pedido Realizado com Sucesso!</h3><p>Pedido enviado.</p><div class="order-info"><p><strong>Número:</strong> <span id="orderNumber"></span></p><p><strong>Tempo estimado:</strong> <span id="estimatedTime">30 minutos</span></p></div><button class="btn-primary" style="background:#25D366;border-color:#25D366;" onclick="openWhatsAppWithOrder()"><i class="fab fa-whatsapp"></i> Enviar e acompanhar no WhatsApp</button><button class="btn-primary" onclick="closeSuccessModal()"><i class="fas fa-home"></i> Novo Pedido</button></div></div></div>
+  <div class="loading-overlay" id="loadingOverlay"><div class="loading-spinner"><i class="fa-solid fa-spinner fa-spin"></i><p>Processando seu pedido...</p></div></div>
+  <div class="modal-overlay" id="successModal"><div class="modal success-modal"><div class="modal-content"><div class="success-icon"><i class="fa-solid fa-circle-check"></i></div><h3>Pedido Realizado com Sucesso!</h3><p>Pedido enviado.</p><div class="order-info"><p><strong>NÃºmero:</strong> <span id="orderNumber"></span></p><p><strong>Tempo estimado:</strong> <span id="estimatedTime">30 minutos</span></p></div><button class="btn-primary" style="background:#25D366;border-color:#25D366;" onclick="openWhatsAppWithOrder()"><i class="fa-brands fa-whatsapp"></i> Enviar e acompanhar no WhatsApp</button><button class="btn-primary" onclick="closeSuccessModal()"><i class="fa-solid fa-home"></i> Novo Pedido</button></div></div></div>
 
   <!-- Pizza Builder Modal (copiado de index.html) -->
   <div class="modal-overlay" id="pizzaBuilderModal">
     <div class="modal pizza-builder-modal">
       <div class="modal-content pizza-builder-content">
         <div class="modal-header">
-          <h3 id="pizzaBuilderTitle">🍕 Monte Sua Pizza</h3>
+          <h3 id="pizzaBuilderTitle">ðŸ• Monte Sua Pizza</h3>
           <button class="close-modal" onclick="closePizzaBuilder()">
-            <i class="fas fa-times"></i>
+            <i class="fa-solid fa-times"></i>
           </button>
         </div>
         <div class="modal-body">
@@ -190,12 +190,12 @@
           <div class="pizza-step active" id="step-1">
             <div class="step-header">
               <h4>Escolha o Tamanho da Sua Pizza</h4>
-              <p>O tamanho define quantos sabores você pode escolher</p>
+              <p>O tamanho define quantos sabores vocÃª pode escolher</p>
             </div>
             <div class="sizes-grid" id="sizesGrid"></div>
             <div class="step-actions">
               <button class="btn btn-primary" onclick="nextPizzaStep()" disabled id="nextStep1">
-                Continuar <i class="fas fa-arrow-right"></i>
+                Continuar <i class="fa-solid fa-arrow-right"></i>
               </button>
             </div>
           </div>
@@ -204,7 +204,7 @@
           <div class="pizza-step" id="step-2">
             <div class="step-header">
               <h4>Escolha os Sabores</h4>
-              <p id="flavorsInfo">Selecione até <span id="maxFlavors">1</span> sabor</p>
+              <p id="flavorsInfo">Selecione atÃ© <span id="maxFlavors">1</span> sabor</p>
               <div class="parts-info" style="margin-top:8px;font-size:13px;color:#666;">
                 Partes usadas: <strong><span id="usedPartsCounter">0</span></strong> / <strong><span id="totalPartsCounter">0</span></strong>
               </div>
@@ -214,7 +214,7 @@
                 <div class="pizza-circle" id="pizzaCircle"></div>
                 <div class="pizza-info">
                   <h5 id="selectedSizeName">Tamanho</h5>
-                  <p id="selectedSizeInfo">Informações do tamanho</p>
+                  <p id="selectedSizeInfo">InformaÃ§Ãµes do tamanho</p>
                 </div>
               </div>
               <div class="flavors-selection">
@@ -228,8 +228,8 @@
               </div>
             </div>
             <div class="step-actions">
-              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fas fa-arrow-left"></i> Voltar</button>
-              <button class="btn btn-primary" onclick="nextPizzaStep()" disabled id="nextStep2">Continuar <i class="fas fa-arrow-right"></i></button>
+              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+              <button class="btn btn-primary" onclick="nextPizzaStep()" disabled id="nextStep2">Continuar <i class="fa-solid fa-arrow-right"></i></button>
             </div>
           </div>
 
@@ -237,7 +237,7 @@
           <div class="pizza-step" id="step-3">
             <div class="step-header">
               <h4>Adicionais (Opcional)</h4>
-              <p>Adicione ingredientes extras à sua pizza</p>
+              <p>Adicione ingredientes extras Ã  sua pizza</p>
             </div>
             <div class="extras-container">
               <div class="extras-categories">
@@ -249,8 +249,8 @@
               <div class="extras-grid" id="extrasGrid"></div>
             </div>
             <div class="step-actions">
-              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fas fa-arrow-left"></i> Voltar</button>
-              <button class="btn btn-primary" onclick="nextPizzaStep()" id="nextStep3">Continuar <i class="fas fa-arrow-right"></i></button>
+              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
+              <button class="btn btn-primary" onclick="nextPizzaStep()" id="nextStep3">Continuar <i class="fa-solid fa-arrow-right"></i></button>
             </div>
           </div>
 
@@ -278,15 +278,15 @@
                   <p id="summaryExtras">-</p>
                 </div>
                 <div class="summary-price">
-                  <h5>Preço Total</h5>
+                  <h5>PreÃ§o Total</h5>
                   <p class="price" id="summaryPrice">R$ 0,00</p>
                 </div>
                 <div class="summary-item" style="margin-top:16px;">
-                  <h5>Observações (Opcional)</h5>
+                  <h5>ObservaÃ§Ãµes (Opcional)</h5>
                   <textarea id="pizzaObservations" rows="3" placeholder="Ex: Sem cebola, bem passada, etc..." style="width:100%;padding:10px;border:1px solid #e5e7eb;border-radius:8px;font-family:inherit;"></textarea>
                 </div>
                 <div class="summary-item" style="margin-top:12px;">
-                  <h5>Preferências de Preparo</h5>
+                  <h5>PreferÃªncias de Preparo</h5>
                   <div class="prefs-grid" style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:8px;">
                     <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Bem passada"> Bem passada</label>
                     <label style="display:flex;align-items:center;gap:8px;font-size:14px;"><input type="checkbox" class="pizza-pref" value="Queijo extra"> Queijo extra</label>
@@ -297,9 +297,9 @@
               </div>
             </div>
             <div class="step-actions">
-              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fas fa-arrow-left"></i> Voltar</button>
+              <button class="btn btn-secondary" onclick="previousPizzaStep()"><i class="fa-solid fa-arrow-left"></i> Voltar</button>
               <button class="btn btn-success" onclick="addPizzaToCart()" id="addToCartBtn">
-                <i class="fas fa-shopping-cart"></i> Adicionar ao Carrinho
+                <i class="fa-solid fa-cart-shopping"></i> Adicionar ao Carrinho
               </button>
             </div>
           </div>
@@ -312,5 +312,7 @@
   <script src="assets/js/app.js"></script>
 </body>
 </html>
+
+
 
 

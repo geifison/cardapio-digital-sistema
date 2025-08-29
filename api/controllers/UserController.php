@@ -78,7 +78,7 @@ class UserController {
             }
             
             // Validação do role
-            $allowedRoles = ['admin', 'manager', 'operator'];
+            $allowedRoles = ['admin', 'manager', 'operator', 'delivery', 'kitchen'];
             if (!in_array($data['role'], $allowedRoles)) {
                 http_response_code(400);
                 echo json_encode([
@@ -170,7 +170,7 @@ class UserController {
             }
             
             // Validação do role
-            $allowedRoles = ['admin', 'manager', 'operator'];
+            $allowedRoles = ['admin', 'manager', 'operator', 'delivery', 'kitchen'];
             if (!in_array($data['role'], $allowedRoles)) {
                 http_response_code(400);
                 echo json_encode([

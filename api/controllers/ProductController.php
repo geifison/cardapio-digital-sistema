@@ -693,6 +693,63 @@ class ProductController {
         $stmt->execute([$product_id]);
         return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
+
+    /**
+     * Busca produtos por termo (nome, descrição, categoria)
+     * Suporta filtros opcionais: category_id, active, exclude_inactive_categories
+     */
+    public function search($term) {
+        try {
+            $where = [];
+            $params = [];
+            
+            // Termo de busca em nome, descrição ou nome da categoria
+            $where[] = "(p.name LIKE :term OR p.description LIKE :term OR c.name LIKE :term)";
+            $params[':term'] = '%' . $term . '%';
+
+            // Filtro opcional por categoria
+            if (isset($_GET['category_id']) && $_GET['category_id'] !== '') {
+                $where[] = 'p.category_id = :category_id';
+                $params[':category_id'] = (int) $_GET['category_id'];
+            }
+
+            // Filtro opcional por ativo
+            if (isset($_GET['active']) && (($_GET['active'] === 'true') || ($_GET['active'] === '1'))) {
+                $where[] = 'p.active = 1';
+            }
+
+            // Excluir categorias inativas, se indicado
+            $excludeInactiveCategories = isset($_GET['exclude_inactive_categories']) && (($_GET['exclude_inactive_categories'] === 'true') || ($_GET['exclude_inactive_categories'] === '1'));
+            if ($excludeInactiveCategories) {
+                $where[] = '(c.active = 1 OR c.id IS NULL)';
+            }
+
+            $sql = "SELECT p.*, c.name as category_name 
+                    FROM products p 
+                    LEFT JOIN categories c ON p.category_id = c.id";
+
+            if (!empty($where)) {
+                $sql .= ' WHERE ' . implode(' AND ', $where);
+            }
+
+            $sql .= ' ORDER BY p.display_order ASC, p.name ASC';
+
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute($params);
+            $products = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            echo json_encode([
+                'success' => true,
+                'data' => $products
+            ]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao buscar produtos: ' . $e->getMessage()
+            ]);
+        }
+    }
 }
 ?>
 

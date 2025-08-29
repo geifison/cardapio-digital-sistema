@@ -1,8 +1,8 @@
-<!-- Order Detail Modal -->
+﻿<!-- Order Detail Modal -->
 <div class="modal-overlay" id="orderDetailModal">
     <div class="modal large-modal">
         <div class="modal-content p-0" id="orderDetailContent">
-            <!-- Conteúdo será carregado dinamicamente com o novo layout -->
+            <!-- ConteÃºdo serÃ¡ carregado dinamicamente com o novo layout -->
         </div>
     </div>
 </div>
@@ -11,9 +11,9 @@
 <div class="modal-overlay" id="productModal">
     <div class="modal large-modal">
         <div class="modal-header">
-            <h3 id="productModalTitle"><i class="fas fa-plus"></i> Novo Produto</h3>
+            <h3 id="productModalTitle"><i class="fa-solid fa-plus"></i> Novo Produto</h3>
             <button class="close-modal" onclick="closeProductModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
@@ -36,41 +36,41 @@
                         <label for="productType">Tipo de Produto *</label>
                         <select id="productType" name="product_type" required onchange="toggleProductTypeFields()">
                             <option value="comum">Produto Comum</option>
-                            <option value="pizza">Pizza Gerenciável</option>
+                            <option value="pizza">Pizza GerenciÃ¡vel</option>
                         </select>
                     </div>
                     <div class="form-group" id="productPriceGroup">
-                        <label for="productPrice">Preço *</label>
+                        <label for="productPrice">PreÃ§o *</label>
                         <input type="number" id="productPrice" name="price" step="0.01" min="0" required>
                     </div>
                 </div>
                 
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="productOrder">Ordem de Exibição</label>
+                        <label for="productOrder">Ordem de ExibiÃ§Ã£o</label>
                         <input type="number" id="productOrder" name="display_order" min="0" value="0">
                     </div>
                     <div class="form-group" id="pizzaInfoGroup" style="display: none;">
                         <div class="info-card">
-                            <i class="fas fa-info-circle"></i>
-                            <p>Para pizzas gerenciáveis, o preço será calculado automaticamente baseado nos tamanhos, sabores e adicionais configurados no sistema.</p>
+                            <i class="fa-solid fa-circle-info"></i>
+                            <p>Para pizzas gerenciÃ¡veis, o preÃ§o serÃ¡ calculado automaticamente baseado nos tamanhos, sabores e adicionais configurados no sistema.</p>
                         </div>
                     </div>
                 </div>
                 
-                <!-- Seção de configurações para pizzas -->
+                <!-- SeÃ§Ã£o de configuraÃ§Ãµes para pizzas -->
                 <div id="pizzaConfigSection" style="display: none;">
                     <!-- Tamanhos -->
                     <div class="form-group">
-                        <label class="section-label">🍕 Tamanhos Disponíveis:</label>
+                        <label class="section-label">ðŸ• Tamanhos DisponÃ­veis:</label>
                         <div class="checkbox-group" id="pizzaSizesCheckboxes">
-                            <!-- Os checkboxes serão carregados dinamicamente -->
+                            <!-- Os checkboxes serÃ£o carregados dinamicamente -->
                         </div>
                     </div>
                     
                     <!-- Sabores -->
                     <div class="form-group">
-                        <label class="section-label">🍕 Sabores Disponíveis:</label>
+                        <label class="section-label">ðŸ• Sabores DisponÃ­veis:</label>
                         <div class="pizza-config-tabs">
                             <button type="button" class="config-tab active" onclick="showFlavorCategory('all')">Todos</button>
                             <button type="button" class="config-tab" onclick="showFlavorCategory('tradicional')">Tradicionais</button>
@@ -78,21 +78,21 @@
                             <button type="button" class="config-tab" onclick="showFlavorCategory('doce')">Doces</button>
                         </div>
                         <div class="checkbox-group" id="pizzaFlavorsCheckboxes">
-                            <!-- Os checkboxes serão carregados dinamicamente -->
+                            <!-- Os checkboxes serÃ£o carregados dinamicamente -->
                         </div>
                     </div>
                     
                     <!-- Bordas -->
                     <div class="form-group">
-                        <label class="section-label">🍕 Bordas Disponíveis:</label>
+                        <label class="section-label">ðŸ• Bordas DisponÃ­veis:</label>
                         <div class="checkbox-group" id="pizzaBordersCheckboxes">
-                            <!-- Os checkboxes serão carregados dinamicamente -->
+                            <!-- Os checkboxes serÃ£o carregados dinamicamente -->
                         </div>
                     </div>
                     
                     <!-- Adicionais -->
                     <div class="form-group">
-                        <label class="section-label">🍕 Adicionais Disponíveis:</label>
+                        <label class="section-label">ðŸ• Adicionais DisponÃ­veis:</label>
                         <div class="pizza-config-tabs">
                             <button type="button" class="config-tab active" onclick="showExtraCategory('all')">Todos</button>
                             <button type="button" class="config-tab" onclick="showExtraCategory('Queijos')">Queijos</button>
@@ -101,13 +101,13 @@
                             <button type="button" class="config-tab" onclick="showExtraCategory('Molhos')">Molhos</button>
                         </div>
                         <div class="checkbox-group" id="pizzaExtrasCheckboxes">
-                            <!-- Os checkboxes serão carregados dinamicamente -->
+                            <!-- Os checkboxes serÃ£o carregados dinamicamente -->
                         </div>
                     </div>
                 </div>
                 
                 <div class="form-group">
-                    <label for="productDescription">Descrição</label>
+                    <label for="productDescription">DescriÃ§Ã£o</label>
                     <textarea id="productDescription" name="description" rows="3"></textarea>
                 </div>
                 
@@ -117,7 +117,7 @@
                         <input type="file" id="productImageUpload" name="image_upload" accept="image/*" onchange="previewImage(event)">
                         <input type="hidden" id="productImage" name="image_url">
                         <div id="imagePreview" class="image-preview" style="display: none;">
-                            <img id="preview" src="#" alt="Pré-visualização da imagem">
+                            <img id="preview" src="#" alt="PrÃ©-visualizaÃ§Ã£o da imagem">
                             <button type="button" class="remove-image" onclick="removeImage()">Remover Imagem</button>
                         </div>
                     </div>
@@ -131,12 +131,12 @@
                     <label class="checkbox-label">
                         <input type="checkbox" id="productActive" name="active" checked>
                         <span class="checkmark"></span>
-                        Produto Ativo (disponível no cardápio)
+                        Produto Ativo (disponÃ­vel no cardÃ¡pio)
                     </label>
                 </div>
                 
                 <div class="form-group">
-                    <label class="section-label">Características Especiais:</label>
+                    <label class="section-label">CaracterÃ­sticas Especiais:</label>
                     <div class="checkbox-group">
                         <label class="checkbox-label">
                             <input type="checkbox" id="productVegetarian" name="is_vegetarian">
@@ -151,7 +151,7 @@
                         <label class="checkbox-label">
                             <input type="checkbox" id="productGlutenFree" name="is_gluten_free">
                             <span class="checkmark"></span>
-                            Sem Glúten
+                            Sem GlÃºten
                         </label>
                         <label class="checkbox-label">
                             <input type="checkbox" id="productSpicy" name="is_spicy">
@@ -164,11 +164,11 @@
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeProductModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-primary" onclick="saveProduct()">
-                <i class="fas fa-save"></i>
+                <i class="fa-solid fa-floppy-disk"></i>
                 Salvar Produto
             </button>
         </div>
@@ -179,22 +179,22 @@
 <div class="modal-overlay" id="deleteProductModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h3>
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Confirmar ExclusÃ£o</h3>
             <button class="close-modal" onclick="closeDeleteProductModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <p>Tem certeza que deseja excluir o produto <strong id="deleteProductName"></strong>?</p>
-            <p class="warning-text">Esta ação não pode ser desfeita!</p>
+            <p class="warning-text">Esta aÃ§Ã£o nÃ£o pode ser desfeita!</p>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeDeleteProductModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-danger" onclick="confirmDeleteProduct()">
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
                 Excluir
             </button>
         </div>
@@ -205,19 +205,19 @@
 <div class="modal-overlay" id="printModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-print"></i> Imprimir Comanda</h3>
+            <h3><i class="fa-solid fa-print"></i> Imprimir Comanda</h3>
             <button class="close-modal" onclick="closePrintModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <div class="print-options">
                 <button class="print-btn kitchen-print" onclick="printKitchenOrder()">
-                    <i class="fas fa-fire"></i>
+                    <i class="fa-solid fa-fire"></i>
                     Comanda da Cozinha
                 </button>
                 <button class="print-btn customer-print" onclick="printCustomerOrder()">
-                    <i class="fas fa-user"></i>
+                    <i class="fa-solid fa-user"></i>
                     Comanda do Cliente
                 </button>
             </div>
@@ -229,16 +229,16 @@
 <div class="modal-overlay" id="pizzaSizeModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-ruler"></i> <span id="pizzaSizeModalTitle">Novo Tamanho</span></h3>
+            <h3><i class="fa-solid fa-ruler"></i> <span id="pizzaSizeModalTitle">Novo Tamanho</span></h3>
             <button class="close-modal" onclick="closePizzaSizeModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <form id="pizzaSizeForm">
                 <div class="form-group">
                     <label for="sizeName">Nome do Tamanho *</label>
-                    <input type="text" id="sizeName" name="name" required placeholder="Ex: Média, Grande, Família">
+                    <input type="text" id="sizeName" name="name" required placeholder="Ex: MÃ©dia, Grande, FamÃ­lia">
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -246,17 +246,17 @@
                         <input type="number" id="sizeSlices" name="slices" required min="4" max="16" placeholder="6">
                     </div>
                     <div class="form-group">
-                        <label for="sizeMaxFlavors">Máximo de Sabores *</label>
+                        <label for="sizeMaxFlavors">MÃ¡ximo de Sabores *</label>
                         <input type="number" id="sizeMaxFlavors" name="max_flavors" required min="1" max="5" placeholder="2">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="sizePrice">Preço Base (R$) *</label>
+                    <label for="sizePrice">PreÃ§o Base (R$) *</label>
                     <input type="number" id="sizePrice" name="price" required min="0" step="0.01" placeholder="25.00">
                 </div>
                 <div class="form-group">
-                    <label for="sizeDescription">Descrição</label>
-                    <textarea id="sizeDescription" name="description" rows="3" placeholder="Descrição opcional do tamanho"></textarea>
+                    <label for="sizeDescription">DescriÃ§Ã£o</label>
+                    <textarea id="sizeDescription" name="description" rows="3" placeholder="DescriÃ§Ã£o opcional do tamanho"></textarea>
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
@@ -269,11 +269,11 @@
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closePizzaSizeModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-primary" onclick="savePizzaSize()">
-                <i class="fas fa-save"></i>
+                <i class="fa-solid fa-floppy-disk"></i>
                 Salvar Tamanho
             </button>
         </div>
@@ -284,9 +284,9 @@
 <div class="modal-overlay" id="pizzaFlavorModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-pizza-slice"></i> <span id="pizzaFlavorModalTitle">Novo Sabor</span></h3>
+            <h3><i class="fa-solid fa-pizza-slice"></i> <span id="pizzaFlavorModalTitle">Novo Sabor</span></h3>
             <button class="close-modal" onclick="closePizzaFlavorModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
@@ -308,18 +308,18 @@
                         </select>
                     </div>
                      <div class="form-group">
-                         <label for="flavorCategoryValue">Preço da Categoria (R$)</label>
+                         <label for="flavorCategoryValue">PreÃ§o da Categoria (R$)</label>
                          <input type="text" id="flavorCategoryValue" name="category_value" inputmode="numeric" placeholder="0,00" autocomplete="off">
-                         <small>Use vírgula para centavos. Ex: 1.234,56</small>
+                         <small>Use vÃ­rgula para centavos. Ex: 1.234,56</small>
                      </div>
                 </div>
                 <div class="form-group">
-                    <label for="flavorDescription">Descrição</label>
-                    <textarea id="flavorDescription" name="description" rows="3" placeholder="Descrição dos ingredientes"></textarea>
+                    <label for="flavorDescription">DescriÃ§Ã£o</label>
+                    <textarea id="flavorDescription" name="description" rows="3" placeholder="DescriÃ§Ã£o dos ingredientes"></textarea>
                 </div>
                 <div class="form-group">
                     <label for="flavorIngredients">Ingredientes</label>
-                    <textarea id="flavorIngredients" name="ingredients" rows="3" placeholder="Lista de ingredientes (separados por vírgula)"></textarea>
+                    <textarea id="flavorIngredients" name="ingredients" rows="3" placeholder="Lista de ingredientes (separados por vÃ­rgula)"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
@@ -333,7 +333,7 @@
                         <label class="checkbox-label">
                             <input type="checkbox" id="flavorGlutenFree" name="is_gluten_free">
                             <span class="checkmark"></span>
-                            Sem Glúten
+                            Sem GlÃºten
                         </label>
                     </div>
                     <div class="form-group">
@@ -355,11 +355,11 @@
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closePizzaFlavorModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-primary" onclick="savePizzaFlavor()">
-                <i class="fas fa-save"></i>
+                <i class="fa-solid fa-floppy-disk"></i>
                 Salvar Sabor
             </button>
         </div>
@@ -370,9 +370,9 @@
 <div class="modal-overlay" id="pizzaExtraModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-plus-circle"></i> <span id="pizzaExtraModalTitle">Novo Adicional</span></h3>
+            <h3><i class="fa-solid fa-circle-plus"></i> <span id="pizzaExtraModalTitle">Novo Adicional</span></h3>
             <button class="close-modal" onclick="closePizzaExtraModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
@@ -394,17 +394,17 @@
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="extraPrice">Preço *</label>
+                        <label for="extraPrice">PreÃ§o *</label>
                         <input type="number" id="extraPrice" name="price" required step="0.01" min="0" placeholder="0.00">
                     </div>
                     <div class="form-group">
-                        <label for="extraDisplayOrder">Ordem de Exibição</label>
+                        <label for="extraDisplayOrder">Ordem de ExibiÃ§Ã£o</label>
                         <input type="number" id="extraDisplayOrder" name="display_order" min="0" placeholder="0">
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="extraDescription">Descrição</label>
-                    <textarea id="extraDescription" name="description" rows="3" placeholder="Descrição do adicional"></textarea>
+                    <label for="extraDescription">DescriÃ§Ã£o</label>
+                    <textarea id="extraDescription" name="description" rows="3" placeholder="DescriÃ§Ã£o do adicional"></textarea>
                 </div>
                 <div class="form-group">
                     <label class="checkbox-label">
@@ -417,11 +417,11 @@
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closePizzaExtraModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-primary" onclick="savePizzaExtra()">
-                <i class="fas fa-save"></i>
+                <i class="fa-solid fa-floppy-disk"></i>
                 Salvar Adicional
             </button>
         </div>
@@ -432,22 +432,22 @@
 <div class="modal-overlay" id="deletePizzaItemModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h3>
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Confirmar ExclusÃ£o</h3>
             <button class="close-modal" onclick="closeDeletePizzaItemModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <p>Tem certeza que deseja excluir <strong id="deletePizzaItemName"></strong>?</p>
-            <p class="warning-text">Esta ação não pode ser desfeita!</p>
+            <p class="warning-text">Esta aÃ§Ã£o nÃ£o pode ser desfeita!</p>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeDeletePizzaItemModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-danger" onclick="confirmDeletePizzaItem()">
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
                 Excluir
             </button>
         </div>
@@ -458,9 +458,9 @@
 <div class="modal-overlay" id="categoryModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-tags"></i> <span id="categoryModalTitle">Nova Categoria</span></h3>
+            <h3><i class="fa-solid fa-tags"></i> <span id="categoryModalTitle">Nova Categoria</span></h3>
             <button class="close-modal" onclick="closeCategoryModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
@@ -470,12 +470,12 @@
                     <input type="text" id="categoryName" name="name" required placeholder="Ex: Lanches, Bebidas, Sobremesas">
                 </div>
                 <div class="form-group">
-                    <label for="categoryDescription">Descrição</label>
-                    <textarea id="categoryDescription" name="description" rows="3" placeholder="Descrição opcional da categoria"></textarea>
+                    <label for="categoryDescription">DescriÃ§Ã£o</label>
+                    <textarea id="categoryDescription" name="description" rows="3" placeholder="DescriÃ§Ã£o opcional da categoria"></textarea>
                 </div>
                 <div class="form-row">
                     <div class="form-group">
-                        <label for="categoryOrder">Ordem de Exibição</label>
+                        <label for="categoryOrder">Ordem de ExibiÃ§Ã£o</label>
                         <input type="number" id="categoryOrder" name="display_order" min="0" value="0" placeholder="0">
                     </div>
                     <div class="form-group">
@@ -490,11 +490,11 @@
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeCategoryModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-primary" onclick="saveCategory()">
-                <i class="fas fa-save"></i>
+                <i class="fa-solid fa-floppy-disk"></i>
                 Salvar Categoria
             </button>
         </div>
@@ -505,25 +505,25 @@
 <div class="modal-overlay" id="deleteCategoryModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Exclusão</h3>
+            <h3><i class="fa-solid fa-triangle-exclamation"></i> Confirmar ExclusÃ£o</h3>
             <button class="close-modal" onclick="closeDeleteCategoryModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <p>Tem certeza que deseja excluir a categoria <strong id="deleteCategoryName"></strong>?</p>
-            <p class="warning-text">⚠️ Todos os produtos desta categoria precisarão ser reclassificados!</p>
+            <p class="warning-text">âš ï¸ Todos os produtos desta categoria precisarÃ£o ser reclassificados!</p>
             <div class="category-products-count" id="categoryProductsCount" style="display: none;">
                 <p><strong>Esta categoria possui <span id="productsInCategory">0</span> produto(s) associado(s).</strong></p>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeDeleteCategoryModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Cancelar
             </button>
             <button class="btn-danger" onclick="confirmDeleteCategory()">
-                <i class="fas fa-trash"></i>
+                <i class="fa-solid fa-trash"></i>
                 Excluir
             </button>
         </div>
@@ -533,7 +533,7 @@
 <!-- Loading Overlay -->
 <div class="loading-overlay" id="loadingOverlay">
     <div class="loading-spinner">
-        <i class="fas fa-spinner fa-spin"></i>
+        <i class="fa-solid fa-spinner fa-spin"></i>
         <p>Carregando...</p>
     </div>
 </div>
@@ -542,24 +542,24 @@
 <div class="modal-overlay" id="cancelOrderModal">
     <div class="modal">
         <div class="modal-header">
-            <h3><i class="fas fa-ban"></i> Cancelar Pedido</h3>
+            <h3><i class="fa-solid fa-ban"></i> Cancelar Pedido</h3>
             <button class="close-modal" onclick="closeCancelOrderModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content">
             <div class="form-group">
                 <label for="cancelReason">Informe o motivo do cancelamento</label>
-                <textarea id="cancelReason" rows="4" placeholder="Ex.: Cliente desistiu, erro no pedido, pagamento não confirmado, etc."></textarea>
+                <textarea id="cancelReason" rows="4" placeholder="Ex.: Cliente desistiu, erro no pedido, pagamento nÃ£o confirmado, etc."></textarea>
             </div>
         </div>
         <div class="modal-footer">
             <button class="btn-secondary" onclick="closeCancelOrderModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
                 Voltar
             </button>
             <button class="btn-danger" onclick="confirmCancelOrder()">
-                <i class="fas fa-ban"></i>
+                <i class="fa-solid fa-ban"></i>
                 Confirmar Cancelamento
             </button>
         </div>
@@ -576,9 +576,9 @@
 <div class="modal-overlay" id="newOrderModal">
     <div class="modal large-modal">
         <div class="modal-header">
-            <h3><i class="fas fa-plus"></i> Novo Pedido</h3>
+            <h3><i class="fa-solid fa-plus"></i> Novo Pedido</h3>
             <button class="close-modal" onclick="closeNewOrderModal()">
-                <i class="fas fa-times"></i>
+                <i class="fa-solid fa-times"></i>
             </button>
         </div>
         <div class="modal-content" style="padding:0;">
@@ -587,10 +587,12 @@
             </div>
         </div>
         <div class="modal-footer">
-            <small style="flex:1; color:#666;">Operação de balcão usando o cardápio do cliente.</small>
+            <small style="flex:1; color:#666;">OperaÃ§Ã£o de balcÃ£o usando o cardÃ¡pio do cliente.</small>
             <button class="btn-secondary" onclick="closeNewOrderModal()">
-                <i class="fas fa-times"></i> Fechar
+                <i class="fa-solid fa-times"></i> Fechar
             </button>
         </div>
     </div>
  </div>
+
+

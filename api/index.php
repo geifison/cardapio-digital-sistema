@@ -4,7 +4,15 @@
  * Gerencia todas as requisições da API
  */
 if (session_status() === PHP_SESSION_NONE) {
-    session_start();
+  $secure = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] == 443);
+  session_set_cookie_params([
+    'lifetime' => 0,
+    'path' => '/',
+    'secure' => $secure,
+    'httponly' => true,
+    'samesite' => 'Lax',
+  ]);
+  session_start();
 }
 // Configurações de CORS
 header('Access-Control-Allow-Origin: *');
@@ -28,7 +36,40 @@ require_once 'controllers/PizzaController.php';
 require_once 'controllers/SettingsController.php';
 require_once 'controllers/GeocodeController.php';
 require_once 'controllers/UserController.php';
+require_once 'controllers/MapboxStatusController.php';
 require_once __DIR__ . '/EventManager.php';
+// carrega config realtime
+$__realtime_config = @include __DIR__ . '/../config/realtime.php';
+if (!is_array($__realtime_config)) { $__realtime_config = ['node_url' => 'http://localhost:3000', 'secret' => 'dev-secret']; }
+
+// helper global para notificar microserviço Node
+if (!function_exists('notify_realtime')) {
+  function notify_realtime(string $path, array $payload) {
+    global $__realtime_config;
+    $url = rtrim((string)($__realtime_config['node_url'] ?? 'http://localhost:3000'), '/') . '/' . ltrim($path, '/');
+    $ch = curl_init($url);
+    $headers = [
+      'Content-Type: application/json',
+      'X-REALTIME-SECRET: ' . (string)($__realtime_config['secret'] ?? 'dev-secret')
+    ];
+    curl_setopt_array($ch, [
+      CURLOPT_RETURNTRANSFER => true,
+      CURLOPT_POST => true,
+      CURLOPT_HTTPHEADER => $headers,
+      CURLOPT_POSTFIELDS => json_encode($payload),
+      CURLOPT_TIMEOUT => 2, // curto para não impactar UX
+    ]);
+    $resp = curl_exec($ch);
+    $err  = curl_error($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    // silencioso; opcionalmente logar em caso de erro grave
+    if ($err || ($code && $code >= 400)) {
+      // error_log('[realtime] notify error: ' . ($err ?: ('HTTP ' . $code)));
+    }
+    return $code;
+  }
+}
 
 // Configuração de erro reporting
 error_reporting(E_ALL);
@@ -81,6 +122,16 @@ try {
     
     // Método HTTP
     $method = $_SERVER['REQUEST_METHOD'];
+    
+    // CURTO-CIRCUITO PARA /api/health ANTES DE CONEXÃO COM BD
+    if ($endpoint === 'health') {
+        echo json_encode([
+            'status' => 'ok',
+            'message' => 'API funcionando corretamente',
+            'timestamp' => date('Y-m-d H:i:s')
+        ]);
+        return; // evita inicializar BD
+    }
     
     // Obtém dados do corpo da requisição
     if (isset($GLOBALS['test_input_data'])) {
@@ -173,8 +224,10 @@ try {
             $controller = new UserController($db);
             handleUserRequests($controller, $method, $id, $input);
             break;
-        
-            
+        case 'mapbox':
+            $controller = new MapboxStatusController($db);
+            handleMapboxStatusRequests($controller, $method, $id, $input, $uri_segments);
+            break;
         default:
             http_response_code(404);
             echo json_encode([
@@ -197,6 +250,12 @@ try {
  * Gerencia requisições para categorias
  */
 function handleCategoryRequests($controller, $method, $id, $input) {
+    // Nova rota para reordenar categorias: /api/categories/reorder
+    if ($id === 'reorder' && in_array($method, ['POST', 'PUT', 'PATCH'])) {
+        $controller->reorder($input ?? []);
+        return;
+    }
+
     switch ($method) {
         case 'GET':
             if ($id) {
@@ -205,29 +264,16 @@ function handleCategoryRequests($controller, $method, $id, $input) {
                 $controller->getAll();
             }
             break;
-            
         case 'POST':
-            $controller->create($input);
+            $controller->create($input ?? []);
             break;
-            
         case 'PUT':
-            if ($id) {
-                $controller->update($id, $input);
-            } else {
-                http_response_code(400);
-                echo json_encode(['error' => true, 'message' => 'ID é obrigatório para atualização']);
-            }
+        case 'PATCH':
+            $controller->update($id, $input ?? []);
             break;
-            
         case 'DELETE':
-            if ($id) {
-                $controller->delete($id);
-            } else {
-                http_response_code(400);
-                echo json_encode(['error' => true, 'message' => 'ID é obrigatório para exclusão']);
-            }
+            $controller->delete($id);
             break;
-            
         default:
             http_response_code(405);
             echo json_encode(['error' => true, 'message' => 'Método não permitido']);
@@ -247,6 +293,7 @@ function handleProductRequests($controller, $method, $id, $input) {
                 // Verifica se há filtro por categoria
                 $category_id = $_GET['category_id'] ?? null;
                 $active_only = $_GET['active'] ?? null;
+                $search = $_GET['search'] ?? null;
                 
                 if ($category_id) {
                     // Buscar produtos por categoria (mantém compatibilidade)
@@ -254,6 +301,9 @@ function handleProductRequests($controller, $method, $id, $input) {
                 } elseif ($active_only === 'true') {
                     // Buscar apenas produtos ativos para o cardápio público
                     $controller->getActiveProducts();
+                } elseif ($search) {
+                    // Buscar produtos por termo
+                    $controller->search($search);
                 } else {
                     // Listar todos os produtos (admin)
                     $controller->index();
@@ -395,16 +445,22 @@ function handleAuthRequests($controller, $method, $id, $input) {
  * Gerencia requisições de pizza
  */
 function handlePizzaRequests($controller, $method, $id, $input) {
-    // id é o primeiro segmento após pizza/, ex: sizes, flavors, prices
-    $uri = $_SERVER['REQUEST_URI'];
-    $project_path = '/cardapio-digital-sistema';
-    if (strpos($uri, $project_path) === 0) {
-        $uri = substr($uri, strlen($project_path));
+    // Extrai de forma robusta o recurso após /api/pizza/, independente de subpasta do projeto
+    $uri = $_SERVER['REQUEST_URI'] ?? '';
+    $uriPath = $uri;
+    $qpos = strpos($uriPath, '?');
+    if ($qpos !== false) {
+        $uriPath = substr($uriPath, 0, $qpos);
     }
-    $path = strtok($uri, '?');
-    $segments = explode('/', trim($path, '/')); // [api, pizza, resource, resourceId]
-    $resource = $segments[2] ?? null;
-    $resourceId = $segments[3] ?? null;
+    $marker = '/api/pizza/';
+    $pos = strpos($uriPath, $marker);
+    $rest = $pos !== false ? substr($uriPath, $pos + strlen($marker)) : '';
+    $rest = trim($rest, '/');
+    $parts = $rest === '' ? [] : explode('/', $rest);
+
+    // resource é o primeiro segmento após /api/pizza/ ou o $id já calculado pelo roteador principal
+    $resource = $parts[0] ?? ($id ?: null);
+    $resourceId = $parts[1] ?? null;
 
     switch ($method) {
         case 'GET':
@@ -420,7 +476,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
             } elseif ($resource === 'minimum-price') {
                 $controller->getMinimumPrice();
             } elseif ($resource === 'borders') {
-                $controller->getBorders();
+                $all = isset($_GET['all']) ? ($_GET['all'] === 'true') : false;
+                $controller->getBorders($all);
             } elseif ($resource === 'extras') {
                 $category = $_GET['category'] ?? null;
                 $controller->getExtras($category);
@@ -439,6 +496,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
                 $controller->createSize($input);
             } elseif ($resource === 'flavors') {
                 $controller->createFlavor($input);
+            } elseif ($resource === 'borders') {
+                $controller->createBorder($input);
             } elseif ($resource === 'extras') {
                 $controller->createExtra($input);
             } elseif ($resource === 'calculate-price') {
@@ -456,6 +515,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
                 $controller->updateSize($resourceId, $input);
             } elseif ($resource === 'flavors' && $resourceId) {
                 $controller->updateFlavor($resourceId, $input);
+            } elseif ($resource === 'borders' && $resourceId) {
+                $controller->updateBorder($resourceId, $input);
             } elseif ($resource === 'extras' && $resourceId) {
                 $controller->updateExtra($resourceId, $input);
             } else {
@@ -469,6 +530,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
                 $controller->deleteSize($resourceId);
             } elseif ($resource === 'flavors' && $resourceId) {
                 $controller->deleteFlavor($resourceId);
+            } elseif ($resource === 'borders' && $resourceId) {
+                $controller->deleteBorder($resourceId);
             } elseif ($resource === 'extras' && $resourceId) {
                 $controller->deleteExtra($resourceId);
             } else {
@@ -488,27 +551,48 @@ function handlePizzaRequests($controller, $method, $id, $input) {
  * Gerencia requisições de configurações
  */
 function handleSettingsRequests($controller, $method, $id, $input) {
-    // Endpoints: google-api-key, business-hours, pause
+    // Endpoints: business-hours, pause, mapbox-api-key, company, payment-methods, company-info
     switch ($method) {
         case 'GET':
-            if ($id === 'google-api-key') {
-                $controller->getGoogleApiKeyStatus();
+            if ($id === 'mapbox-api-key') {
+                $controller->getMapboxApiKeyStatus();
+            } elseif ($id === 'mapbox-public-key') {
+                if (!method_exists($controller, 'getMapboxPublicKey')) { require_once 'controllers/SettingsController.php'; }
+                $controller->getMapboxPublicKey();
             } elseif ($id === 'business-hours') {
                 $controller->getBusinessHours();
             } elseif ($id === 'pause') {
                 $controller->getPauseState();
+            } elseif ($id === 'company') {
+                if (!method_exists($controller, 'getCompanySettings')) { require_once 'controllers/SettingsController.php'; }
+                $controller->getCompanySettings();
+            } elseif ($id === 'company-info') {
+                if (!method_exists($controller, 'getCompanyInfo')) { require_once 'controllers/SettingsController.php'; }
+                $controller->getCompanyInfo();
+            } elseif ($id === 'payment-methods') {
+                if (!method_exists($controller, 'getPaymentMethods')) { require_once 'controllers/SettingsController.php'; }
+                $controller->getPaymentMethods();
             } else {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Endpoint de configurações não encontrado']);
             }
             break;
         case 'POST':
-            if ($id === 'google-api-key') {
-                $controller->saveGoogleApiKey($input);
+            if ($id === 'mapbox-api-key') {
+                $controller->saveMapboxApiKey($input);
             } elseif ($id === 'business-hours') {
                 $controller->saveBusinessHours($input);
             } elseif ($id === 'pause') {
                 $controller->savePauseState($input);
+            } elseif ($id === 'company') {
+                if (!method_exists($controller, 'saveCompanySettings')) { require_once 'controllers/SettingsController.php'; }
+                $controller->saveCompanySettings($input);
+            } elseif ($id === 'company-info') {
+                if (!method_exists($controller, 'saveCompanyInfo')) { require_once 'controllers/SettingsController.php'; }
+                $controller->saveCompanyInfo($input);
+            } elseif ($id === 'payment-methods') {
+                if (!method_exists($controller, 'savePaymentMethods')) { require_once 'controllers/SettingsController.php'; }
+                $controller->savePaymentMethods($input);
             } else {
                 http_response_code(404);
                 echo json_encode(['success' => false, 'message' => 'Endpoint de configurações não encontrado']);
@@ -658,5 +742,53 @@ function handleEventRequests($method, $id) {
         // Sem eventos: aguarda um pouco
         usleep(300000); // 300ms
     }
+}
+/**
+ * Mapbox Status
+ */
+function handleMapboxStatusRequests($controller, $method, $id, $input, $uri_segments) {
+    // Endpoints esperados:
+    // GET /api/mapbox/status -> testa todas
+    // GET /api/mapbox/status/geocoding
+    // GET /api/mapbox/status/directions
+    // GET /api/mapbox/status/maploads
+    // GET /api/mapbox/public-key -> chave pública
+    if ($method !== 'GET') {
+        http_response_code(405);
+        echo json_encode(['success' => false, 'message' => 'Método não permitido']);
+        return;
+    }
+    $sub = $id; // primeiro segmento após 'mapbox'
+    $action = $uri_segments[2] ?? null; // segundo segmento
+
+    // Endpoint para chave pública
+    if ($sub === 'public-key') {
+        require_once 'controllers/SettingsController.php';
+        // Obter conexão do banco global (mesma usada para criar o MapboxStatusController)
+        global $db;
+        $settingsController = new SettingsController($db);
+        $settingsController->getMapboxPublicKey();
+        return;
+    }
+
+    if ($sub === 'status' && !$action) {
+        $controller->statusAll();
+        return;
+    }
+    if ($sub === 'status' && $action === 'geocoding') {
+        $controller->statusGeocoding();
+        return;
+    }
+    if ($sub === 'status' && $action === 'directions') {
+        $controller->statusDirections();
+        return;
+    }
+    if ($sub === 'status' && $action === 'maploads') {
+        $controller->statusMapLoads();
+        return;
+    }
+
+    http_response_code(404);
+    echo json_encode(['success' => false, 'message' => 'Endpoint Mapbox não encontrado']);
 }
 ?>

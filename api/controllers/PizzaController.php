@@ -236,11 +236,15 @@ class PizzaController {
     // Sabores não têm preços próprios - removida
     
     /**
-     * Lista todas as bordas
+     * Lista bordas; se $all = true, inclui inativas. Mapeia additional_price -> price.
      */
-    public function getBorders() {
+    public function getBorders($all = false) {
         try {
-            $sql = "SELECT * FROM pizza_borders WHERE active = 1 ORDER BY display_order ASC, name ASC";
+            $sql = "SELECT id, name, additional_price AS price, description, display_order, active FROM pizza_borders";
+            if (!$all) {
+                $sql .= " WHERE active = 1";
+            }
+            $sql .= " ORDER BY display_order ASC, name ASC";
             $stmt = $this->pdo->prepare($sql);
             $stmt->execute();
             $borders = $stmt->fetchAll(PDO::FETCH_ASSOC);
@@ -657,5 +661,63 @@ class PizzaController {
                 'total_price' => $total_price
             ]
         ];
+    }
+
+    // === Admin CRUD: Borders ===
+    public function createBorder($data) {
+        try {
+            $sql = "INSERT INTO pizza_borders (name, additional_price, description, display_order, active) VALUES (:name, :additional_price, :description, :display_order, :active)";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                ':name' => $data['name'],
+                ':additional_price' => (float)($data['price'] ?? 0),
+                ':description' => $data['description'] ?? '',
+                ':display_order' => (int)($data['display_order'] ?? 0),
+                ':active' => isset($data['active']) ? (int)!!$data['active'] : 1
+            ]);
+            echo json_encode(['success' => true, 'message' => 'Borda criada com sucesso']);
+            if (class_exists('EventManager')) {
+                EventManager::emit('pizza_borders_updated', ['action' => 'created']);
+            }
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function updateBorder($id, $data) {
+        try {
+            $sql = "UPDATE pizza_borders SET name=:name, additional_price=:additional_price, description=:description, display_order=:display_order, active=:active WHERE id=:id";
+            $stmt = $this->pdo->prepare($sql);
+            $stmt->execute([
+                ':id' => $id,
+                ':name' => $data['name'],
+                ':additional_price' => (float)($data['price'] ?? 0),
+                ':description' => $data['description'] ?? '',
+                ':display_order' => (int)($data['display_order'] ?? 0),
+                ':active' => isset($data['active']) ? (int)!!$data['active'] : 1
+            ]);
+            echo json_encode(['success' => true, 'message' => 'Borda atualizada com sucesso']);
+            if (class_exists('EventManager')) {
+                EventManager::emit('pizza_borders_updated', ['action' => 'updated', 'border_id' => $id]);
+            }
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
+    }
+
+    public function deleteBorder($id) {
+        try {
+            $stmt = $this->pdo->prepare("DELETE FROM pizza_borders WHERE id = :id");
+            $stmt->execute([':id' => $id]);
+            echo json_encode(['success' => true, 'message' => 'Borda removida com sucesso']);
+            if (class_exists('EventManager')) {
+                EventManager::emit('pizza_borders_updated', ['action' => 'deleted', 'border_id' => $id]);
+            }
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode(['success' => false, 'message' => $e->getMessage()]);
+        }
     }
 }

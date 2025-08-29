@@ -1,16 +1,16 @@
-/**
+﻿/**
  * Sistema de Painel Administrativo
  * JavaScript Principal
  */
 
-// Configurações globais
+// ConfiguraÃ§Ãµes globais
 const CONFIG = {
     API_BASE_URL: '../api/',
     REFRESH_INTERVAL: 5000, // 5 segundos
     CURRENCY: 'R$'
 };
 
-// Estado global da aplicação
+// Estado global da aplicaÃ§Ã£o
 let appState = {
     user: null,
     orders: [],
@@ -21,25 +21,25 @@ let appState = {
     refreshInterval: null,
     orderTimers: new Map(),
     orderSoundInterval: null, // Intervalo para o som em loop
-    hasNewOrders: false, // Flag para controlar se há pedidos novos
+    hasNewOrders: false, // Flag para controlar se hÃ¡ pedidos novos
     ordersPaused: false,
     pauseMessage: ''
 };
 
-// Inicialização da aplicação
+// InicializaÃ§Ã£o da aplicaÃ§Ã£o
 document.addEventListener('DOMContentLoaded', function() {
     initializeApp();
 });
 
 /**
- * Inicializa a aplicação
+ * Inicializa a aplicaÃ§Ã£o
  */
 async function initializeApp() {
     try {
         // Configura event listeners essenciais primeiro
         setupLoginEventListener();
         
-        // Verifica se há autenticação
+        // Verifica se hÃ¡ autenticaÃ§Ã£o
         const isAuth = await checkAuthentication();
         
         if (isAuth) {
@@ -55,7 +55,7 @@ async function initializeApp() {
             showLoginModal();
         }
     } catch (error) {
-        console.error('Erro ao inicializar aplicação:', error);
+        console.error('Erro ao inicializar aplicaÃ§Ã£o:', error);
         showLoginModal();
     }
 }
@@ -116,7 +116,7 @@ function renderPauseButtonState() {
 }
 
 /**
- * Verifica autenticação
+ * Verifica autenticaÃ§Ã£o
  */
 async function checkAuthentication() {
     try {
@@ -137,7 +137,7 @@ async function checkAuthentication() {
         
         return false;
     } catch (error) {
-        console.error('Erro ao verificar autenticação:', error);
+        console.error('Erro ao verificar autenticaÃ§Ã£o:', error);
         return false;
     }
 }
@@ -178,14 +178,14 @@ async function login(event) {
             setupEventListeners();
             startAutoRefresh();
         } else {
-            // A API pode retornar um erro mesmo com um status HTTP 200, então verificamos a chave 'success'
-            // Se o status não for 'ok', tratamos a mensagem de erro
+            // A API pode retornar um erro mesmo com um status HTTP 200, entÃ£o verificamos a chave 'success'
+            // Se o status nÃ£o for 'ok', tratamos a mensagem de erro
             showError(data.message || data.error_message || 'Erro desconhecido ao fazer login');
         }
         
     } catch (error) {
         console.error('Erro no login:', error);
-        showError('Erro de conexão. Tente novamente.');
+        showError('Erro de conexÃ£o. Tente novamente.');
     } finally {
         hideLoading();
     }
@@ -228,7 +228,7 @@ async function loadInitialData() {
         renderProductsGrid();
         updateDashboard();
         
-        // Carrega categorias para o formulário de produtos
+        // Carrega categorias para o formulÃ¡rio de produtos
         await loadCategoriesForProducts();
     } catch (error) {
         console.error('Erro ao carregar dados iniciais:', error);
@@ -241,7 +241,7 @@ async function loadInitialData() {
 async function loadOrders(options = {}) {
     const suppressSound = options && options.suppressSound === true;
     try {
-        // Garante filtro de hoje por padrão (usando data local, não UTC)
+        // Garante filtro de hoje por padrÃ£o (usando data local, nÃ£o UTC)
         if (typeof appState.ordersDateFilter === 'undefined' || appState.ordersDateFilter === null) {
             const now = new Date();
             const tzOffsetMin = now.getTimezoneOffset();
@@ -262,7 +262,7 @@ async function loadOrders(options = {}) {
                 const previousOrdersCount = appState.orders.filter(order => order.status === 'novo').length;
                 appState.orders = data.data;
                 
-                // Verifica se há novos pedidos para tocar som
+                // Verifica se hÃ¡ novos pedidos para tocar som
                 const currentNewOrdersCount = appState.orders.filter(order => order.status === 'novo').length;
                 if (!suppressSound && currentNewOrdersCount > previousOrdersCount && appState.isAuthenticated) {
                     playNotificationSound();
@@ -271,7 +271,7 @@ async function loadOrders(options = {}) {
                 renderOrdersBoard();
                 updateOrderTimers();
 
-                // Fallback: se filtrado por data e não retornou nada, tenta sem filtro de data
+                // Fallback: se filtrado por data e nÃ£o retornou nada, tenta sem filtro de data
                 const wasFilteredByDate = Boolean(appState.ordersDateFilter);
                 if (wasFilteredByDate && Array.isArray(data.data) && data.data.length === 0 && options._retryWithoutDate !== true) {
                     try {
@@ -319,7 +319,7 @@ async function loadProducts() {
  */
 async function loadCategories() {
     try {
-        console.log('🏷️ Carregando categorias...');
+        console.log('ðŸ·ï¸ Carregando categorias...');
         const response = await fetch(CONFIG.API_BASE_URL + 'categories?all=true', {
             credentials: 'include'
         });
@@ -336,22 +336,22 @@ async function loadCategories() {
             if (typeof productsState !== 'undefined') {
                 productsState.categories = data.data; // sincroniza
             }
-            console.log('✅ Categorias carregadas:', data.data.length);
+            console.log('âœ… Categorias carregadas:', data.data.length);
         } else {
             throw new Error(data.message || 'Erro desconhecido ao carregar categorias');
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar categorias:', error);
+        console.error('âŒ Erro ao carregar categorias:', error);
         showError('Erro ao carregar categorias: ' + error.message);
     }
 }
 
 /**
- * Carrega categorias para o formulário de produtos
+ * Carrega categorias para o formulÃ¡rio de produtos
  */
 async function loadCategoriesForProducts() {
     try {
-        console.log('🏷️ Carregando categorias para produtos...');
+        console.log('ðŸ·ï¸ Carregando categorias para produtos...');
         const response = await fetch(CONFIG.API_BASE_URL + 'categories?all=true');
         
         if (!response.ok) {
@@ -363,23 +363,23 @@ async function loadCategoriesForProducts() {
         
         if (data.success) {
             productsState.categories = data.data;
-            appState.categories = data.data; // Sincronizar ambas as variáveis
-            console.log('✅ Categorias carregadas:', data.data.length);
+            appState.categories = data.data; // Sincronizar ambas as variÃ¡veis
+            console.log('âœ… Categorias carregadas:', data.data.length);
             
-            // Popula o select de categorias no formulário
+            // Popula o select de categorias no formulÃ¡rio
             const select = document.getElementById('productCategory');
             if (select) {
                 select.innerHTML = '<option value="">Selecione uma categoria</option>' +
                     data.data.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
-                console.log('✅ Select de categorias populado');
+                console.log('âœ… Select de categorias populado');
             } else {
-                console.warn('⚠️ Elemento productCategory não encontrado');
+                console.warn('âš ï¸ Elemento productCategory nÃ£o encontrado');
             }
         } else {
             throw new Error(data.message || 'Erro desconhecido');
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar categorias para produtos:', error);
+        console.error('âŒ Erro ao carregar categorias para produtos:', error);
         throw error;
     }
 }
@@ -408,7 +408,7 @@ function renderOrdersBoard() {
         .filter(order => order.status === 'entrega')
         .sort(sortByOldest);
 
-    // Finalizados inclui também cancelados (sem limite, lista completa)
+    // Finalizados inclui tambÃ©m cancelados (sem limite, lista completa)
     const completedOrders = appState.orders
         .filter(order => order.status === 'finalizado' || order.status === 'cancelado')
         .sort(sortByOldest);
@@ -425,27 +425,27 @@ function renderOrdersBoard() {
     deliveryOrdersList.innerHTML = deliveryOrders.map(order => createOrderCard(order, 'delivery')).join('');
     completedOrdersList.innerHTML = completedOrders.map(order => createOrderCard(order, 'completed')).join('');
     
-    // Controla o som em loop baseado nos pedidos novos, com suporte a supressão pontual
+    // Controla o som em loop baseado nos pedidos novos, com suporte a supressÃ£o pontual
     const hadNewOrders = appState.hasNewOrders;
     const currentlyHasNewOrders = newOrders.length > 0;
 
     if (appState.suppressOrderSoundOnce) {
-        // Atualiza flag interna, mas não inicia/para som nesta renderização
+        // Atualiza flag interna, mas nÃ£o inicia/para som nesta renderizaÃ§Ã£o
         appState.hasNewOrders = currentlyHasNewOrders;
         appState.suppressOrderSoundOnce = false;
         return;
     }
 
     appState.hasNewOrders = currentlyHasNewOrders;
-    // Se não havia pedidos novos antes e agora há, inicia o som
+    // Se nÃ£o havia pedidos novos antes e agora hÃ¡, inicia o som
     if (!hadNewOrders && appState.hasNewOrders) {
         startOrderSoundLoop();
     }
-    // Se havia pedidos novos antes e agora não há, para o som
+    // Se havia pedidos novos antes e agora nÃ£o hÃ¡, para o som
     else if (hadNewOrders && !appState.hasNewOrders) {
         stopOrderSoundLoop();
     }
-    // Se já há pedidos novos e o som não está tocando, inicia o som (para casos de carregamento inicial)
+    // Se jÃ¡ hÃ¡ pedidos novos e o som nÃ£o estÃ¡ tocando, inicia o som (para casos de carregamento inicial)
     else if (appState.hasNewOrders && !appState.orderSoundInterval) {
         startOrderSoundLoop();
     }
@@ -465,7 +465,7 @@ function createOrderCard(order, type) {
     let timer = '';
     let timerBadge = '';
     
-    // Timer para pedidos em produção
+    // Timer para pedidos em produÃ§Ã£o
     if (type === 'production') {
         const startTime = new Date(order.accepted_at || order.created_at);
         const elapsed = Math.floor((Date.now() - startTime.getTime()) / 1000 / 60);
@@ -475,18 +475,18 @@ function createOrderCard(order, type) {
         timerBadge = `<span class="badge ${bsTimerClass}">${elapsed}min</span>`;
     }
     
-    // Botões de ação baseados no status
+    // BotÃµes de aÃ§Ã£o baseados no status
     switch (type) {
         case 'new':
             actions = `
                 <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'aceito')" title="Aceitar">
-                    <i class="fas fa-check"></i>
+                    <i class="fa-solid fa-check"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-warning" onclick="editOrder(${order.id})" title="Editar Pedido">
-                    <i class="fas fa-edit"></i>
+                    <i class="fa-solid fa-pen-to-square"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
-                    <i class="fas fa-ban"></i>
+                    <i class="fa-solid fa-ban"></i>
                 </button>
             `;
             break;
@@ -499,44 +499,44 @@ function createOrderCard(order, type) {
             actions = `
                 <div class="btn-group dropup">
                     <button class="btn btn-sm btn-outline-warning dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false" title="Imprimir" onclick="event.stopPropagation()">
-                        <i class="fas fa-print"></i>
+                        <i class="fa-solid fa-print"></i>
                     </button>
                     <ul class="dropdown-menu dropdown-menu-end">
                         <li>
                             <button class="dropdown-item" onclick="printKitchenOrderFrom(${order.id}); event.stopPropagation();">
-                                <i class=\"fas fa-fire me-2\"></i> Cozinha
+                                <i class=\"fa-solid fa-fire me-2\"></i> Cozinha
                             </button>
                         </li>
                         <li>
                             <button class="dropdown-item" onclick="printCustomerReceipt(${order.id}); event.stopPropagation();">
-                                <i class=\"fas fa-user me-2\"></i> Cliente
+                                <i class=\"fa-solid fa-user me-2\"></i> Cliente
                             </button>
                         </li>
                     </ul>
                 </div>
                 <button class="btn btn-sm btn-outline-primary" onclick="updateOrderStatus(${order.id}, 'entrega')" title="Enviar para entrega">
-                    <i class="fas fa-truck"></i>
+                    <i class="fa-solid fa-truck"></i>
                 </button>
                 ${canEdit ? `<button class="btn btn-sm btn-outline-warning" onclick="editOrder(${order.id})" title="Editar Pedido">
-                    <i class="fas fa-edit"></i>
+                    <i class="fa-solid fa-pen-to-square"></i>
                 </button>` : ''}
                 <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
-                    <i class="fas fa-ban"></i>
+                    <i class="fa-solid fa-ban"></i>
                 </button>
             `;
             break;
         case 'delivery':
             actions = `
                 <button class="btn btn-sm btn-outline-success" onclick="updateOrderStatus(${order.id}, 'finalizado')" title="Finalizar">
-                    <i class="fas fa-check-circle"></i>
+                    <i class="fa-solid fa-circle-check"></i>
                 </button>
                 <button class="btn btn-sm btn-outline-danger" onclick="openCancelOrder(${order.id})" title="Cancelar">
-                    <i class="fas fa-ban"></i>
+                    <i class="fa-solid fa-ban"></i>
                 </button>
             `;
             break;
         case 'completed':
-            // Pedidos finalizados não têm ações
+            // Pedidos finalizados nÃ£o tÃªm aÃ§Ãµes
             actions = '';
             break;
     }
@@ -548,7 +548,7 @@ function createOrderCard(order, type) {
         : type === 'production' ? 'border-danger'
         : type === 'delivery' ? 'border-info'
         : 'border-success';
-    const orderLabel = `#${order.order_number || order.id}${order.status === 'cancelado' ? ' • Cancelado' : ''}`;
+    const orderLabel = `#${order.order_number || order.id}${order.status === 'cancelado' ? ' â€¢ Cancelado' : ''}`;
 
     return `
         <div class="card order-card ${type} ${canceledClass} border-start ${borderClass} shadow-sm" onclick="showOrderDetail(${order.id})">
@@ -557,12 +557,12 @@ function createOrderCard(order, type) {
                     <span class="fw-semibold">${orderLabel}</span>
                 </div>
                 <div class="d-flex align-items-center gap-2">
-                    <span class="text-muted small"><i class="far fa-clock me-1"></i>${timeString}</span>
+                    <span class="text-muted small"><i class="fa-regular fa-clock me-1"></i>${timeString}</span>
                     ${timerBadge}
                 </div>
             </div>
             <div class="card-body py-2">
-                <div class="mb-1"><i class="fas fa-user me-1"></i>${order.customer_name}</div>
+                <div class="mb-1"><i class="fa-solid fa-user me-1"></i>${order.customer_name}</div>
                 <div class="text-muted small">${itemsText}${moreItems}</div>
             </div>
             <div class="card-footer d-flex justify-content-between align-items-center py-2">
@@ -594,7 +594,7 @@ async function updateOrderStatus(orderId, newStatus) {
         if (response.ok) {
             const data = await response.json();
             if (data.success) {
-                // Não tocar som ao apenas mudar de fase
+                // NÃ£o tocar som ao apenas mudar de fase
                 await loadOrders({ suppressSound: true });
             } else {
                 showError(data.message || 'Erro ao atualizar status');
@@ -605,7 +605,7 @@ async function updateOrderStatus(orderId, newStatus) {
         
     } catch (error) {
         console.error('Erro ao atualizar status:', error);
-        showError('Erro de conexão. Tente novamente.');
+        showError('Erro de conexÃ£o. Tente novamente.');
     } finally {
         hideLoading();
     }
@@ -643,7 +643,7 @@ async function confirmCancelOrder() {
         });
         const data = await response.json();
         if (response.ok && data && (data.success || data.data)) {
-            // Cancelamento também não deve disparar som adicional
+            // Cancelamento tambÃ©m nÃ£o deve disparar som adicional
             await loadOrders({ suppressSound: true });
             showSuccess('Pedido cancelado.');
             closeCancelOrderModal();
@@ -652,7 +652,7 @@ async function confirmCancelOrder() {
         }
     } catch (e) {
         console.error(e);
-        showError('Erro de conexão ao cancelar.');
+        showError('Erro de conexÃ£o ao cancelar.');
     } finally {
         hideLoading();
     }
@@ -715,7 +715,7 @@ function generateNewOrderDetailHtml(order) {
                 <div class="flex items-center space-x-2">
                     <span class="font-semibold text-gray-600">PEDIDO:</span>
                     <span id="order-number" class="text-gray-800 font-bold">#${order.order_number || order.id || '-'}</span>
-                    <button onclick="copyToClipboard('#order-number', 'Número do pedido copiado!')" class="no-print text-gray-400 hover:text-blue-600 transition-colors" title="Copiar número do pedido">
+                    <button onclick="copyToClipboard('#order-number', 'NÃºmero do pedido copiado!')" class="no-print text-gray-400 hover:text-blue-600 transition-colors" title="Copiar nÃºmero do pedido">
                         <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="m22 13-2 2-2-2"></path><path d="M11 2H9a2 2 0 0 0-2 2v2"></path></svg>
                     </button>
                 </div>
@@ -747,14 +747,14 @@ function generateNewOrderDetailHtml(order) {
                     </div>
                     ${order.customer_address ? `
                     <div class="flex items-center justify-between">
-                        <p class="pr-4"><span class="font-semibold">ENDEREÇO:</span> <span id="address">${order.customer_address}</span></p>
+                        <p class="pr-4"><span class="font-semibold">ENDEREÃ‡O:</span> <span id="address">${order.customer_address}</span></p>
                         <button onclick="openMaps()" class="no-print text-gray-400 hover:text-red-600 transition-colors flex-shrink-0" title="Abrir no Mapa">
                             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-map-pin"><path d="M20 10c0 6-8 12-8 12s-8-6-8-12a8 8 0 0 1 16 0Z"></path><circle cx="12" cy="10" r="3"></circle></svg>
                         </button>
                     </div>
                     ` : ''}
                     ${order.customer_neighborhood ? `<p><span class="font-semibold">BAIRRO:</span> ${order.customer_neighborhood}</p>` : ''}
-                    ${order.customer_reference ? `<p><span class="font-semibold">REFERÊNCIA:</span> ${order.customer_reference}</p>` : ''}
+                    ${order.customer_reference ? `<p><span class="font-semibold">REFERÃŠNCIA:</span> ${order.customer_reference}</p>` : ''}
                 </div>
             </div>
 
@@ -767,7 +767,7 @@ function generateNewOrderDetailHtml(order) {
                         <div>
                             <p class="font-semibold text-gray-800">${item.quantity}x ${item.product_name}</p>
                             ${item.notes ? `<p class="text-sm text-gray-500">${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).join(', ').toUpperCase()}</p>` : ''}
-                            <p class="text-sm text-gray-500">Unitário: ${formatCurrency(item.product_price || 0)}</p>
+                            <p class="text-sm text-gray-500">UnitÃ¡rio: ${formatCurrency(item.product_price || 0)}</p>
                         </div>
                         <p class="font-semibold text-gray-800">${formatCurrency(typeof item.subtotal === 'number' ? item.subtotal : (item.product_price || 0) * (item.quantity || 0))}</p>
                     </div>
@@ -828,11 +828,11 @@ function generateNewOrderDetailHtml(order) {
 function editOrder(orderId) {
     const order = appState.orders.find(o => o.id === orderId);
     if (!order) {
-        showError('Pedido não encontrado');
+        showError('Pedido nÃ£o encontrado');
         return;
     }
     
-    // Abre o POS em nova aba com parâmetros de edição
+    // Abre o POS em nova aba com parÃ¢metros de ediÃ§Ã£o
     const posUrl = `../pos.html?pos=1&edit=${orderId}&orderNumber=${order.order_number || order.id}`;
     window.open(posUrl, '_blank');
 }
@@ -871,9 +871,9 @@ function generateCustomerReceiptHtml(order) {
       <div class="order-details" style="margin-top:6px;">
         <p><strong>CLIENTE:</strong> ${order.customer_name || '-'}</p>
         <p><strong>TELEFONE:</strong> ${order.customer_phone || '-'}</p>
-        ${order.customer_address ? `<p><strong>ENDEREÇO:</strong> ${order.customer_address}</p>` : ''}
+        ${order.customer_address ? `<p><strong>ENDEREÃ‡O:</strong> ${order.customer_address}</p>` : ''}
         ${order.customer_neighborhood ? `<p><strong>BAIRRO:</strong> ${order.customer_neighborhood}</p>` : ''}
-        ${order.customer_reference ? `<p><strong>REFERÊNCIA:</strong> ${order.customer_reference}</p>` : ''}
+        ${order.customer_reference ? `<p><strong>REFERÃŠNCIA:</strong> ${order.customer_reference}</p>` : ''}
       </div>
       <div class="separator"></div>
       ${order.items.map(item => `
@@ -885,7 +885,7 @@ function generateCustomerReceiptHtml(order) {
             </ul>
           ` : ''}
           <ul class="item-details" style="margin-top:4px;">
-            <li><strong>Unitário:</strong> ${formatCurrency(item.product_price || 0)}</li>
+            <li><strong>UnitÃ¡rio:</strong> ${formatCurrency(item.product_price || 0)}</li>
             <li><strong>Subtotal:</strong> ${formatCurrency(typeof item.subtotal === 'number' ? item.subtotal : (item.product_price || 0) * (item.quantity || 0))}</li>
           </ul>
         </div>
@@ -905,7 +905,7 @@ function generateCustomerReceiptHtml(order) {
       </div>
       ${order.notes ? `
         <div class="obs-section">
-          <h2>*** OBSERVAÇÕES ***</h2>
+          <h2>*** OBSERVAÃ‡Ã•ES ***</h2>
           <ul>
             ${order.notes.split(/\n|;|\r/).map(s => s.trim()).filter(s => s).map(s => `<li>- ${s.toUpperCase()}</li>`).join('')}
           </ul>
@@ -915,7 +915,7 @@ function generateCustomerReceiptHtml(order) {
     </div>`;
 }
 
-// Gera HTML da comanda de cozinha (detalhe com fontes grandes e legíveis)
+// Gera HTML da comanda de cozinha (detalhe com fontes grandes e legÃ­veis)
 function generateKitchenTicketHtml(order) {
     const createdAt = new Date(order.created_at).toLocaleString('pt-BR', { hour: '2-digit', minute: '2-digit' });
     const logoUrl = (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.LOGO_URL) ? window.CONFIG.PRINT.LOGO_URL : '';
@@ -936,14 +936,14 @@ function generateKitchenTicketHtml(order) {
           <h2>${item.quantity}x ${item.product_name}</h2>
           ${item.notes ? `
             <ul class="item-details">
-              ${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).map(s => `<li><strong>•</strong> ${s.toUpperCase()}</li>`).join('')}
+              ${item.notes.split(/\n|;|,|\r/).map(s => s.trim()).filter(s => s).map(s => `<li><strong>â€¢</strong> ${s.toUpperCase()}</li>`).join('')}
             </ul>
           ` : ''}
         </div>
       `).join('')}
       ${order.notes ? `
         <div class="obs-section">
-          <h2>*** OBSERVAÇÕES ***</h2>
+          <h2>*** OBSERVAÃ‡Ã•ES ***</h2>
           <ul>
             ${order.notes.split(/\n|;|\r/).map(s => s.trim()).filter(s => s).map(s => `<li>- ${s.toUpperCase()}</li>`).join('')}
           </ul>
@@ -963,7 +963,7 @@ function closeOrderDetailModal() {
 }
 
 /**
- * Mostra modal de impressão
+ * Mostra modal de impressÃ£o
  */
 function showPrintModal(orderId) {
     appState.currentOrderId = orderId;
@@ -972,7 +972,7 @@ function showPrintModal(orderId) {
 }
 
 /**
- * Fecha modal de impressão
+ * Fecha modal de impressÃ£o
  */
 function closePrintModal() {
     const modal = document.getElementById('printModal');
@@ -991,7 +991,7 @@ function printKitchenOrder() {
     closePrintModal();
 }
 
-// Atalho para acionar impressão da cozinha a partir do card (sem abrir modal)
+// Atalho para acionar impressÃ£o da cozinha a partir do card (sem abrir modal)
 function printKitchenOrderFrom(orderId) {
     appState.currentOrderId = orderId;
     printKitchenOrder();
@@ -1018,7 +1018,7 @@ function printDocument(content) {
         <!DOCTYPE html>
         <html>
         <head>
-            <title>Impressão - ${ (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'Cardápio Digital' }</title>
+            <title>ImpressÃ£o - ${ (window.CONFIG && window.CONFIG.PRINT && window.CONFIG.PRINT.BUSINESS_NAME) ? window.CONFIG.PRINT.BUSINESS_NAME : 'CardÃ¡pio Digital' }</title>
             <meta charset="utf-8" />
             <meta name="viewport" content="width=device-width, initial-scale=1" />
             <link href="https://fonts.googleapis.com/css2?family=Inconsolata:wght@400;700&display=swap" rel="stylesheet">
@@ -1094,7 +1094,7 @@ function updateOrderTimers() {
     });
 }
 
-// Função renderProductsGrid antiga removida - agora usa a versão do acordeão
+// FunÃ§Ã£o renderProductsGrid antiga removida - agora usa a versÃ£o do acordeÃ£o
 
 /**
  * Renderiza grade de categorias
@@ -1102,9 +1102,9 @@ function updateOrderTimers() {
 function renderCategoriesGrid() {
     const categoriesGrid = document.getElementById('categoriesGrid');
     
-    // Verificar se o elemento existe (pode não existir em todas as páginas)
+    // Verificar se o elemento existe (pode nÃ£o existir em todas as pÃ¡ginas)
     if (!categoriesGrid) {
-        console.log('ℹ️ Elemento categoriesGrid não encontrado - não renderizando grid');
+        console.log('â„¹ï¸ Elemento categoriesGrid nÃ£o encontrado - nÃ£o renderizando grid');
         return;
     }
     
@@ -1117,14 +1117,14 @@ function renderCategoriesGrid() {
         <div class="category-card">
             <div class="category-info">
                 <h3>${category.name}</h3>
-                <p>${category.description || 'Sem descrição'}</p>
+                <p>${category.description || 'Sem descriÃ§Ã£o'}</p>
             </div>
         </div>
     `).join('');
 }
 
 /**
- * Atualiza dashboard com estatísticas
+ * Atualiza dashboard com estatÃ­sticas
  */
 function updateDashboard() {
     const _now = new Date();
@@ -1154,7 +1154,7 @@ function updateDashboard() {
 }
 
 /**
- * Configura event listener do login (chamado na inicialização)
+ * Configura event listener do login (chamado na inicializaÃ§Ã£o)
  */
 function setupLoginEventListener() {
     const loginForm = document.getElementById('loginForm');
@@ -1162,12 +1162,12 @@ function setupLoginEventListener() {
         loginForm.addEventListener('submit', login);
         console.log('Event listener do login configurado');
     } else {
-        console.error('Formulário de login não encontrado');
+        console.error('FormulÃ¡rio de login nÃ£o encontrado');
     }
 }
 
 /**
- * Configura event listeners (chamado após login)
+ * Configura event listeners (chamado apÃ³s login)
  */
 function setupEventListeners() {
     // Keyboard shortcuts
@@ -1188,7 +1188,7 @@ function setupEventListeners() {
         const channel = new BroadcastChannel('pos-orders');
         channel.onmessage = function(event) {
             if (event.data && event.data.type === 'posOrderUpdated') {
-                // Atualiza a lista de pedidos quando um pedido é editado
+                // Atualiza a lista de pedidos quando um pedido Ã© editado
                 loadOrders({ suppressSound: true });
                 showSuccess(`Pedido #${event.data.payload.orderNumber} atualizado com sucesso!`);
             }
@@ -1196,16 +1196,16 @@ function setupEventListeners() {
     } catch (_) { /* noop */ }
 }
 
-// Render inicial do botão de pausa após DOM pronto
+// Render inicial do botÃ£o de pausa apÃ³s DOM pronto
 document.addEventListener('DOMContentLoaded', () => {
     try { renderPauseButtonState(); } catch (_) {}
 });
 
 /**
- * Mostra seção específica
+ * Mostra seÃ§Ã£o especÃ­fica
  */
 function showSection(sectionName) {
-    // Remove active de todas as seções
+    // Remove active de todas as seÃ§Ãµes
     document.querySelectorAll('.admin-section').forEach(section => {
         section.classList.remove('active');
     });
@@ -1214,49 +1214,49 @@ function showSection(sectionName) {
         item.classList.remove('active');
     });
     
-    // Ativa seção selecionada
+    // Ativa seÃ§Ã£o selecionada
     const sectionId = sectionName === 'pizza' ? 'pizzaSection' : sectionName + 'Section';
     document.getElementById(sectionId).classList.add('active');
     document.querySelector(`[onclick="showSection('${sectionName}')"]`).classList.add('active');
     
     appState.currentSection = sectionName;
     
-    // Carrega dados específicos da seção
+    // Carrega dados especÃ­ficos da seÃ§Ã£o
     if (sectionName === 'products') {
-        // Inicializar a nova seção de produtos com interface do testes/index.php
+        // Inicializar a nova seÃ§Ã£o de produtos com interface do testes/index.php
         initProductsSection();
     } else if (sectionName === 'pizza') {
         loadPizzaAdminData();
     } else if (sectionName === 'produtos-categorias') {
-        // A seção de produtos e categorias é apenas informativa
-        // A funcionalidade completa está na página separada
-        console.log('Seção de Produtos & Categorias ativada');
+        // A seÃ§Ã£o de produtos e categorias Ã© apenas informativa
+        // A funcionalidade completa estÃ¡ na pÃ¡gina separada
+        console.log('SeÃ§Ã£o de Produtos & Categorias ativada');
     }
 }
 
 /**
- * Inicializa a seção de produtos garantindo que os dados estejam carregados
+ * Inicializa a seÃ§Ã£o de produtos garantindo que os dados estejam carregados
  */
 async function initProductsSection() {
     try {
         const ready = await waitForAppStateData(10, 300);
 
         if (!ready && (appState.categories.length === 0 || appState.products.length === 0)) {
-            console.warn('Dados de produtos/categorias não carregados; tentando forçar carregamento...');
+            console.warn('Dados de produtos/categorias nÃ£o carregados; tentando forÃ§ar carregamento...');
             await Promise.all([loadProducts(), loadCategories()]);
         }
 
         if (typeof initProdutosAdmin === 'function') {
             await initProdutosAdmin();
         } else {
-            console.error('Função initProdutosAdmin não encontrada');
+            console.error('FunÃ§Ã£o initProdutosAdmin nÃ£o encontrada');
         }
     } catch (error) {
-        console.error('Erro ao inicializar seção de produtos:', error);
+        console.error('Erro ao inicializar seÃ§Ã£o de produtos:', error);
     }
 }
 
-// Aguarda dados de categorias e produtos ficarem disponíveis em appState
+// Aguarda dados de categorias e produtos ficarem disponÃ­veis em appState
 async function waitForAppStateData(maxAttempts = 10, delayMs = 300) {
     for (let i = 0; i < maxAttempts; i++) {
         const categoriesReady = Array.isArray(appState.categories) && appState.categories.length > 0;
@@ -1265,7 +1265,7 @@ async function waitForAppStateData(maxAttempts = 10, delayMs = 300) {
             return true;
         }
 
-        // Na primeira iteração, dispara carregamento em paralelo
+        // Na primeira iteraÃ§Ã£o, dispara carregamento em paralelo
         if (i === 0) {
             try {
                 await Promise.allSettled([loadCategories(), loadProducts()]);
@@ -1280,7 +1280,7 @@ async function waitForAppStateData(maxAttempts = 10, delayMs = 300) {
 }
 
 /**
- * Atualiza informações do usuário
+ * Atualiza informaÃ§Ãµes do usuÃ¡rio
  */
 function updateUserInfo() {
     if (appState.user) {
@@ -1289,7 +1289,7 @@ function updateUserInfo() {
 }
 
 /**
- * Inicia atualização automática
+ * Inicia atualizaÃ§Ã£o automÃ¡tica
  */
 function startAutoRefresh() {
     if (appState.refreshInterval) {
@@ -1297,13 +1297,13 @@ function startAutoRefresh() {
     }
     
     appState.refreshInterval = setInterval(() => {
-        // Sempre verifica pedidos para tocar som em qualquer seção
+        // Sempre verifica pedidos para tocar som em qualquer seÃ§Ã£o
         loadOrders();
     }, CONFIG.REFRESH_INTERVAL);
 }
 
 /**
- * Para atualização automática
+ * Para atualizaÃ§Ã£o automÃ¡tica
  */
 function stopAutoRefresh() {
     if (appState.refreshInterval) {
@@ -1321,7 +1321,7 @@ async function refreshOrders() {
 }
 
 /**
- * Toca som de notificação
+ * Toca som de notificaÃ§Ã£o
  */
 function playNotificationSound() {
     const audio = document.getElementById('notificationSound');
@@ -1341,14 +1341,14 @@ function startOrderSoundLoop() {
     const audio = document.getElementById('notificationSound');
     
     if (audio) {
-        // Configura o áudio para loop
+        // Configura o Ã¡udio para loop
         audio.loop = false; // Vamos controlar o loop manualmente
         audio.volume = 0.7; // Volume moderado
         
-        // Função para tocar o som
+        // FunÃ§Ã£o para tocar o som
         const playSound = () => {
             if (appState.hasNewOrders) {
-                audio.currentTime = 0; // Reinicia o áudio
+                audio.currentTime = 0; // Reinicia o Ã¡udio
                 audio.play().catch(e => console.log('Erro ao tocar som de pedido:', e));
             }
         };
@@ -1368,10 +1368,10 @@ function stopOrderSoundLoop() {
     if (appState.orderSoundInterval) {
         clearInterval(appState.orderSoundInterval);
         appState.orderSoundInterval = null;
-        console.log('🔇 Som de pedidos parado');
+        console.log('ðŸ”‡ Som de pedidos parado');
     }
     
-    // Para o áudio atual se estiver tocando
+    // Para o Ã¡udio atual se estiver tocando
     const audio = document.getElementById('notificationSound');
     if (audio) {
         audio.pause();
@@ -1399,7 +1399,7 @@ function hideLoading() {
 }
 
 /**
- * Funções utilitárias
+ * FunÃ§Ãµes utilitÃ¡rias
  */
 function formatCurrency(value) {
     return new Intl.NumberFormat('pt-BR', {
@@ -1412,7 +1412,7 @@ function getStatusText(status) {
     const statusMap = {
         'novo': 'Novo',
         'aceito': 'Aceito',
-        'producao': 'Em Produção',
+        'producao': 'Em ProduÃ§Ã£o',
         'entrega': 'Em Entrega',
         'finalizado': 'Finalizado',
         'cancelado': 'Cancelado'
@@ -1423,7 +1423,7 @@ function getStatusText(status) {
 function getPaymentMethodText(method) {
     const methodMap = {
         'dinheiro': 'Dinheiro',
-        'cartao': 'Cartão',
+        'cartao': 'CartÃ£o',
         'pix': 'PIX'
     };
     return methodMap[method] || method;
@@ -1437,7 +1437,7 @@ function showSuccess(message) {
     alert('Sucesso: ' + message);
 }
 
-// Expõe funções globais necessárias
+// ExpÃµe funÃ§Ãµes globais necessÃ¡rias
 window.showSection = showSection;
 window.logout = logout;
 window.refreshOrders = refreshOrders;
@@ -1449,7 +1449,7 @@ window.closeCancelOrderModal = closeCancelOrderModal;
 window.confirmCancelOrder = confirmCancelOrder;
 
 // ========================================
-// FUNÇÕES DE GERENCIAMENTO DE PRODUTOS
+// FUNÃ‡Ã•ES DE GERENCIAMENTO DE PRODUTOS
 // ========================================
 
 // Listener para mensagens vindas do iframe do POS (frontend)
@@ -1459,10 +1459,10 @@ window.addEventListener('message', (event) => {
         if (data && data.type === 'posOrderCreated') {
             // Fecha modal e atualiza quadro de pedidos
             closeNewOrderModal();
-            // Evita tocar som para o próprio pedido recém-criado
+            // Evita tocar som para o prÃ³prio pedido recÃ©m-criado
             appState.suppressOrderSoundOnce = true;
             refreshOrders();
-            showSuccess('Pedido criado no balcão com sucesso!');
+            showSuccess('Pedido criado no balcÃ£o com sucesso!');
         }
     } catch (_) { /* noop */ }
 });
@@ -1491,7 +1491,7 @@ async function openNewOrderModal(mode = 'local') {
     newOrderState = { mode, items: [] };
     const modal = document.getElementById('newOrderModal');
     if (!modal) {
-        showError('Modal de novo pedido não carregado.');
+        showError('Modal de novo pedido nÃ£o carregado.');
         return;
     }
 
@@ -1502,7 +1502,7 @@ async function openNewOrderModal(mode = 'local') {
         posUrl.searchParams.set('mode', String(mode || 'local'));
         const win = window.open(posUrl.href, 'pos_window');
         if (win && !win.closed) {
-            // Assinar canal para receber confirmação do pedido criado
+            // Assinar canal para receber confirmaÃ§Ã£o do pedido criado
             try {
                 if (window.__posChannel) {
                     try { window.__posChannel.close(); } catch (_) {}
@@ -1513,12 +1513,12 @@ async function openNewOrderModal(mode = 'local') {
                     if (data && data.type === 'posOrderCreated') {
                         appState.suppressOrderSoundOnce = true;
                         refreshOrders();
-                        showSuccess('Pedido criado no balcão com sucesso!');
+                        showSuccess('Pedido criado no balcÃ£o com sucesso!');
                     }
                 };
                 window.__posChannel = ch;
-            } catch (_) { /* BroadcastChannel indisponível, seguirá fallback via postMessage */ }
-            return; // Não abre o modal/iframe quando conseguiu abrir nova aba
+            } catch (_) { /* BroadcastChannel indisponÃ­vel, seguirÃ¡ fallback via postMessage */ }
+            return; // NÃ£o abre o modal/iframe quando conseguiu abrir nova aba
         }
     } catch (_) { /* continua para fallback */ }
 
@@ -1527,7 +1527,7 @@ async function openNewOrderModal(mode = 'local') {
     if (posIframe) {
         try {
             // Monta URL absoluta do frontend (mais robusto que caminho relativo)
-            // Preferir página POS dedicada para contexto de balcão
+            // Preferir pÃ¡gina POS dedicada para contexto de balcÃ£o
             const indexUrl = new URL('../pos.html', window.location.href);
             indexUrl.searchParams.set('pos', '1');
             indexUrl.searchParams.set('mode', String(mode || 'local'));
@@ -1563,7 +1563,7 @@ async function openNewOrderModal(mode = 'local') {
     if (totalEl) totalEl.textContent = 'Total: R$ 0,00';
     if (deliveryFee) deliveryFee.value = mode === 'delivery' ? '0.00' : '0.00';
 
-    // Popular vitrine amigável
+    // Popular vitrine amigÃ¡vel
     if (productsContainer) {
         newOrderState.search = '';
         if (searchInput) searchInput.value = '';
@@ -1641,7 +1641,7 @@ function renderNewOrderItems() {
     const itemsList = document.getElementById('newOrderItemsList');
     if (!itemsList) return;
     if (!newOrderState.items.length) {
-        itemsList.innerHTML = '<div class="empty-state"><i class="fas fa-box-open"></i><p>Nenhum item adicionado</p></div>';
+        itemsList.innerHTML = '<div class="empty-state"><i class="fa-solid fa-box-open"></i><p>Nenhum item adicionado</p></div>';
         recalcNewOrderTotal();
         return;
     }
@@ -1649,9 +1649,9 @@ function renderNewOrderItems() {
         <div class="list-row" style="font-weight:600; background:#f8f9fa;">
             <div class="list-col">Produto</div>
             <div class="list-col">Qtd</div>
-            <div class="list-col">Unitário</div>
+            <div class="list-col">UnitÃ¡rio</div>
             <div class="list-col">Subtotal</div>
-            <div class="list-col">Ações</div>
+            <div class="list-col">AÃ§Ãµes</div>
         </div>
     ` + newOrderState.items.map((it, idx) => {
         const subtotal = (Number(it.product_price || 0) * Number(it.quantity || 1));
@@ -1665,15 +1665,15 @@ function renderNewOrderItems() {
                 </div>
                 <div class="list-col">
                     <div class="qty-control">
-                        <button type="button" class="action-btn" onclick="decrementItemQty(${idx})"><i class="fas fa-minus"></i></button>
+                        <button type="button" class="action-btn" onclick="decrementItemQty(${idx})"><i class="fa-solid fa-minus"></i></button>
                         <input type="number" min="1" value="${Number(it.quantity || 1)}" onchange="changeItemQty(${idx}, this.value)" style="width:64px; text-align:center;" />
-                        <button type="button" class="action-btn" onclick="incrementItemQty(${idx})"><i class="fas fa-plus"></i></button>
+                        <button type="button" class="action-btn" onclick="incrementItemQty(${idx})"><i class="fa-solid fa-plus"></i></button>
                     </div>
                 </div>
                 <div class="list-col"><span class="price-display">${formatCurrency(Number(it.product_price || 0))}</span></div>
                 <div class="list-col"><span class="price-display">${formatCurrency(subtotal)}</span></div>
                 <div class="list-col list-actions">
-                    <button class="action-btn delete" title="Remover" onclick="removeItemFromNewOrder(${idx})"><i class="fas fa-trash"></i></button>
+                    <button class="action-btn delete" title="Remover" onclick="removeItemFromNewOrder(${idx})"><i class="fa-solid fa-trash"></i></button>
                 </div>
             </div>`;
     }).join('');
@@ -1694,7 +1694,7 @@ function renderNewOrderProducts() {
     if (!container) return;
     const products = newOrderState.filteredProducts || [];
     if (!products.length) {
-        container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fas fa-search"></i><p>Nenhum produto encontrado</p></div>';
+        container.innerHTML = '<div class="empty-state" style="grid-column:1/-1;"><i class="fa-solid fa-magnifying-glass"></i><p>Nenhum produto encontrado</p></div>';
         return;
     }
     // Agrupa por categoria
@@ -1708,7 +1708,7 @@ function renderNewOrderProducts() {
         <div class="accordion-item">
             <h2 class="accordion-header">
                 <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#newOrder-cat-${cat.replace(/\s+/g,'-')}">
-                    <div class="category-title"><i class="fas fa-tag"></i><span>${cat}</span><span class="category-count">${prods.length} itens</span></div>
+                    <div class="category-title"><i class="fa-solid fa-tag"></i><span>${cat}</span><span class="category-count">${prods.length} itens</span></div>
                 </button>
             </h2>
             <div id="newOrder-cat-${cat.replace(/\s+/g,'-')}" class="accordion-collapse collapse">
@@ -1722,7 +1722,7 @@ function renderNewOrderProducts() {
                                         <div class="product-price">${formatCurrency(Number(p.price || 0))}</div>
                                     </div>
                                     <div class="product-actions">
-                                        <button class="product-btn edit" title="Adicionar" onclick="addItemToNewOrder(${p.id})"><i class="fas fa-plus"></i></button>
+                                        <button class="product-btn edit" title="Adicionar" onclick="addItemToNewOrder(${p.id})"><i class="fa-solid fa-plus"></i></button>
                                     </div>
                                 </div>
                             </div>
@@ -1763,7 +1763,7 @@ function decrementItemQty(index) {
 }
 
 // =============================
-// PIZZA BUILDER - ADMIN BALCÃO
+// PIZZA BUILDER - ADMIN BALCÃƒO
 // =============================
 
 function showNewOrderTab(which) {
@@ -1830,7 +1830,7 @@ function renderPizzaBuilder(filterFlavorCategory = '') {
               <span class="checkmark"></span>
               <div class="size-info">
                 <strong>${s.name}</strong>
-                <small>${s.slices} fatias • até ${s.max_flavors} sabores</small>
+                <small>${s.slices} fatias â€¢ atÃ© ${s.max_flavors} sabores</small>
                 <span class="price">${formatCurrency(Number(s.price||0))}</span>
               </div>
             </label>
@@ -1896,7 +1896,7 @@ function pbToggleFlavor(flavorId) {
         newOrderState.pizza.flavorIds.splice(idx, 1);
     } else {
         if (newOrderState.pizza.sizeMaxFlavors && newOrderState.pizza.flavorIds.length >= newOrderState.pizza.sizeMaxFlavors) {
-            showError(`Este tamanho permite no máximo ${newOrderState.pizza.sizeMaxFlavors} sabores.`);
+            showError(`Este tamanho permite no mÃ¡ximo ${newOrderState.pizza.sizeMaxFlavors} sabores.`);
             return;
         }
         newOrderState.pizza.flavorIds.push(flavorId);
@@ -1924,7 +1924,7 @@ async function updatePizzaBuilderPrice() {
     const pz = newOrderState.pizza;
     const summaryEl = document.getElementById('pbSummary');
     if (!pz.sizeId || !pz.flavorIds.length) {
-        if (summaryEl) summaryEl.textContent = 'Selecione tamanho e sabores para calcular o preço.';
+        if (summaryEl) summaryEl.textContent = 'Selecione tamanho e sabores para calcular o preÃ§o.';
         return;
     }
     try {
@@ -1952,7 +1952,7 @@ async function updatePizzaBuilderPrice() {
             if (summaryEl) summaryEl.textContent = data?.message || 'Erro ao calcular';
         }
     } catch (e) {
-        if (summaryEl) summaryEl.textContent = 'Erro ao calcular o preço.';
+        if (summaryEl) summaryEl.textContent = 'Erro ao calcular o preÃ§o.';
     }
 }
 
@@ -1962,7 +1962,7 @@ function addBuiltPizzaToOrder() {
         showError('Selecione tamanho e sabores para adicionar.');
         return;
     }
-    // Adiciona como item único com nome/price calculado
+    // Adiciona como item Ãºnico com nome/price calculado
     newOrderState.items.push({
         product_id: 0,
         product_name: pz.lastName || 'Pizza',
@@ -1987,7 +1987,7 @@ async function submitNewOrder() {
             return;
         }
 
-        // Campos do formulário
+        // Campos do formulÃ¡rio
         const mode = newOrderState.mode;
         const customerName = (document.getElementById('customerName')?.value || '').trim();
         const customerPhone = (document.getElementById('customerPhone')?.value || '').trim();
@@ -2000,10 +2000,10 @@ async function submitNewOrder() {
         const paymentValue = paymentMethod === 'dinheiro' && paymentValueRaw ? Number(paymentValueRaw) : null;
         const notes = (document.getElementById('orderNotes')?.value || '').trim();
 
-        // Validações mínimas
+        // ValidaÃ§Ãµes mÃ­nimas
         if (mode === 'delivery') {
             if (!customerName || !customerPhone || !customerAddress) {
-                showError('Para delivery, preencha Nome, Telefone e Endereço.');
+                showError('Para delivery, preencha Nome, Telefone e EndereÃ§o.');
                 return;
             }
         }
@@ -2119,12 +2119,12 @@ let productsState = {
 };
 
 /**
- * Carrega produtos para a seção de gerenciamento
+ * Carrega produtos para a seÃ§Ã£o de gerenciamento
  */
 async function loadProductsForManagement() {
     try {
         showLoading();
-        console.log('🔄 Carregando produtos...');
+        console.log('ðŸ”„ Carregando produtos...');
         
         const url = CONFIG.API_BASE_URL + 'products';
         console.log('URL:', url);
@@ -2141,8 +2141,8 @@ async function loadProductsForManagement() {
         
         if (data.success) {
             productsState.products = data.data;
-            console.log('✅ Produtos carregados para gerenciamento:', data.data.length);
-            console.log('📦 Primeiros produtos:', data.data.slice(0, 3));
+            console.log('âœ… Produtos carregados para gerenciamento:', data.data.length);
+            console.log('ðŸ“¦ Primeiros produtos:', data.data.slice(0, 3));
             await renderProductsGrid();
             populateCategoryFilter();
             updateFilterCount();
@@ -2150,7 +2150,7 @@ async function loadProductsForManagement() {
             throw new Error(data.message || 'Erro desconhecido');
         }
     } catch (error) {
-        console.error('❌ Erro ao carregar produtos:', error);
+        console.error('âŒ Erro ao carregar produtos:', error);
         showError('Erro ao carregar produtos: ' + error.message);
     } finally {
         hideLoading();
@@ -2161,53 +2161,53 @@ async function loadProductsForManagement() {
  * Renderiza a grade de produtos organizados por categoria
  */
 async function renderProductsGrid() {
-    console.log('🎨 [NOVO] Renderizando grade de produtos com acordeão...');
+    console.log('ðŸŽ¨ [NOVO] Renderizando grade de produtos com acordeÃ£o...');
     const grid = document.getElementById('produtos-accordion-container');
     if (!grid) {
-        console.error('❌ Elemento produtos-accordion-container não encontrado');
+        console.error('âŒ Elemento produtos-accordion-container nÃ£o encontrado');
         return;
     }
     
-    console.log('📊 Estado atual:', {
+    console.log('ðŸ“Š Estado atual:', {
         productsState: productsState.products?.length || 0,
         appState: appState.categories?.length || 0
     });
     
     const filteredProducts = filterProducts();
-    console.log('📦 Produtos filtrados:', filteredProducts.length);
+    console.log('ðŸ“¦ Produtos filtrados:', filteredProducts.length);
     
     if (!filteredProducts || filteredProducts.length === 0) {
-        console.warn('⚠️ Nenhum produto filtrado para exibir');
+        console.warn('âš ï¸ Nenhum produto filtrado para exibir');
     }
     
     if (filteredProducts.length === 0) {
         grid.innerHTML = `
             <div style="text-align: center; padding: 2rem; color: #666; grid-column: 1 / -1;">
-                <i class="fas fa-box-open" style="font-size: 3rem; margin-bottom: 1rem;"></i>
+                <i class="fa-solid fa-box-open" style="font-size: 3rem; margin-bottom: 1rem;"></i>
                 <h3>Nenhum produto encontrado</h3>
-                <p>Não há produtos que correspondam aos filtros selecionados.</p>
+                <p>NÃ£o hÃ¡ produtos que correspondam aos filtros selecionados.</p>
             </div>
         `;
         return;
     }
     
-    // Garantir que as categorias estão carregadas
+    // Garantir que as categorias estÃ£o carregadas
     if (!appState.categories || appState.categories.length === 0) {
-        console.warn('⚠️ Categorias não carregadas, tentando carregar...');
+        console.warn('âš ï¸ Categorias nÃ£o carregadas, tentando carregar...');
         await loadCategories();
     }
     
     // Agrupar produtos por categoria
     const productsByCategory = groupProductsByCategory(filteredProducts);
-    console.log('🗂️ Produtos por categoria:', productsByCategory);
+    console.log('ðŸ—‚ï¸ Produtos por categoria:', productsByCategory);
     
     if (Object.keys(productsByCategory).length === 0) {
-        console.warn('⚠️ Nenhuma categoria gerada');
+        console.warn('âš ï¸ Nenhuma categoria gerada');
         grid.innerHTML = '<div style="padding: 2rem; text-align: center;">Nenhum produto encontrado ou erro no agrupamento.</div>';
         return;
     }
     
-    // Renderizar produtos organizados por categoria (estilo acordeão Bootstrap)
+    // Renderizar produtos organizados por categoria (estilo acordeÃ£o Bootstrap)
     grid.innerHTML = `
         <div class="accordion" id="productsAccordion">
             ${Object.entries(productsByCategory).map(([categoryName, products]) => {
@@ -2219,7 +2219,7 @@ async function renderProductsGrid() {
                     <h2 class="accordion-header" id="heading-${slug}">
                         <div class="category-header-content">
                             <span class="category-drag-handle" title="Arraste para reordenar" onmousedown="startCategoryDrag(event, '${slug}')">
-                                <i class="fas fa-grip-vertical"></i>
+                                <i class="fa-solid fa-grip"></i>
                             </span>
                             <button class="accordion-button collapsed" 
                                     type="button" 
@@ -2229,7 +2229,7 @@ async function renderProductsGrid() {
                                     aria-controls="collapse-${slug}"
                                     data-bs-parent="#productsAccordion">
                                 <div class="category-title">
-                                    <i class="fas fa-tag"></i>
+                                    <i class="fa-solid fa-tag"></i>
                                     <span>${categoryName}</span>
                                     <span class="category-count">${products.length} ${products.length === 1 ? 'produto' : 'produtos'}</span>
                                 </div>
@@ -2237,10 +2237,10 @@ async function renderProductsGrid() {
                             ${cat ? `
                             <div class="category-header-actions" onclick="event.stopPropagation()">
                                 <button class="category-action-btn" title="Editar categoria" onclick="editCategoryFromHeader(${cat.id}, event)">
-                                    <i class="fas fa-edit"></i>
+                                    <i class="fa-solid fa-pen-to-square"></i>
                                 </button>
                                 <button class="category-action-btn" title="Excluir categoria" onclick="deleteCategory(${cat.id}); event.stopPropagation();">
-                                    <i class="fas fa-trash"></i>
+                                    <i class="fa-solid fa-trash"></i>
                                 </button>
                             </div>` : ''}
                         </div>
@@ -2263,7 +2263,7 @@ async function renderProductsGrid() {
     setTimeout(() => restoreCategoryStates(), 100);
 }
 
-// Drag and Drop no acordeão de categorias
+// Drag and Drop no acordeÃ£o de categorias
 function startCategoryDrag(e, catSlug) {
     e.stopPropagation();
     const section = document.getElementById(`category-${catSlug}`);
@@ -2369,7 +2369,7 @@ function groupProductsByCategory(products) {
         grouped[category].sort((a, b) => a.name.localeCompare(b.name));
     });
     
-    // Ordenar categorias alfabeticamente, mas manter "Sem categoria" por último
+    // Ordenar categorias alfabeticamente, mas manter "Sem categoria" por Ãºltimo
     const sortedGrouped = {};
     const sortedCategories = Object.keys(grouped).sort((a, b) => {
         if (a === 'Sem categoria') return 1;
@@ -2388,19 +2388,19 @@ function groupProductsByCategory(products) {
  * Cria o HTML de um card de produto
  */
 function createProductCard(product) {
-    // Verificar se deve exibir o preço:
-    // category_value é OPCIONAL - se definido (> 0), funciona como controle de exibição
-    // se não definido (0 ou null), exibe preço normalmente
+    // Verificar se deve exibir o preÃ§o:
+    // category_value Ã© OPCIONAL - se definido (> 0), funciona como controle de exibiÃ§Ã£o
+    // se nÃ£o definido (0 ou null), exibe preÃ§o normalmente
     const hasCategoryValue = product.category_value && parseFloat(product.category_value) > 0;
     const hasPrice = product.price && parseFloat(product.price) > 0;
-    const showPrice = hasPrice; // Sempre exibe se tiver preço (category_value é opcional)
+    const showPrice = hasPrice; // Sempre exibe se tiver preÃ§o (category_value Ã© opcional)
     
     return `
         <div class="product-card ${product.active ? '' : 'paused'}">
             <div class="product-image">
                 ${product.image_url ? 
-                    `<img src="${product.image_url}" alt="${product.name}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'><i class=\\'fas fa-image\\'></i></div>'">` :
-                    `<div class="no-image"><i class="fas fa-image"></i></div>`
+                    `<img src="${product.image_url}" alt="${product.name}" onerror="this.parentElement.innerHTML='<div class=\\'no-image\\'><i class=\\'fa-solid fa-image\\'></i></div>'">` :
+                    `<div class="no-image"><i class="fa-solid fa-image"></i></div>`
                 }
                 <div class="product-status ${product.active ? 'active' : 'paused'}">
                     ${product.active ? 'Ativo' : 'Pausado'}
@@ -2412,26 +2412,26 @@ function createProductCard(product) {
                     ${showPrice ? `<div class="product-price">${formatCurrency(product.price)}</div>` : ''}
                 </div>
                 <div class="product-category">
-                    <i class="fas fa-tag"></i> ${product.category_name || 'Sem categoria'}
+                    <i class="fa-solid fa-tag"></i> ${product.category_name || 'Sem categoria'}
                 </div>
                 ${product.description ? `<div class="product-description">${product.description}</div>` : ''}
                 
                 <div class="product-features">
                     ${product.is_vegetarian ? '<span class="feature-badge vegetarian">Vegetariano</span>' : ''}
                     ${product.is_vegan ? '<span class="feature-badge vegan">Vegano</span>' : ''}
-                    ${product.is_gluten_free ? '<span class="feature-badge gluten-free">Sem Glúten</span>' : ''}
+                    ${product.is_gluten_free ? '<span class="feature-badge gluten-free">Sem GlÃºten</span>' : ''}
                     ${product.is_spicy ? '<span class="feature-badge spicy">Picante</span>' : ''}
                 </div>
                 
                 <div class="product-actions">
                     <button class="product-btn edit" onclick="editProduct(${product.id})" title="Editar produto">
-                        <i class="fas fa-edit"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     <button class="product-btn toggle ${product.active ? 'active' : ''}" onclick="toggleProductStatus(${product.id})" title="${product.active ? 'Pausar' : 'Ativar'} produto">
-                        <i class="fas fa-${product.active ? 'pause' : 'play'}"></i>
+                        <i class="fa-solid fa-${product.active ? 'pause' : 'play'}"></i>
                     </button>
                     <button class="product-btn delete" onclick="deleteProduct(${product.id}, '${product.name}')" title="Excluir produto">
-                        <i class="fas fa-trash"></i>
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </div>
@@ -2443,7 +2443,7 @@ function createProductCard(product) {
  * Alterna entre expandir/colapsar categoria
  */
 function toggleCategory(categoryId) {
-    // Esta função não é mais necessária com o Bootstrap accordion
+    // Esta funÃ§Ã£o nÃ£o Ã© mais necessÃ¡ria com o Bootstrap accordion
     // O Bootstrap gerencia automaticamente o estado expandido/colapsado
     console.log('toggleCategory chamada para:', categoryId);
 }
@@ -2452,17 +2452,17 @@ function toggleCategory(categoryId) {
  * Restaura estado das categorias colapsadas
  */
 function restoreCategoryStates() {
-    // Esta função não é mais necessária com o Bootstrap accordion
+    // Esta funÃ§Ã£o nÃ£o Ã© mais necessÃ¡ria com o Bootstrap accordion
     // O Bootstrap gerencia automaticamente o estado expandido/colapsado
-    console.log('restoreCategoryStates: não é mais necessária com Bootstrap accordion');
+    console.log('restoreCategoryStates: nÃ£o Ã© mais necessÃ¡ria com Bootstrap accordion');
 }
 
 /**
  * Filtra produtos baseado nos filtros selecionados
  */
 function filterProducts() {
-    console.log('🔍 Filtrando produtos...');
-    console.log('Produtos disponíveis:', productsState.products.length);
+    console.log('ðŸ” Filtrando produtos...');
+    console.log('Produtos disponÃ­veis:', productsState.products.length);
     
     let filtered = productsState.products;
     
@@ -2471,7 +2471,7 @@ function filterProducts() {
     const statusFilter = document.getElementById('statusFilter')?.value || '';
     const priceFilter = document.getElementById('priceFilter')?.value || '';
     
-    console.log('Filtros - Busca:', searchFilter, 'Categoria:', categoryFilter, 'Status:', statusFilter, 'Preço:', priceFilter);
+    console.log('Filtros - Busca:', searchFilter, 'Categoria:', categoryFilter, 'Status:', statusFilter, 'PreÃ§o:', priceFilter);
     
     // Filtro por busca (nome)
     if (searchFilter) {
@@ -2479,22 +2479,22 @@ function filterProducts() {
             product.name.toLowerCase().includes(searchFilter) ||
             (product.description && product.description.toLowerCase().includes(searchFilter))
         );
-        console.log('Após filtro de busca:', filtered.length);
+        console.log('ApÃ³s filtro de busca:', filtered.length);
     }
     
     // Filtro por categoria
     if (categoryFilter) {
         filtered = filtered.filter(product => product.category_id == categoryFilter);
-        console.log('Após filtro de categoria:', filtered.length);
+        console.log('ApÃ³s filtro de categoria:', filtered.length);
     }
     
     // Filtro por status
     if (statusFilter !== '') {
         filtered = filtered.filter(product => product.active == statusFilter);
-        console.log('Após filtro de status:', filtered.length);
+        console.log('ApÃ³s filtro de status:', filtered.length);
     }
     
-    // Filtro por preço
+    // Filtro por preÃ§o
     if (priceFilter) {
         filtered = filtered.filter(product => {
             const price = parseFloat(product.price);
@@ -2511,7 +2511,7 @@ function filterProducts() {
                     return true;
             }
         });
-        console.log('Após filtro de preço:', filtered.length);
+        console.log('ApÃ³s filtro de preÃ§o:', filtered.length);
     }
     
     console.log('Produtos filtrados finais:', filtered.length);
@@ -2522,27 +2522,27 @@ function filterProducts() {
  * Popula o filtro de categorias
  */
 function populateCategoryFilter() {
-    console.log('🏷️ Populando filtro de categorias...');
+    console.log('ðŸ·ï¸ Populando filtro de categorias...');
     const select = document.getElementById('categoryFilter');
     if (!select) {
-        console.error('❌ Elemento categoryFilter não encontrado');
+        console.error('âŒ Elemento categoryFilter nÃ£o encontrado');
         return;
     }
     
     const categories = productsState.categories;
-    console.log('Categorias disponíveis:', categories.length);
+    console.log('Categorias disponÃ­veis:', categories.length);
     
     select.innerHTML = '<option value="">Todas as categorias</option>' +
         categories.map(cat => `<option value="${cat.id}">${cat.name}</option>`).join('');
     
-    console.log('✅ Filtro de categorias populado');
+    console.log('âœ… Filtro de categorias populado');
 }
 
 /**
  * Aplica filtros aos produtos
  */
 function applyFilters() {
-    console.log('🔍 Aplicando filtros...');
+    console.log('ðŸ” Aplicando filtros...');
     renderProductsGrid();
     updateFilterCount();
 }
@@ -2581,16 +2581,16 @@ function updateFilterCount() {
 async function showAddProductModal() {
     // Verificar se productsState existe
     if (typeof productsState === 'undefined') {
-        showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
+        showError('Erro: Estado dos produtos nÃ£o inicializado. Tente novamente.');
         return;
     }
     
     productsState.editingProduct = null;
-    document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-plus"></i> Novo Produto';
+    document.getElementById('productModalTitle').innerHTML = '<i class="fa-solid fa-plus"></i> Novo Produto';
     document.getElementById('productForm').reset();
     document.getElementById('productActive').checked = true;
     
-    // Limpar pré-visualização da imagem
+    // Limpar prÃ©-visualizaÃ§Ã£o da imagem
     const imagePreview = document.getElementById('imagePreview');
     const preview = document.getElementById('preview');
     if (imagePreview && preview) {
@@ -2598,7 +2598,7 @@ async function showAddProductModal() {
         preview.src = '#';
     }
     
-    // Limpa checkboxes de características
+    // Limpa checkboxes de caracterÃ­sticas
     document.getElementById('productVegetarian').checked = false;
     document.getElementById('productVegan').checked = false;
     document.getElementById('productGlutenFree').checked = false;
@@ -2643,22 +2643,22 @@ function toggleProductTypeFields() {
     
     // Verificar se todos os elementos existem
     if (!productType || !priceGroup || !pizzaInfoGroup || !pizzaConfigSection || !priceInput) {
-        console.warn('Elementos do formulário de produto não encontrados');
+        console.warn('Elementos do formulÃ¡rio de produto nÃ£o encontrados');
         return;
     }
     
     if (productType.value === 'pizza') {
-        // Para pizzas, oculta o campo de preço e mostra configurações
+        // Para pizzas, oculta o campo de preÃ§o e mostra configuraÃ§Ãµes
         priceGroup.style.display = 'none';
         pizzaInfoGroup.style.display = 'block';
         pizzaConfigSection.style.display = 'block';
         priceInput.required = false;
         priceInput.value = '0.00';
         
-        // Carregar configurações disponíveis
+        // Carregar configuraÃ§Ãµes disponÃ­veis
         loadPizzaConfigurationsForProduct();
     } else {
-        // Para produtos comuns, mostra o campo de preço e oculta configurações de pizza
+        // Para produtos comuns, mostra o campo de preÃ§o e oculta configuraÃ§Ãµes de pizza
         priceGroup.style.display = 'block';
         pizzaInfoGroup.style.display = 'none';
         pizzaConfigSection.style.display = 'none';
@@ -2670,7 +2670,7 @@ function toggleProductTypeFields() {
 }
 
 /**
- * Carrega todas as configurações de pizza disponíveis
+ * Carrega todas as configuraÃ§Ãµes de pizza disponÃ­veis
  */
 async function loadPizzaConfigurationsForProduct() {
     await Promise.all([
@@ -2682,7 +2682,7 @@ async function loadPizzaConfigurationsForProduct() {
 }
 
 /**
- * Carrega tamanhos de pizza disponíveis para seleção
+ * Carrega tamanhos de pizza disponÃ­veis para seleÃ§Ã£o
  */
 async function loadPizzaSizesForProduct() {
     try {
@@ -2720,7 +2720,7 @@ async function loadPizzaSizesForProduct() {
 }
 
 /**
- * Carrega sabores de pizza disponíveis
+ * Carrega sabores de pizza disponÃ­veis
  */
 async function loadPizzaFlavorsForProduct() {
     try {
@@ -2760,7 +2760,7 @@ async function loadPizzaFlavorsForProduct() {
 }
 
 /**
- * Carrega bordas de pizza disponíveis
+ * Carrega bordas de pizza disponÃ­veis
  */
 async function loadPizzaBordersForProduct() {
     try {
@@ -2796,7 +2796,7 @@ async function loadPizzaBordersForProduct() {
 }
 
 /**
- * Carrega adicionais de pizza disponíveis
+ * Carrega adicionais de pizza disponÃ­veis
  */
 async function loadPizzaExtrasForProduct() {
     try {
@@ -2895,7 +2895,7 @@ async function editProduct(productId) {
     try {
         // Verificar se productsState existe
         if (typeof productsState === 'undefined') {
-            showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
+            showError('Erro: Estado dos produtos nÃ£o inicializado. Tente novamente.');
             return;
         }
         
@@ -2905,10 +2905,10 @@ async function editProduct(productId) {
         
         if (data.success) {
             productsState.editingProduct = data.data;
-            // Garantir categorias carregadas e select populado antes de preencher o formulário
+            // Garantir categorias carregadas e select populado antes de preencher o formulÃ¡rio
             try { await loadCategoriesForProducts(); } catch (_) {}
             populateProductForm(data.data);
-            document.getElementById('productModalTitle').innerHTML = '<i class="fas fa-edit"></i> Editar Produto';
+            document.getElementById('productModalTitle').innerHTML = '<i class="fa-solid fa-pen-to-square"></i> Editar Produto';
             document.getElementById('productModal').style.display = 'flex';
         } else {
             showError('Erro ao carregar produto: ' + data.message);
@@ -2922,10 +2922,10 @@ async function editProduct(productId) {
 }
 
 /**
- * Popula o formulário com dados do produto
+ * Popula o formulÃ¡rio com dados do produto
  */
 function populateProductForm(product) {
-    // Verificar se todos os elementos do formulário existem
+    // Verificar se todos os elementos do formulÃ¡rio existem
     const elements = {
         name: document.getElementById('productName'),
         category: document.getElementById('productCategory'),
@@ -2945,12 +2945,12 @@ function populateProductForm(product) {
     // Verificar se todos os elementos existem
     for (const [key, element] of Object.entries(elements)) {
         if (!element) {
-            console.warn(`Elemento ${key} não encontrado no formulário de produto`);
+            console.warn(`Elemento ${key} nÃ£o encontrado no formulÃ¡rio de produto`);
             return;
         }
     }
     
-    // Preencher o formulário
+    // Preencher o formulÃ¡rio
     elements.name.value = product.name;
     elements.category.value = product.category_id;
     elements.price.value = product.price;
@@ -2960,7 +2960,7 @@ function populateProductForm(product) {
     elements.prepTime.value = product.preparation_time || 0;
     elements.active.checked = product.active;
     
-    // Lida com a pré-visualização da imagem
+    // Lida com a prÃ©-visualizaÃ§Ã£o da imagem
     const imagePreview = document.getElementById('imagePreview');
     const preview = document.getElementById('preview');
     if (product.image_url) {
@@ -2975,7 +2975,7 @@ function populateProductForm(product) {
     elements.type.value = product.product_type || 'comum';
     toggleProductTypeFields();
     
-    // Se for pizza, marcar configurações selecionadas
+    // Se for pizza, marcar configuraÃ§Ãµes selecionadas
     if (product.product_type === 'pizza') {
         setTimeout(() => {
             // Marcar tamanhos
@@ -3020,7 +3020,7 @@ function populateProductForm(product) {
         }, 200); // Aguarda um pouco mais para os checkboxes serem carregados
     }
     
-    // Características especiais
+    // CaracterÃ­sticas especiais
     elements.vegetarian.checked = product.is_vegetarian;
     elements.vegan.checked = product.is_vegan;
     elements.glutenFree.checked = product.is_gluten_free;
@@ -3033,7 +3033,7 @@ function populateProductForm(product) {
 async function saveProduct() {
     try {
         if (typeof productsState === 'undefined') {
-            showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
+            showError('Erro: Estado dos produtos nÃ£o inicializado. Tente novamente.');
             return;
         }
 
@@ -3159,12 +3159,12 @@ async function toggleProductStatus(productId) {
 }
 
 /**
- * Mostra modal de confirmação de exclusão
+ * Mostra modal de confirmaÃ§Ã£o de exclusÃ£o
  */
 function deleteProduct(productId, productName) {
     // Verificar se productsState existe
     if (typeof productsState === 'undefined') {
-        showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
+        showError('Erro: Estado dos produtos nÃ£o inicializado. Tente novamente.');
         return;
     }
     
@@ -3174,7 +3174,7 @@ function deleteProduct(productId, productName) {
 }
 
 /**
- * Fecha modal de confirmação de exclusão
+ * Fecha modal de confirmaÃ§Ã£o de exclusÃ£o
  */
 function closeDeleteProductModal() {
     // Verificar se productsState existe
@@ -3186,12 +3186,12 @@ function closeDeleteProductModal() {
 }
 
 /**
- * Confirma exclusão do produto
+ * Confirma exclusÃ£o do produto
  */
 async function confirmDeleteProduct() {
     // Verificar se productsState existe
     if (typeof productsState === 'undefined') {
-        showError('Erro: Estado dos produtos não inicializado. Tente novamente.');
+        showError('Erro: Estado dos produtos nÃ£o inicializado. Tente novamente.');
         return;
     }
     
@@ -3206,10 +3206,10 @@ async function confirmDeleteProduct() {
         const data = await response.json();
         
         if (data.success) {
-            showSuccess('Produto excluído com sucesso!');
+            showSuccess('Produto excluÃ­do com sucesso!');
             closeDeleteProductModal();
             loadProductsForManagement();
-            // Recarregar também a nova seção de produtos se estiver ativa
+            // Recarregar tambÃ©m a nova seÃ§Ã£o de produtos se estiver ativa
             if (typeof reloadProdutosAdmin === 'function') {
                 reloadProdutosAdmin();
             }
@@ -3224,7 +3224,7 @@ async function confirmDeleteProduct() {
     }
 }
 
-// Expõe funções de produtos
+// ExpÃµe funÃ§Ãµes de produtos
 window.showAddProductModal = showAddProductModal;
 window.closeProductModal = closeProductModal;
 window.saveProduct = saveProduct;
@@ -3245,7 +3245,7 @@ window.printKitchenOrder = printKitchenOrder;
 window.printCustomerOrder = printCustomerOrder;
 
 // ========================================
-// PIZZA ADMIN (Tamanhos, Sabores, Adicionais, Preços)
+// PIZZA ADMIN (Tamanhos, Sabores, Adicionais, PreÃ§os)
 // ========================================
 
 const pizzaAdminState = {
@@ -3257,8 +3257,8 @@ const pizzaAdminState = {
     editingType: null
 };
 
-// Debug log para verificar inicialização
-console.log('🚀 pizzaAdminState inicializado:', pizzaAdminState);
+// Debug log para verificar inicializaÃ§Ã£o
+console.log('ðŸš€ pizzaAdminState inicializado:', pizzaAdminState);
 
 async function loadPizzaAdminData() {
     try {
@@ -3282,7 +3282,7 @@ async function loadPizzaAdminData() {
             }
         }
         
-        // Preços de sabores foram removidos – nada a carregar aqui
+        // PreÃ§os de sabores foram removidos â€“ nada a carregar aqui
         
         // Carregar adicionais
         const extrasResponse = await fetch(CONFIG.API_BASE_URL + 'pizza/extras?all=true');
@@ -3296,7 +3296,7 @@ async function loadPizzaAdminData() {
         // Renderizar dados
         renderPizzaSizes();
         renderPizzaFlavors();
-        // renderPizzaPrices(); // seção removida
+        // renderPizzaPrices(); // seÃ§Ã£o removida
         renderPizzaExtras();
         
         // Atualizar contadores
@@ -3326,7 +3326,7 @@ function showPizzaTab(tab) {
     document.getElementById(`pizza${tab.charAt(0).toUpperCase() + tab.slice(1)}Tab`).classList.add('active');
     event.target.classList.add('active');
     
-    // Carregar dados específicos da aba
+    // Carregar dados especÃ­ficos da aba
     switch(tab) {
         case 'sizes':
             renderPizzaSizes();
@@ -3335,8 +3335,8 @@ function showPizzaTab(tab) {
             renderPizzaFlavors();
             break;
         case 'prices':
-            // === ABA REMOVIDA: Preços de Sabores ===
-            console.warn('Aba de preços foi removida - sabores não têm preços próprios');
+            // === ABA REMOVIDA: PreÃ§os de Sabores ===
+            console.warn('Aba de preÃ§os foi removida - sabores nÃ£o tÃªm preÃ§os prÃ³prios');
             break;
         case 'extras':
             renderPizzaExtras();
@@ -3423,8 +3423,8 @@ function editPizzaSizeById(id) {
     if (size) {
         showPizzaSizeModal(size);
     } else {
-        console.error('Tamanho não encontrado:', id);
-        showError('Tamanho não encontrado');
+        console.error('Tamanho nÃ£o encontrado:', id);
+        showError('Tamanho nÃ£o encontrado');
     }
 }
 
@@ -3432,7 +3432,7 @@ async function deletePizzaSize(id) {
     console.log('Excluindo tamanho ID:', id);
     const size = pizzaAdminState.sizes.find(s => s.id == id);
     if (!size) {
-        console.error('Tamanho não encontrado:', id);
+        console.error('Tamanho nÃ£o encontrado:', id);
         return;
     }
     
@@ -3463,7 +3463,7 @@ function showPizzaFlavorModal(item = null) {
             const raw = (item.category_value ?? 0);
             // Define valor exibido formatado
             catValInput.value = formatBRLInput(raw);
-            // Prepara dataset em centavos para a máscara não sobrescrever
+            // Prepara dataset em centavos para a mÃ¡scara nÃ£o sobrescrever
             const num = parseBRLToNumber(catValInput.value);
             catValInput.dataset.cents = String(Math.round(num * 100));
         }
@@ -3482,10 +3482,10 @@ function showPizzaFlavorModal(item = null) {
     
     modal.classList.add('active');
 
-    // Máscara/formatador para o campo de valor BRL
+    // MÃ¡scara/formatador para o campo de valor BRL
     const valueInput = document.getElementById('flavorCategoryValue');
     if (valueInput && !valueInput._brlCentBound) {
-        // Liga a máscara de entrada por centavos
+        // Liga a mÃ¡scara de entrada por centavos
         bindBRLCentavosMask(valueInput);
         valueInput._brlCentBound = true;
     }
@@ -3505,7 +3505,7 @@ async function savePizzaFlavor() {
     data.is_gluten_free = form.flavorGlutenFree.checked ? 1 : 0;
     data.is_spicy = form.flavorSpicy.checked ? 1 : 0;
     data.active = form.flavorActive.checked ? 1 : 0;
-    // category_value vem do campo do formulário em formato BR (1.234,56)
+    // category_value vem do campo do formulÃ¡rio em formato BR (1.234,56)
     if (typeof data.category_value !== 'undefined' && data.category_value !== '') {
         // Se vier em formato de moeda, converter a partir do dataset de centavos
         const inputEl = document.getElementById('flavorCategoryValue');
@@ -3515,7 +3515,7 @@ async function savePizzaFlavor() {
             data.category_value = parseBRLToNumber(data.category_value);
         }
     } else {
-        // fallback para 0 quando não informado
+        // fallback para 0 quando nÃ£o informado
         data.category_value = 0;
     }
     
@@ -3558,8 +3558,8 @@ function editPizzaFlavorById(id) {
     if (flavor) {
         showPizzaFlavorModal(flavor);
     } else {
-        console.error('Sabor não encontrado:', id);
-        showError('Sabor não encontrado');
+        console.error('Sabor nÃ£o encontrado:', id);
+        showError('Sabor nÃ£o encontrado');
     }
 }
 
@@ -3567,7 +3567,7 @@ async function deletePizzaFlavor(id) {
     console.log('Excluindo sabor ID:', id);
     const flavor = pizzaAdminState.flavors.find(f => f.id == id);
     if (!flavor) {
-        console.error('Sabor não encontrado:', id);
+        console.error('Sabor nÃ£o encontrado:', id);
         return;
     }
     
@@ -3655,8 +3655,8 @@ function editPizzaExtraById(id) {
     if (extra) {
         showPizzaExtraModal(extra);
     } else {
-        console.error('Adicional não encontrado:', id);
-        showError('Adicional não encontrado');
+        console.error('Adicional nÃ£o encontrado:', id);
+        showError('Adicional nÃ£o encontrado');
     }
 }
 
@@ -3664,7 +3664,7 @@ async function deletePizzaExtra(id) {
     console.log('Excluindo adicional ID:', id);
     const extra = pizzaAdminState.extras.find(e => e.id == id);
     if (!extra) {
-        console.error('Adicional não encontrado:', id);
+        console.error('Adicional nÃ£o encontrado:', id);
         return;
     }
     
@@ -3674,7 +3674,7 @@ async function deletePizzaExtra(id) {
 }
 
 // ========================================
-// PREÇOS
+// PREÃ‡OS
 // ========================================
 
 function renderPizzaPricesMatrix() {
@@ -3684,17 +3684,17 @@ function renderPizzaPricesMatrix() {
         container.innerHTML = `
             <div class="matrix-empty-state">
                 <div class="empty-icon">
-                    <i class="fas fa-exclamation-triangle"></i>
+                    <i class="fa-solid fa-triangle-exclamation"></i>
                 </div>
-                <h4>Matriz de Preços Indisponível</h4>
-                <p>Para configurar a matriz de preços, você precisa ter pelo menos:</p>
+                <h4>Matriz de PreÃ§os IndisponÃ­vel</h4>
+                <p>Para configurar a matriz de preÃ§os, vocÃª precisa ter pelo menos:</p>
                 <ul>
-                    <li><i class="fas fa-ruler-combined"></i> 1 tamanho de pizza cadastrado</li>
-                    <li><i class="fas fa-pizza-slice"></i> 1 sabor de pizza cadastrado</li>
+                    <li><i class="fa-solid fa-ruler-combined"></i> 1 tamanho de pizza cadastrado</li>
+                    <li><i class="fa-solid fa-pizza-slice"></i> 1 sabor de pizza cadastrado</li>
                 </ul>
                 <div class="quick-actions">
-                    ${!pizzaAdminState.sizes.length ? '<button class="btn-quick" onclick="showPizzaTab(\'sizes\')"><i class="fas fa-plus"></i> Cadastrar Tamanhos</button>' : ''}
-                    ${!pizzaAdminState.flavors.length ? '<button class="btn-quick" onclick="showPizzaTab(\'flavors\')"><i class="fas fa-plus"></i> Cadastrar Sabores</button>' : ''}
+                    ${!pizzaAdminState.sizes.length ? '<button class="btn-quick" onclick="showPizzaTab(\'sizes\')"><i class="fa-solid fa-plus"></i> Cadastrar Tamanhos</button>' : ''}
+                    ${!pizzaAdminState.flavors.length ? '<button class="btn-quick" onclick="showPizzaTab(\'flavors\')"><i class="fa-solid fa-plus"></i> Cadastrar Sabores</button>' : ''}
                 </div>
             </div>
         `;
@@ -3706,16 +3706,16 @@ function renderPizzaPricesMatrix() {
             <div class="matrix-header">
                 <div class="matrix-stats">
                     <span class="stat-item">
-                        <i class="fas fa-ruler-combined"></i>
+                        <i class="fa-solid fa-ruler-combined"></i>
                         ${pizzaAdminState.sizes.length} tamanhos
                     </span>
                     <span class="stat-item">
-                        <i class="fas fa-pizza-slice"></i>
+                        <i class="fa-solid fa-pizza-slice"></i>
                         ${pizzaAdminState.flavors.length} sabores
                     </span>
                     <span class="stat-item">
-                        <i class="fas fa-calculator"></i>
-                        ${pizzaAdminState.sizes.length * pizzaAdminState.flavors.length} combinações
+                        <i class="fa-solid fa-calculator"></i>
+                        ${pizzaAdminState.sizes.length * pizzaAdminState.flavors.length} combinaÃ§Ãµes
                     </span>
                 </div>
             </div>
@@ -3726,7 +3726,7 @@ function renderPizzaPricesMatrix() {
                         <tr>
                             <th class="flavor-header">
                                 <div class="header-content">
-                                    <i class="fas fa-pizza-slice"></i>
+                                    <i class="fa-solid fa-pizza-slice"></i>
                                     <span>Sabor / Tamanho</span>
                                 </div>
                             </th>`;
@@ -3754,7 +3754,7 @@ function renderPizzaPricesMatrix() {
                     <div class="flavor-characteristics">
                         ${flavor.is_vegan ? '<span class="mini-tag vegan">V</span>' : ''}
                         ${flavor.is_gluten_free ? '<span class="mini-tag gluten-free">GF</span>' : ''}
-                        ${flavor.is_spicy ? '<span class="mini-tag spicy">🌶️</span>' : ''}
+                        ${flavor.is_spicy ? '<span class="mini-tag spicy">ðŸŒ¶ï¸</span>' : ''}
                     </div>
                 </div>
             </td>`;
@@ -3790,7 +3790,7 @@ function markPriceChanged() {
     const saveButton = document.querySelector('button[onclick="savePizzaPrices()"]');
     if (saveButton && !saveButton.classList.contains('changed')) {
         saveButton.classList.add('changed');
-        saveButton.innerHTML = '<i class="fas fa-save"></i> Salvar Alterações';
+        saveButton.innerHTML = '<i class="fa-solid fa-floppy-disk"></i> Salvar AlteraÃ§Ãµes';
     }
 }
 
@@ -3812,7 +3812,7 @@ function filterExtras() {
 }
 
 // ========================================
-// FUNÇÕES DE TOGGLE (PAUSAR/ATIVAR)
+// FUNÃ‡Ã•ES DE TOGGLE (PAUSAR/ATIVAR)
 // ========================================
 
 async function togglePizzaSize(id) {
@@ -3913,7 +3913,7 @@ async function savePizzaPrices() {
         });
         
         if (payload.length === 0) {
-            showError('Preencha ao menos um preço válido.');
+            showError('Preencha ao menos um preÃ§o vÃ¡lido.');
             return;
         }
         
@@ -3926,26 +3926,26 @@ async function savePizzaPrices() {
         const data = await res.json();
         
         if (data.success) {
-            showSuccess('Preços salvos com sucesso!');
-            // Recarrega os preços
+            showSuccess('PreÃ§os salvos com sucesso!');
+            // Recarrega os preÃ§os
             const pricesRes = await fetch(CONFIG.API_BASE_URL + 'pizza/prices');
             const pricesData = await pricesRes.json();
             if (pricesData.success) {
                 pizzaAdminState.prices = pricesData.data;
             }
         } else {
-            showError(data.message || 'Erro ao salvar preços');
+            showError(data.message || 'Erro ao salvar preÃ§os');
         }
     } catch (e) {
         console.error(e); 
-        showError('Erro ao salvar preços');
+        showError('Erro ao salvar preÃ§os');
     } finally { 
         hideLoading(); 
     }
 }
 
 // ========================================
-// RENDERIZAÇÃO
+// RENDERIZAÃ‡ÃƒO
 // ========================================
 
 function renderPizzaSizes() {
@@ -3956,10 +3956,10 @@ function renderPizzaSizes() {
         tableBody.innerHTML = `
             <tr class="empty-row">
                 <td colspan="7" class="empty-state">
-                    <i class="fas fa-ruler-combined"></i>
+                    <i class="fa-solid fa-ruler-combined"></i>
                     <p>Nenhum tamanho cadastrado</p>
                     <button class="btn-add-new" onclick="showPizzaSizeModal()">
-                        <i class="fas fa-plus"></i> Criar Primeiro Tamanho
+                        <i class="fa-solid fa-plus"></i> Criar Primeiro Tamanho
                     </button>
                 </td>
             </tr>
@@ -3979,17 +3979,17 @@ function renderPizzaSizes() {
             </td>
             <td>
                 <span class="info-badge">
-                    <i class="fas fa-cut"></i> ${size.slices}
+                    <i class="fa-solid fa-cut"></i> ${size.slices}
                 </span>
             </td>
             <td>
                 <span class="info-badge">
-                    <i class="fas fa-pizza-slice"></i> ${size.max_flavors}
+                    <i class="fa-solid fa-pizza-slice"></i> ${size.max_flavors}
                 </span>
             </td>
             <td>
                 <span class="price-display">
-                    <i class="fas fa-dollar-sign"></i> R$ ${parseFloat(size.price || 0).toFixed(2)}
+                    <i class="fa-solid fa-dollar-sign"></i> R$ ${parseFloat(size.price || 0).toFixed(2)}
                 </span>
             </td>
             <td>
@@ -4003,13 +4003,13 @@ function renderPizzaSizes() {
             <td>
                 <div class="table-actions">
                     <button class="btn-table edit" onclick="editPizzaSizeById(${size.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     <button class="btn-table ${size.active ? 'pause' : 'play'}" onclick="togglePizzaSize(${size.id})" title="${size.active ? 'Pausar' : 'Ativar'}">
-                        <i class="fas fa-${size.active ? 'pause' : 'play'}"></i>
+                        <i class="fa-solid fa-${size.active ? 'pause' : 'play'}"></i>
                     </button>
                     <button class="btn-table delete" onclick="deletePizzaSize(${size.id})" title="Excluir">
-                        <i class="fas fa-trash"></i>
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </td>
@@ -4037,11 +4037,11 @@ function renderPizzaFlavors() {
         tableBody.innerHTML = `
             <tr class="empty-row">
                 <td colspan="6" class="empty-state">
-                    <i class="fas fa-pizza-slice"></i>
+                    <i class="fa-solid fa-pizza-slice"></i>
                     <p>${pizzaAdminState.flavors.length ? 'Nenhum sabor encontrado com os filtros aplicados' : 'Nenhum sabor cadastrado'}</p>
                     ${!pizzaAdminState.flavors.length ? `
                         <button class="btn-add-new" onclick="showPizzaFlavorModal()">
-                            <i class="fas fa-plus"></i> Criar Primeiro Sabor
+                            <i class="fa-solid fa-plus"></i> Criar Primeiro Sabor
                         </button>
                     ` : ''}
                 </td>
@@ -4065,9 +4065,9 @@ function renderPizzaFlavors() {
             </td>
             <td>
                 <div class="characteristics">
-                    ${flavor.is_vegan ? '<span class="char-tag vegan"><i class="fas fa-leaf"></i> Vegano</span>' : ''}
-                    ${flavor.is_gluten_free ? '<span class="char-tag gluten-free"><i class="fas fa-wheat"></i> S/ Glúten</span>' : ''}
-                    ${flavor.is_spicy ? '<span class="char-tag spicy"><i class="fas fa-fire"></i> Picante</span>' : ''}
+                    ${flavor.is_vegan ? '<span class="char-tag vegan"><i class="fa-solid fa-leaf"></i> Vegano</span>' : ''}
+                    ${flavor.is_gluten_free ? '<span class="char-tag gluten-free"><i class="fa-solid fa-wheat"></i> S/ GlÃºten</span>' : ''}
+                    ${flavor.is_spicy ? '<span class="char-tag spicy"><i class="fa-solid fa-fire"></i> Picante</span>' : ''}
                     ${!flavor.is_vegan && !flavor.is_gluten_free && !flavor.is_spicy ? '<span class="char-tag default">-</span>' : ''}
                 </div>
             </td>
@@ -4082,13 +4082,13 @@ function renderPizzaFlavors() {
             <td>
                 <div class="table-actions">
                     <button class="btn-table edit" onclick="editPizzaFlavorById(${flavor.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     <button class="btn-table ${flavor.active ? 'pause' : 'play'}" onclick="togglePizzaFlavor(${flavor.id})" title="${flavor.active ? 'Pausar' : 'Ativar'}">
-                        <i class="fas fa-${flavor.active ? 'pause' : 'play'}"></i>
+                        <i class="fa-solid fa-${flavor.active ? 'pause' : 'play'}"></i>
                     </button>
                     <button class="btn-table delete" onclick="deletePizzaFlavor(${flavor.id})" title="Excluir">
-                        <i class="fas fa-trash"></i>
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </td>
@@ -4116,11 +4116,11 @@ function renderPizzaExtras() {
         tableBody.innerHTML = `
             <tr class="empty-row">
                 <td colspan="6" class="empty-state">
-                    <i class="fas fa-plus-circle"></i>
+                    <i class="fa-solid fa-circle-plus"></i>
                     <p>${pizzaAdminState.extras.length ? 'Nenhum adicional encontrado com os filtros aplicados' : 'Nenhum adicional cadastrado'}</p>
                     ${!pizzaAdminState.extras.length ? `
                         <button class="btn-add-new" onclick="showPizzaExtraModal()">
-                            <i class="fas fa-plus"></i> Criar Primeiro Adicional
+                            <i class="fa-solid fa-plus"></i> Criar Primeiro Adicional
                         </button>
                     ` : ''}
                 </td>
@@ -4156,13 +4156,13 @@ function renderPizzaExtras() {
             <td>
                 <div class="table-actions">
                     <button class="btn-table edit" onclick="editPizzaExtraById(${extra.id})" title="Editar">
-                        <i class="fas fa-edit"></i>
+                        <i class="fa-solid fa-pen-to-square"></i>
                     </button>
                     <button class="btn-table ${extra.active ? 'pause' : 'play'}" onclick="togglePizzaExtra(${extra.id})" title="${extra.active ? 'Pausar' : 'Ativar'}">
-                        <i class="fas fa-${extra.active ? 'pause' : 'play'}"></i>
+                        <i class="fa-solid fa-${extra.active ? 'pause' : 'play'}"></i>
                     </button>
                     <button class="btn-table delete" onclick="deletePizzaExtra(${extra.id})" title="Excluir">
-                        <i class="fas fa-trash"></i>
+                        <i class="fa-solid fa-trash"></i>
                     </button>
                 </div>
             </td>
@@ -4171,7 +4171,7 @@ function renderPizzaExtras() {
 }
 
 // ========================================
-// FUNÇÕES GLOBAIS
+// FUNÃ‡Ã•ES GLOBAIS
 // ========================================
 
 function closeDeletePizzaItemModal() {
@@ -4191,7 +4191,7 @@ async function confirmDeletePizzaItem() {
         const result = await response.json();
         
         if (result.success) {
-            showSuccess('Item excluído com sucesso!');
+            showSuccess('Item excluÃ­do com sucesso!');
             closeDeletePizzaItemModal();
             await loadPizzaAdminData();
         } else {
@@ -4206,31 +4206,31 @@ async function confirmDeletePizzaItem() {
 }
 
 // ========================================
-// FUNÇÕES DE EXCLUSÃO
+// FUNÃ‡Ã•ES DE EXCLUSÃƒO
 // ========================================
 
 function deletePizzaSize(id) {
-    console.log('🗑️ deletePizzaSize chamada com ID:', id);
+    console.log('ðŸ—‘ï¸ deletePizzaSize chamada com ID:', id);
     console.log('pizzaAdminState.sizes:', pizzaAdminState.sizes);
     
     const size = pizzaAdminState.sizes.find(s => s.id == id);
     if (!size) {
-        console.error('❌ Tamanho não encontrado:', id);
+        console.error('âŒ Tamanho nÃ£o encontrado:', id);
         return;
     }
     
-    console.log('📝 Tamanho encontrado:', size);
+    console.log('ðŸ“ Tamanho encontrado:', size);
     
     const nameElement = document.getElementById('deletePizzaItemName');
     const modalElement = document.getElementById('deletePizzaItemModal');
     
     if (!nameElement) {
-        console.error('❌ Elemento deletePizzaItemName não encontrado');
+        console.error('âŒ Elemento deletePizzaItemName nÃ£o encontrado');
         return;
     }
     
     if (!modalElement) {
-        console.error('❌ Elemento deletePizzaItemModal não encontrado');
+        console.error('âŒ Elemento deletePizzaItemModal nÃ£o encontrado');
         return;
     }
     
@@ -4238,14 +4238,14 @@ function deletePizzaSize(id) {
     modalElement.classList.add('active');
     pizzaAdminState.editingItem = { id, type: 'size' };
     
-    console.log('✅ Modal de exclusão aberto para:', size.name);
+    console.log('âœ… Modal de exclusÃ£o aberto para:', size.name);
 }
 
 function deletePizzaFlavor(id) {
     console.log('Excluindo sabor ID:', id);
     const flavor = pizzaAdminState.flavors.find(f => f.id == id);
     if (!flavor) {
-        console.error('Sabor não encontrado:', id);
+        console.error('Sabor nÃ£o encontrado:', id);
         return;
     }
     
@@ -4258,7 +4258,7 @@ function deletePizzaExtra(id) {
     console.log('Excluindo adicional ID:', id);
     const extra = pizzaAdminState.extras.find(e => e.id == id);
     if (!extra) {
-        console.error('Adicional não encontrado:', id);
+        console.error('Adicional nÃ£o encontrado:', id);
         return;
     }
     
@@ -4273,32 +4273,32 @@ function closeDeletePizzaItemModal() {
 }
 
 async function confirmDeletePizzaItem() {
-    console.log('🚀 confirmDeletePizzaItem iniciada');
+    console.log('ðŸš€ confirmDeletePizzaItem iniciada');
     
     if (!pizzaAdminState.editingItem) return;
     
     try {
         showLoading();
         const { id, type } = pizzaAdminState.editingItem;
-        console.log('Confirmando exclusão:', { id, type });
+        console.log('Confirmando exclusÃ£o:', { id, type });
         
         const endpoint = CONFIG.API_BASE_URL + `pizza/${type === 'size' ? 'sizes' : type === 'flavor' ? 'flavors' : 'extras'}/${id}`;
-        console.log('Endpoint de exclusão:', endpoint);
+        console.log('Endpoint de exclusÃ£o:', endpoint);
         
         const response = await fetch(endpoint, { method: 'DELETE' });
         const result = await response.json();
         
-        console.log('Resultado da exclusão:', result);
+        console.log('Resultado da exclusÃ£o:', result);
         
         if (result.success) {
-            showSuccess('Item excluído com sucesso!');
+            showSuccess('Item excluÃ­do com sucesso!');
             closeDeletePizzaItemModal();
             await loadPizzaAdminData();
         } else {
             showError(result.message || 'Erro ao excluir item');
         }
     } catch (error) {
-        console.error('Erro na exclusão:', error);
+        console.error('Erro na exclusÃ£o:', error);
         showError('Erro ao excluir item');
     } finally {
         hideLoading();
@@ -4311,18 +4311,18 @@ function capitalize(str) {
 }
 
 // ========================================
-// EXPOSIÇÃO DE FUNÇÕES GLOBAIS
+// EXPOSIÃ‡ÃƒO DE FUNÃ‡Ã•ES GLOBAIS
 // ========================================
 
-// Expor funções de exclusão no escopo global
+// Expor funÃ§Ãµes de exclusÃ£o no escopo global
 window.deletePizzaSize = deletePizzaSize;
 window.deletePizzaFlavor = deletePizzaFlavor;
 window.deletePizzaExtra = deletePizzaExtra;
 window.confirmDeletePizzaItem = confirmDeletePizzaItem;
 window.closeDeletePizzaItemModal = closeDeletePizzaItemModal;
 
-// Debug log para verificar se as funções estão sendo expostas
-console.log('🔧 Funções de exclusão expostas:', {
+// Debug log para verificar se as funÃ§Ãµes estÃ£o sendo expostas
+console.log('ðŸ”§ FunÃ§Ãµes de exclusÃ£o expostas:', {
     deletePizzaSize: typeof window.deletePizzaSize,
     deletePizzaFlavor: typeof window.deletePizzaFlavor,
     deletePizzaExtra: typeof window.deletePizzaExtra,
@@ -4330,7 +4330,7 @@ console.log('🔧 Funções de exclusão expostas:', {
     closeDeletePizzaItemModal: typeof window.closeDeletePizzaItemModal
 });
 
-// Expõe funções de produtos
+// ExpÃµe funÃ§Ãµes de produtos
 window.closeDeleteProductModal = closeDeleteProductModal;
 window.confirmDeleteProduct = confirmDeleteProduct;
 window.filterProducts = filterProducts;
@@ -4340,7 +4340,7 @@ window.closePrintModal = closePrintModal;
 window.printKitchenOrder = printKitchenOrder;
 window.printCustomerOrder = printCustomerOrder;
 
-// Expõe funções de pizza admin
+// ExpÃµe funÃ§Ãµes de pizza admin
 window.showPizzaTab = showPizzaTab;
 window.showPizzaSizeModal = showPizzaSizeModal;
 window.closePizzaSizeModal = closePizzaSizeModal;
@@ -4372,11 +4372,11 @@ window.closeDeletePizzaItemModal = closeDeletePizzaItemModal;
 window.confirmDeletePizzaItem = confirmDeletePizzaItem;
 
 // ========================================
-// PREÇOS DOS SABORES - REMOVIDOS
+// PREÃ‡OS DOS SABORES - REMOVIDOS
 // ========================================
-// Sabores não têm preços próprios - apenas tamanhos têm preços
+// Sabores nÃ£o tÃªm preÃ§os prÃ³prios - apenas tamanhos tÃªm preÃ§os
 
-/* FUNÇÃO REMOVIDA - showPizzaPriceModal() */
+/* FUNÃ‡ÃƒO REMOVIDA - showPizzaPriceModal() */
 function showPizzaPriceModal(item = null) {
     pizzaAdminState.editingItem = item;
     pizzaAdminState.editingType = 'price';
@@ -4384,7 +4384,7 @@ function showPizzaPriceModal(item = null) {
     const title = document.getElementById('pizzaPriceModalTitle');
     const form = document.getElementById('pizzaPriceForm');
     
-    title.textContent = item ? 'Editar Preço' : 'Novo Preço';
+    title.textContent = item ? 'Editar PreÃ§o' : 'Novo PreÃ§o';
     
     // Popular os selects com sabores e tamanhos
     populatePriceFormSelects();
@@ -4433,7 +4433,7 @@ async function savePizzaPrice() {
     const data = Object.fromEntries(formData.entries());
     
     if (!data.flavor_id || !data.size_id || !data.price) {
-        showError('Todos os campos são obrigatórios');
+        showError('Todos os campos sÃ£o obrigatÃ³rios');
         return;
     }
     
@@ -4451,45 +4451,45 @@ async function savePizzaPrice() {
         
         const result = await response.json();
         if (result.success) {
-            showSuccess(pizzaAdminState.editingItem ? 'Preço atualizado com sucesso!' : 'Preço criado com sucesso!');
+            showSuccess(pizzaAdminState.editingItem ? 'PreÃ§o atualizado com sucesso!' : 'PreÃ§o criado com sucesso!');
             closePizzaPriceModal();
             await loadPizzaAdminData();
         } else {
-            showError(result.message || 'Erro ao salvar preço');
+            showError(result.message || 'Erro ao salvar preÃ§o');
         }
     } catch (error) {
         console.error('Erro:', error);
-        showError('Erro ao salvar preço');
+        showError('Erro ao salvar preÃ§o');
     } finally {
         hideLoading();
     }
 }
 
 function editPizzaPrice(price) {
-    console.log('Editando preço:', price);
+    console.log('Editando preÃ§o:', price);
     showPizzaPriceModal(price);
 }
 
 function editPizzaPriceById(id) {
-    console.log('Editando preço por ID:', id);
+    console.log('Editando preÃ§o por ID:', id);
     const price = pizzaAdminState.prices.find(p => p.id == id);
     if (price) {
         showPizzaPriceModal(price);
     } else {
-        console.error('Preço não encontrado:', id);
-        showError('Preço não encontrado');
+        console.error('PreÃ§o nÃ£o encontrado:', id);
+        showError('PreÃ§o nÃ£o encontrado');
     }
 }
 
 async function deletePizzaPrice(id) {
-    console.log('Excluindo preço ID:', id);
+    console.log('Excluindo preÃ§o ID:', id);
     const price = pizzaAdminState.prices.find(p => p.id == id);
     if (!price) {
-        console.error('Preço não encontrado:', id);
+        console.error('PreÃ§o nÃ£o encontrado:', id);
         return;
     }
     
-    if (confirm(`Tem certeza que deseja excluir o preço do sabor "${price.flavor_name}" para o tamanho "${price.size_name}"?`)) {
+    if (confirm(`Tem certeza que deseja excluir o preÃ§o do sabor "${price.flavor_name}" para o tamanho "${price.size_name}"?`)) {
         try {
             showLoading();
             const response = await fetch(`${CONFIG.API_BASE_URL}pizza/flavor-prices/${id}`, {
@@ -4498,14 +4498,14 @@ async function deletePizzaPrice(id) {
             
             const result = await response.json();
             if (result.success) {
-                showSuccess('Preço excluído com sucesso!');
+                showSuccess('PreÃ§o excluÃ­do com sucesso!');
                 await loadPizzaAdminData();
             } else {
-                showError(result.message || 'Erro ao excluir preço');
+                showError(result.message || 'Erro ao excluir preÃ§o');
             }
         } catch (error) {
             console.error('Erro:', error);
-            showError('Erro ao excluir preço');
+            showError('Erro ao excluir preÃ§o');
         } finally {
             hideLoading();
         }
@@ -4517,15 +4517,15 @@ async function deletePizzaPrice(id) {
 function renderPizzaPrices() {
     const tableBody = document.getElementById('pizzaPricesTableBody');
     
-    // Verificar se temos dados de preços
+    // Verificar se temos dados de preÃ§os
     if (!pizzaAdminState.prices || !pizzaAdminState.prices.length) {
         tableBody.innerHTML = `
             <tr class="empty-row">
                 <td colspan="5" class="empty-state">
-                    <i class="fas fa-dollar-sign"></i>
-                    <p>Nenhum preço configurado</p>
+                    <i class="fa-solid fa-dollar-sign"></i>
+                    <p>Nenhum preÃ§o configurado</p>
                     <button class="btn-add-new" onclick="showPizzaPriceModal()">
-                        <i class="fas fa-plus"></i> Configurar Primeiro Preço
+                        <i class="fa-solid fa-plus"></i> Configurar Primeiro PreÃ§o
                     </button>
                 </td>
             </tr>
@@ -4552,8 +4552,8 @@ function renderPizzaPrices() {
         tableBody.innerHTML = `
             <tr class="empty-row">
                 <td colspan="5" class="empty-state">
-                    <i class="fas fa-search"></i>
-                    <p>Nenhum preço encontrado com os filtros aplicados</p>
+                    <i class="fa-solid fa-magnifying-glass"></i>
+                    <p>Nenhum preÃ§o encontrado com os filtros aplicados</p>
                 </td>
             </tr>
         `;
@@ -4579,16 +4579,16 @@ function renderPizzaPrices() {
             <tr>
                 <td>
                     <div class="item-name">
-                        <strong>${flavor ? flavor.name : 'Sabor não encontrado'}</strong>
+                        <strong>${flavor ? flavor.name : 'Sabor nÃ£o encontrado'}</strong>
                         <small class="category-text">${flavor ? flavor.category : ''}</small>
                     </div>
                 </td>
                 <td>
-                    <span class="size-badge">${size ? size.name : 'Tamanho não encontrado'}</span>
+                    <span class="size-badge">${size ? size.name : 'Tamanho nÃ£o encontrado'}</span>
                 </td>
                 <td>
                     <span class="price-display">
-                        <i class="fas fa-dollar-sign"></i> R$ ${parseFloat(price.price || 0).toFixed(2)}
+                        <i class="fa-solid fa-dollar-sign"></i> R$ ${parseFloat(price.price || 0).toFixed(2)}
                     </span>
                 </td>
                 <td>
@@ -4597,10 +4597,10 @@ function renderPizzaPrices() {
                 <td>
                     <div class="table-actions">
                         <button class="btn-table edit" onclick="editPizzaPriceById(${price.id})" title="Editar">
-                            <i class="fas fa-edit"></i>
+                            <i class="fa-solid fa-pen-to-square"></i>
                         </button>
                         <button class="btn-table delete" onclick="deletePizzaPrice(${price.id})" title="Excluir">
-                            <i class="fas fa-trash"></i>
+                            <i class="fa-solid fa-trash"></i>
                         </button>
                     </div>
                 </td>
@@ -4626,15 +4626,15 @@ function formatBRLInput(value) {
 
 function parseBRLToNumber(str) {
     if (typeof str !== 'string') return 0;
-    // remove espaços
+    // remove espaÃ§os
     let s = str.trim();
-    // remove pontos (milhar) e troca vírgula por ponto
+    // remove pontos (milhar) e troca vÃ­rgula por ponto
     s = s.replace(/\./g, '').replace(/,/g, '.');
     const n = parseFloat(s);
     return isNaN(n) ? 0 : n;
 }
 
-// Máscara de moeda com entrada em centavos (pt-BR)
+// MÃ¡scara de moeda com entrada em centavos (pt-BR)
 function bindBRLCentavosMask(input) {
     if (!input) return;
     const formatFromCents = (cents) => {
@@ -4643,7 +4643,7 @@ function bindBRLCentavosMask(input) {
         input.value = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(num);
     };
 
-    // Inicialização
+    // InicializaÃ§Ã£o
     if (!input.dataset.cents) {
         input.dataset.cents = '0';
         formatFromCents(0);
@@ -4664,7 +4664,7 @@ function bindBRLCentavosMask(input) {
             return;
         }
 
-        // Backspace / Delete = remove último dígito
+        // Backspace / Delete = remove Ãºltimo dÃ­gito
         if (e.key === 'Backspace' || e.key === 'Delete') {
             e.preventDefault();
             let cur = input.dataset.cents || '0';
@@ -4686,9 +4686,9 @@ function bindBRLCentavosMask(input) {
     });
 }
 
-// (removido) toggleCategoriesView - não há mais grid de categorias
+// (removido) toggleCategoriesView - nÃ£o hÃ¡ mais grid de categorias
 
-// Função loadCategories removida (duplicata) - usando a versão mais robusta da linha 231
+// FunÃ§Ã£o loadCategories removida (duplicata) - usando a versÃ£o mais robusta da linha 231
 
 // (removido) renderCategories e contagem por grid
 
@@ -4703,7 +4703,7 @@ function showCategoryModal(categoryId = null) {
     const form = document.getElementById('categoryForm');
     
     if (!modal || !title || !form) {
-        showError('Erro: Modal de categoria não encontrado');
+        showError('Erro: Modal de categoria nÃ£o encontrado');
         return;
     }
     
@@ -4712,7 +4712,7 @@ function showCategoryModal(categoryId = null) {
     if (categoryId) {
         // Verificar se appState.categories existe
         if (!appState.categories || !Array.isArray(appState.categories)) {
-            showError('Erro: Categorias não carregadas. Tente novamente.');
+            showError('Erro: Categorias nÃ£o carregadas. Tente novamente.');
             return;
         }
         
@@ -4725,7 +4725,7 @@ function showCategoryModal(categoryId = null) {
             document.getElementById('categoryActive').checked = category.active;
             form.dataset.categoryId = categoryId;
         } else {
-            showError('Categoria não encontrada');
+            showError('Categoria nÃ£o encontrada');
             return;
         }
     } else {
@@ -4750,12 +4750,12 @@ function closeCategoryModal() {
  * Salva a categoria
  */
 async function saveCategory() {
-    console.log('💾 Iniciando salvamento de categoria...');
+    console.log('ðŸ’¾ Iniciando salvamento de categoria...');
     
     const form = document.getElementById('categoryForm');
     if (!form) {
-        console.error('❌ Formulário não encontrado');
-        showError('Formulário não encontrado');
+        console.error('âŒ FormulÃ¡rio nÃ£o encontrado');
+        showError('FormulÃ¡rio nÃ£o encontrado');
         return;
     }
     
@@ -4769,8 +4769,8 @@ async function saveCategory() {
         active: formData.get('active') ? 1 : 0
     };
     
-    console.log('📝 Dados da categoria:', categoryData);
-    console.log('🆔 ID da categoria (edição):', categoryId);
+    console.log('ðŸ“ Dados da categoria:', categoryData);
+    console.log('ðŸ†” ID da categoria (ediÃ§Ã£o):', categoryId);
     
     try {
         showLoading();
@@ -4781,9 +4781,9 @@ async function saveCategory() {
         
         const method = categoryId ? 'PUT' : 'POST';
         
-        console.log('🌐 URL da requisição:', url);
-        console.log('📡 Método HTTP:', method);
-        console.log('📦 Dados enviados:', JSON.stringify(categoryData));
+        console.log('ðŸŒ URL da requisiÃ§Ã£o:', url);
+        console.log('ðŸ“¡ MÃ©todo HTTP:', method);
+        console.log('ðŸ“¦ Dados enviados:', JSON.stringify(categoryData));
         
         const response = await fetch(url, {
             method: method,
@@ -4793,37 +4793,37 @@ async function saveCategory() {
             body: JSON.stringify(categoryData)
         });
         
-        console.log('📥 Response status:', response.status);
-        console.log('📥 Response ok:', response.ok);
+        console.log('ðŸ“¥ Response status:', response.status);
+        console.log('ðŸ“¥ Response ok:', response.ok);
         
         if (!response.ok) {
-            console.error('❌ HTTP Error:', response.status, response.statusText);
+            console.error('âŒ HTTP Error:', response.status, response.statusText);
             const errorText = await response.text();
-            console.error('❌ Response body:', errorText);
+            console.error('âŒ Response body:', errorText);
             throw new Error(`HTTP ${response.status}: ${response.statusText}`);
         }
         
         const data = await response.json();
-        console.log('📥 Response data:', data);
+        console.log('ðŸ“¥ Response data:', data);
         
         if (data.success) {
-            console.log('✅ Categoria salva com sucesso!');
+            console.log('âœ… Categoria salva com sucesso!');
             showSuccess(categoryId ? 'Categoria atualizada com sucesso!' : 'Categoria criada com sucesso!');
             closeCategoryModal();
             await loadCategories();
             await loadCategoriesForProducts(); // Recarregar categorias para produtos
             await loadProductsForManagement(); // Recarregar produtos para atualizar filtros
-            // Recarregar também a nova seção de produtos se estiver ativa
+            // Recarregar tambÃ©m a nova seÃ§Ã£o de produtos se estiver ativa
             if (typeof reloadProdutosAdmin === 'function') {
                 reloadProdutosAdmin();
             }
         } else {
-            console.error('❌ Erro retornado pela API:', data.message);
+            console.error('âŒ Erro retornado pela API:', data.message);
             showError(data.message || 'Erro ao salvar categoria');
         }
     } catch (error) {
-        console.error('❌ Erro ao salvar categoria:', error);
-        console.error('❌ Stack trace:', error.stack);
+        console.error('âŒ Erro ao salvar categoria:', error);
+        console.error('âŒ Stack trace:', error.stack);
         showError(`Erro ao salvar categoria: ${error.message}`);
     } finally {
         hideLoading();
@@ -4837,7 +4837,7 @@ function editCategory(categoryId) {
     showCategoryModal(categoryId);
 }
 
-// Editar categoria direto do cabeçalho do acordeão
+// Editar categoria direto do cabeÃ§alho do acordeÃ£o
 function editCategoryFromHeader(categoryId, event) {
     if (event) event.stopPropagation();
     showCategoryModal(categoryId);
@@ -4849,16 +4849,16 @@ function editCategoryFromHeader(categoryId, event) {
 async function deleteCategory(categoryId) {
     // Verificar se appState.categories existe
     if (!appState.categories || !Array.isArray(appState.categories)) {
-        showError('Erro: Categorias não carregadas. Tente novamente.');
+        showError('Erro: Categorias nÃ£o carregadas. Tente novamente.');
         return;
     }
     
     const category = appState.categories.find(c => c.id == categoryId);
     if (!category) return;
     
-    // Verificar quantos produtos estão nesta categoria
+    // Verificar quantos produtos estÃ£o nesta categoria
     try {
-        // Garantir que o modal de exclusão está carregado
+        // Garantir que o modal de exclusÃ£o estÃ¡ carregado
         let modal = document.getElementById('deleteCategoryModal');
         if (!modal && typeof loadModals === 'function') {
             try { await loadModals(); } catch (_) {}
@@ -4878,7 +4878,7 @@ async function deleteCategory(categoryId) {
             const productsCountElement = document.getElementById('productsInCategory');
             
             if (!modal || !nameElement || !countContainer || !productsCountElement) {
-                showError('Modal de exclusão não carregado. Recarregue a página e tente novamente.');
+                showError('Modal de exclusÃ£o nÃ£o carregado. Recarregue a pÃ¡gina e tente novamente.');
                 return;
             }
 
@@ -4902,7 +4902,7 @@ async function deleteCategory(categoryId) {
 }
 
 /**
- * Fecha o modal de exclusão de categoria
+ * Fecha o modal de exclusÃ£o de categoria
  */
 function closeDeleteCategoryModal() {
     const modal = document.getElementById('deleteCategoryModal');
@@ -4911,7 +4911,7 @@ function closeDeleteCategoryModal() {
 }
 
 /**
- * Confirma a exclusão da categoria
+ * Confirma a exclusÃ£o da categoria
  */
 async function confirmDeleteCategory() {
     const modal = document.getElementById('deleteCategoryModal');
@@ -4929,12 +4929,12 @@ async function confirmDeleteCategory() {
         const data = await response.json();
         
         if (data.success) {
-            showSuccess('Categoria excluída com sucesso!');
+            showSuccess('Categoria excluÃ­da com sucesso!');
             closeDeleteCategoryModal();
             await loadCategories();
             await loadCategoriesForProducts(); // Recarregar categorias para produtos
             await loadProductsForManagement(); // Recarregar produtos
-            // Recarregar também a nova seção de produtos se estiver ativa
+            // Recarregar tambÃ©m a nova seÃ§Ã£o de produtos se estiver ativa
             if (typeof reloadProdutosAdmin === 'function') {
                 reloadProdutosAdmin();
             }
@@ -4973,13 +4973,13 @@ window.confirmDeleteCategory = confirmDeleteCategory;
 window.startCategoryDrag = startCategoryDrag;
 
 /**
- * Abre a página completa de produtos e categorias
+ * Abre a pÃ¡gina completa de produtos e categorias
  */
 function openProdutosCategorias() {
     window.open('produtos-categorias.html', '_blank');
 }
 
-// Exportar função para uso global
+// Exportar funÃ§Ã£o para uso global
 window.openProdutosCategorias = openProdutosCategorias;
 
 function previewImage(event) {
@@ -5000,22 +5000,22 @@ function removeImage() {
     document.getElementById('productImage').value = '';
 }
 
-// Expor funções globalmente
+// Expor funÃ§Ãµes globalmente
 window.previewImage = previewImage;
 window.removeImage = removeImage;
 
-// Inicialização
+// InicializaÃ§Ã£o
 document.addEventListener('DOMContentLoaded', () => {
     initializeApp();
 });
 
 /**
- * Função para copiar texto para a área de transferência
+ * FunÃ§Ã£o para copiar texto para a Ã¡rea de transferÃªncia
  */
 function copyToClipboard(elementSelector, messageText) {
     const textToCopy = document.querySelector(elementSelector).innerText;
     
-    // Cria uma textarea temporária para executar o comando de cópia
+    // Cria uma textarea temporÃ¡ria para executar o comando de cÃ³pia
     const textArea = document.createElement('textarea');
     textArea.value = textToCopy;
     document.body.appendChild(textArea);
@@ -5030,7 +5030,7 @@ function copyToClipboard(elementSelector, messageText) {
 }
 
 /**
- * Função para mostrar uma mensagem de confirmação
+ * FunÃ§Ã£o para mostrar uma mensagem de confirmaÃ§Ã£o
  */
 function showCopyMessage(text) {
     const message = document.getElementById('copy-message');
@@ -5039,17 +5039,17 @@ function showCopyMessage(text) {
         message.classList.remove('opacity-0');
         setTimeout(() => {
             message.classList.add('opacity-0');
-        }, 2000); // Mensagem desaparece após 2 segundos
+        }, 2000); // Mensagem desaparece apÃ³s 2 segundos
     }
 }
 
 /**
- * Função para abrir WhatsApp
+ * FunÃ§Ã£o para abrir WhatsApp
  */
 function openWhatsApp() {
     const phoneElement = document.getElementById('phone-number');
     if (phoneElement) {
-        // Remove caracteres não numéricos e adiciona código do Brasil (55)
+        // Remove caracteres nÃ£o numÃ©ricos e adiciona cÃ³digo do Brasil (55)
         const phoneNumber = '55' + phoneElement.innerText.replace(/\D/g, '');
         const url = `https://wa.me/${phoneNumber}`;
         window.open(url, '_blank');
@@ -5057,16 +5057,18 @@ function openWhatsApp() {
 }
 
 /**
- * Função para abrir Google Maps
+ * FunÃ§Ã£o para abrir Google Maps
  */
 function openMaps() {
     const addressElement = document.getElementById('address');
     if (addressElement) {
         const address = addressElement.innerText;
-        // Codifica o endereço para ser usado em uma URL
+        // Codifica o endereÃ§o para ser usado em uma URL
         const encodedAddress = encodeURIComponent(address);
         const url = `https://www.google.com/maps/search/?api=1&query=${encodedAddress}`;
         window.open(url, '_blank');
     }
 }
+
+
 

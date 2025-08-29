@@ -1,20 +1,43 @@
 <?php
 /**
  * GeocodeController
- * Resolve endereço -> coordenadas usando Google Geocoding API
+ * Resolve endereço -> coordenadas usando Mapbox Geocoding API (v5)
  */
 
 class GeocodeController {
     private $apiKey;
+    private $db;
 
     public function __construct($db = null) {
-        // A chave pode vir de variável de ambiente ou arquivo local
-        $this->apiKey = getenv('GOOGLE_MAPS_API_KEY');
+        $this->db = $db;
+        $this->apiKey = '';
+
+        // 1) Tenta obter do banco (settings_delivery.id=1)
+        try {
+            if ($this->db) {
+                $stmt = $this->db->query("SELECT mapbox_api_key FROM settings_delivery WHERE id = 1");
+                $row = $stmt ? $stmt->fetch(\PDO::FETCH_ASSOC) : null;
+                if ($row && !empty($row['mapbox_api_key'])) {
+                    $this->apiKey = trim((string)$row['mapbox_api_key']);
+                }
+            }
+        } catch (\Throwable $e) {
+            // ignora e tenta fallback
+        }
+
+        // 2) Fallback: variável de ambiente MAPBOX_ACCESS_TOKEN
         if (!$this->apiKey) {
-            // Tenta ler de config/google_api_key.txt (não commitar chave real)
-            $keyFile = __DIR__ . '/../../config/google_api_key.txt';
+            $env = getenv('MAPBOX_ACCESS_TOKEN');
+            if ($env) {
+                $this->apiKey = trim($env);
+            }
+        }
+
+        // 3) Fallback opcional: arquivo local config/mapbox_api_key.txt (não comitar chave real)
+        if (!$this->apiKey) {
+            $keyFile = __DIR__ . '/../../config/mapbox_api_key.txt';
             if (is_file($keyFile)) {
-                $this->apiKey = trim(file_get_contents($keyFile));
+                $this->apiKey = trim((string)@file_get_contents($keyFile));
             }
         }
     }
@@ -27,7 +50,7 @@ class GeocodeController {
         try {
             if (!$this->apiKey) {
                 http_response_code(500);
-                echo json_encode(['success' => false, 'message' => 'Chave da API do Google não configurada']);
+                echo json_encode(['success' => false, 'message' => 'Chave do Mapbox não configurada']);
                 return;
             }
 
@@ -38,42 +61,38 @@ class GeocodeController {
                 return;
             }
 
-            $encoded = urlencode($address);
-            $url = "https://maps.googleapis.com/maps/api/geocode/json?address={$encoded}&key={$this->apiKey}";
-            $ctx = stream_context_create([
-                'http' => [
-                    'timeout' => 8
-                ]
-            ]);
-            $resp = @file_get_contents($url, false, $ctx);
-            if ($resp === false) {
-                throw new Exception('Falha ao conectar à Geocoding API');
-            }
-            $json = json_decode($resp, true);
-            if (!is_array($json) || ($json['status'] ?? '') !== 'OK') {
-                $status = $json['status'] ?? 'UNKNOWN_ERROR';
-                $msg = $json['error_message'] ?? 'Erro da Geocoding API';
+            $coords = $this->mapboxGeocode($address, $this->apiKey);
+            if (!$coords) {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => $msg, 'status' => $status]);
+                echo json_encode(['success' => false, 'message' => 'Não foi possível geocodificar o endereço']);
                 return;
             }
-
-            $location = $json['results'][0]['geometry']['location'];
-            $lat = $location['lat'];
-            $lng = $location['lng'];
 
             echo json_encode([
                 'success' => true,
                 'coordinates' => [
-                    'lng' => $lng,
-                    'lat' => $lat
-                ],
-                'raw' => $json['results'][0]
+                    'lng' => $coords['lng'],
+                    'lat' => $coords['lat']
+                ]
             ]);
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['success' => false, 'message' => 'Erro ao geocodificar', 'details' => $e->getMessage()]);
         }
+    }
+
+    private function mapboxGeocode($address, $apiKey) {
+        // Normalização leve
+        $normalized = preg_replace('/\s+/', ' ', trim((string)$address));
+        // Endpoint oficial v5
+        $url = 'https://api.mapbox.com/geocoding/v5/mapbox.places/' . rawurlencode($normalized) . '.json?country=BR&limit=1&access_token=' . urlencode($apiKey);
+        $ctx = stream_context_create(['http' => ['timeout' => 10]]);
+        $resp = @file_get_contents($url, false, $ctx);
+        if ($resp === false) return null;
+        $json = json_decode($resp, true);
+        if (!is_array($json) || empty($json['features'])) return null;
+        $center = $json['features'][0]['center']; // [lng, lat]
+        return [ 'lng' => (float)$center[0], 'lat' => (float)$center[1] ];
     }
 }
 

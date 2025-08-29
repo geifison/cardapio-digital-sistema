@@ -19,12 +19,29 @@ class CategoryController {
             // Se ?all=true for informado, retorna todas. Caso contrário, apenas ativas
             $all = isset($_GET['all']) && (($_GET['all'] === 'true') || ($_GET['all'] === '1'));
             $query = $all
-                ? "SELECT * FROM categories ORDER BY display_order ASC, name ASC"
-                : "SELECT * FROM categories WHERE active = 1 ORDER BY display_order ASC, name ASC";
+                ? "SELECT c.*, 
+                       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.active = 1) AS active_count,
+                       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.active = 0) AS inactive_count
+                   FROM categories c
+                   ORDER BY c.display_order ASC, c.name ASC"
+                : "SELECT c.*, 
+                       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.active = 1) AS active_count,
+                       (SELECT COUNT(*) FROM products p WHERE p.category_id = c.id AND p.active = 0) AS inactive_count
+                   FROM categories c
+                   WHERE c.active = 1
+                   ORDER BY c.display_order ASC, c.name ASC";
             $stmt = $this->db->prepare($query);
             $stmt->execute();
             
             $categories = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            // Normaliza contagens e adiciona total_count
+            foreach ($categories as &$cat) {
+                $cat['active_count'] = (int)($cat['active_count'] ?? 0);
+                $cat['inactive_count'] = (int)($cat['inactive_count'] ?? 0);
+                $cat['total_count'] = $cat['active_count'] + $cat['inactive_count'];
+            }
+            unset($cat);
             
             error_log("CategoryController::getAll - Categorias encontradas: " . count($categories));
             
@@ -316,6 +333,61 @@ class CategoryController {
             echo json_encode([
                 'success' => false,
                 'message' => 'Erro ao excluir categoria',
+                'details' => $e->getMessage()
+            ]);
+        }
+    }
+    
+    /**
+     * Atualiza a ordem (display_order) das categorias em lote
+     * Espera payload: { orders: [{ id: number, display_order: number }, ...] }
+     */
+    public function reorder($data) {
+        try {
+            error_log('CategoryController::reorder - Payload: ' . json_encode($data));
+
+            if (!isset($data['orders']) || !is_array($data['orders'])) {
+                http_response_code(400);
+                echo json_encode([
+                    'success' => false,
+                    'message' => 'Payload inválido: "orders" é obrigatório e deve ser uma lista'
+                ]);
+                return;
+            }
+
+            $this->db->beginTransaction();
+            $stmt = $this->db->prepare("UPDATE categories SET display_order = :display_order, updated_at = CURRENT_TIMESTAMP WHERE id = :id");
+
+            foreach ($data['orders'] as $item) {
+                if (!isset($item['id']) || !isset($item['display_order'])) {
+                    continue;
+                }
+                $id = (int)$item['id'];
+                $order = (int)$item['display_order'];
+
+                $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+                $stmt->bindParam(':display_order', $order, PDO::PARAM_INT);
+                $stmt->execute();
+            }
+
+            $this->db->commit();
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Ordem de categorias atualizada com sucesso'
+            ]);
+
+            if (class_exists('EventManager')) {
+                EventManager::emit('categories_updated', ['action' => 'reordered']);
+            }
+        } catch (Exception $e) {
+            if ($this->db->inTransaction()) {
+                $this->db->rollBack();
+            }
+            http_response_code(500);
+            echo json_encode([
+                'success' => false,
+                'message' => 'Erro ao reordenar categorias',
                 'details' => $e->getMessage()
             ]);
         }

@@ -1,4 +1,8 @@
 <?php
+ini_set('display_errors', '0');
+ini_set('display_startup_errors', '0');
+ini_set('html_errors', '0');
+error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED);
 // Log para debug
 file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - Upload.php executado\n", FILE_APPEND);
 
@@ -9,9 +13,15 @@ header('Access-Control-Allow-Headers: Content-Type, Authorization');
 
 // Configurações
 $uploadDir = '../uploads/';
-$baseUrl = 'http://' . $_SERVER['HTTP_HOST'] . '/cardapio-digital-sistema/uploads/';
+// Detecta esquema e base do projeto dinamicamente para construir a URL correta
+$scheme = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+$scriptDir = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\'); // ex: /cardapio-digital-sistema/cardapio-digital-sistema/api
+$projectBase = rtrim(dirname($scriptDir), '/\\'); // ex: /cardapio-digital-sistema/cardapio-digital-sistema
+$baseUrl = $scheme . '://' . $_SERVER['HTTP_HOST'] . $projectBase . '/uploads/';
 $maxWidth = 800;
 $maxHeight = 800;
+$mode = isset($_GET['mode']) ? strtolower((string)$_GET['mode']) : '';
+if ($mode === 'logo') { $maxWidth = 200; $maxHeight = 200; }
 
 // Criar diretório se não existir
 if (!is_dir($uploadDir)) {
@@ -102,9 +112,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($fileError === UPLOAD_ERR_OK) {
             $fileExt = strtolower(pathinfo($fileName, PATHINFO_EXTENSION));
-            $allowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $rasterAllowed = ['jpg', 'jpeg', 'png', 'gif', 'webp'];
+            $svgAllowed = ['svg'];
 
-            if (in_array($fileExt, $allowed)) {
+            if (in_array($fileExt, $rasterAllowed)) {
                 if ($fileSize < 5000000) { // 5MB
                     $newFileName = uniqid('', true) . '.' . $fileExt;
                     $fileDestination = $uploadDir . $newFileName;
@@ -119,9 +130,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     http_response_code(400);
                     echo json_encode(['success' => false, 'message' => 'Arquivo muito grande. Máximo 5MB.']);
                 }
+            } elseif (in_array($fileExt, $svgAllowed)) {
+                if ($fileSize < 5000000) { // 5MB
+                    $mime = function_exists('mime_content_type') ? @mime_content_type($fileTmpName) : '';
+                    // opcionalmente validar assinatura minima de SVG
+                    if ($mime && stripos($mime, 'svg') === false) {
+                        http_response_code(400);
+                        echo json_encode(['success' => false, 'message' => 'Arquivo SVG inválido.']);
+                        exit;
+                    }
+                    $newFileName = uniqid('', true) . '.svg';
+                    $fileDestination = $uploadDir . $newFileName;
+                    if (move_uploaded_file($fileTmpName, $fileDestination)) {
+                        echo json_encode(['success' => true, 'url' => $baseUrl . $newFileName]);
+                    } else {
+                        http_response_code(500);
+                        echo json_encode(['success' => false, 'message' => 'Erro ao salvar arquivo SVG.']);
+                    }
+                } else {
+                    http_response_code(400);
+                    echo json_encode(['success' => false, 'message' => 'Arquivo muito grande. Máximo 5MB.']);
+                }
             } else {
                 http_response_code(400);
-                echo json_encode(['success' => false, 'message' => 'Tipo de arquivo não permitido. Use: jpg, jpeg, png, gif, webp.']);
+                echo json_encode(['success' => false, 'message' => 'Tipo de arquivo não permitido. Use: jpg, jpeg, png, gif, webp, svg.']);
             }
         } else {
             http_response_code(500);

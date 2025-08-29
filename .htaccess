@@ -28,6 +28,17 @@ RewriteCond %{REQUEST_FILENAME} !-f
 RewriteCond %{REQUEST_FILENAME} !-d
 RewriteRule ^api/(.*)$ api/index.php [QSA,L]
 
+# SPA admin2 (Vite build)
+# Evita reescrita recursiva quando já estiver apontando para admin2/dist
+RewriteRule ^admin2/dist/ - [L]
+# Servir assets estáticos gerados em admin2/dist
+RewriteRule ^admin2/assets/(.*)$ admin2/dist/assets/$1 [L]
+RewriteRule ^admin2/index.html$ admin2/dist/index.html [L]
+RewriteRule ^admin2/(.*\.(js|css|svg|png|jpg|jpeg|gif|webp|ico|map))$ admin2/dist/$1 [L]
+# Fallback para rotas client-side do React Router
+RewriteRule ^admin2/?$ admin2/dist/index.html [L]
+RewriteRule ^admin2/.+$ admin2/dist/index.html [L]
+
 # Configurações de cache
 <IfModule mod_expires.c>
     ExpiresActive On
