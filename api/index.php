@@ -14,15 +14,29 @@ if (session_status() === PHP_SESSION_NONE) {
   ]);
   session_start();
 }
-// Configurações de CORS
-header('Access-Control-Allow-Origin: *');
+// Configurações de CORS (com suporte a credenciais)
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = [
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:5190',
+  'http://127.0.0.1:5190',
+];
+if ($origin && in_array($origin, $allowed_origins, true)) {
+  header('Access-Control-Allow-Origin: ' . $origin);
+  header('Access-Control-Allow-Credentials: true');
+} else {
+  // Em produção/same-origin, CORS não é necessário; evite wildcard com credenciais
+  // Não define Access-Control-Allow-Origin quando a origem não estiver na lista
+}
+header('Vary: Origin');
 header('Access-Control-Allow-Methods: GET, POST, PUT, DELETE, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
 header('Content-Type: application/json; charset=utf-8');
 
 // Responde a requisições OPTIONS (preflight)
 if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-    http_response_code(200);
+    http_response_code(204);
     exit();
 }
 
@@ -357,7 +371,13 @@ function handleOrderRequests($controller, $method, $id, $input) {
     switch ($method) {
         case 'GET':
             if ($id) {
-                $controller->getById($id);
+                // Verifica se é uma requisição de sincronização de status
+                $sync = $_GET['sync'] ?? null;
+                if ($sync === 'status') {
+                    $controller->getStatus($id);
+                } else {
+                    $controller->getById($id);
+                }
             } else {
                 // Verifica filtros
                 $status = $_GET['status'] ?? null;
@@ -467,6 +487,8 @@ function handlePizzaRequests($controller, $method, $id, $input) {
             if ($resource === 'sizes') {
                 $all = isset($_GET['all']) ? ($_GET['all'] === 'true') : false;
                 $controller->getSizes($all);
+            } elseif ($resource === 'product-sizes' && $resourceId) {
+                $controller->getProductSizes($resourceId);
             } elseif ($resource === 'flavors') {
                 $category = $_GET['category'] ?? null;
                 $all = isset($_GET['all']) ? ($_GET['all'] === 'true') : false;
@@ -569,6 +591,9 @@ function handleSettingsRequests($controller, $method, $id, $input) {
             } elseif ($id === 'company-info') {
                 if (!method_exists($controller, 'getCompanyInfo')) { require_once 'controllers/SettingsController.php'; }
                 $controller->getCompanyInfo();
+            } elseif ($id === 'company-info-public') {
+                if (!method_exists($controller, 'getCompanyInfoPublic')) { require_once 'controllers/SettingsController.php'; }
+                $controller->getCompanyInfoPublic();
             } elseif ($id === 'payment-methods') {
                 if (!method_exists($controller, 'getPaymentMethods')) { require_once 'controllers/SettingsController.php'; }
                 $controller->getPaymentMethods();

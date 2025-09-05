@@ -3,13 +3,30 @@ ini_set('display_errors', '0');
 ini_set('display_startup_errors', '0');
 ini_set('html_errors', '0');
 error_reporting(E_ALL & ~E_NOTICE & ~E_WARNING & ~E_DEPRECATED);
-// Log para debug
-file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - Upload.php executado\n", FILE_APPEND);
 
-header('Content-Type: application/json');
-header('Access-Control-Allow-Origin: *');
+// Log temporário para debug do frontend
+file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - Upload.php executado\n", FILE_APPEND);
+file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - REQUEST_METHOD: " . $_SERVER['REQUEST_METHOD'] . "\n", FILE_APPEND);
+file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - Content-Type: " . ($_SERVER['CONTENT_TYPE'] ?? 'não definido') . "\n", FILE_APPEND);
+file_put_contents('../logs/php_errors.log', date('Y-m-d H:i:s') . " - FILES: " . print_r($_FILES, true) . "\n", FILE_APPEND);
+
+
+header('Content-Type: application/json; charset=utf-8');
+$origin = $_SERVER['HTTP_ORIGIN'] ?? '';
+$allowed_origins = [
+  'http://localhost:4173',
+  'http://127.0.0.1:4173',
+  'http://localhost:5190',
+  'http://127.0.0.1:5190',
+];
+if ($origin && in_array($origin, $allowed_origins, true)) {
+  header('Access-Control-Allow-Origin: ' . $origin);
+  header('Access-Control-Allow-Credentials: true');
+}
+header('Vary: Origin');
 header('Access-Control-Allow-Methods: POST, OPTIONS');
-header('Access-Control-Allow-Headers: Content-Type, Authorization');
+header('Access-Control-Allow-Headers: Content-Type, Authorization, X-Requested-With');
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') { http_response_code(204); exit(); }
 
 // Configurações
 $uploadDir = '../uploads/';

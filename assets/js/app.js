@@ -1,5 +1,5 @@
 /**
- * Sistema de CardÃ¡pio Digital
+ * Sistema de Cardápio Digital
  * JavaScript Principal
  */
 
@@ -818,6 +818,7 @@ async function loadProducts() {
  */
 function renderCategories() {
     const categoriesList = document.getElementById('categoriesList');
+    if (!categoriesList) return;
     ensureAllCategoriesButton(categoriesList);
 
     const newMap = new Map();
@@ -846,6 +847,7 @@ function renderCategories() {
 }
 
 function ensureAllCategoriesButton(container) {
+    if (!container) return;
     let allBtn = container.querySelector('.category-item[data-category-id="all"]');
     if (!allBtn) {
         allBtn = document.createElement('div');
@@ -862,6 +864,7 @@ function ensureAllCategoriesButton(container) {
  */
 function renderProducts(filteredProducts = null) {
     const productsGrid = document.getElementById('productsGrid');
+    if (!productsGrid) return;
     const products = filteredProducts || appState.products;
     renderProductsOptimized(productsGrid, products);
 }
@@ -3001,29 +3004,61 @@ async function loadPizzaData() {
         
         pizzaBuilderState.flavorPrices = [];
         
-        pizzaBuilderState.borders = [
-            { id: 1, name: 'Tradicional', price: 0.00, description: 'Borda tradicional sem recheio' },
-            { id: 2, name: 'Recheada Catupiry', price: 5.00, description: 'Borda recheada com catupiry' },
-            { id: 3, name: 'Cheddar', price: 6.00, description: 'Borda recheada com cheddar' },
-            { id: 4, name: 'Chocolate', price: 8.00, description: 'Borda recheada com chocolate' }
-        ];
+        // Carregar bordas de pizza da API
+        try {
+            const bordersResponse = await fetch(CONFIG.API_BASE_URL + 'pizza/borders');
+            if (bordersResponse.ok) {
+                const bordersData = await bordersResponse.json();
+                if (bordersData.success) {
+                    pizzaBuilderState.borders = bordersData.data;
+                } else {
+                    throw new Error('Erro ao carregar bordas');
+                }
+            } else {
+                throw new Error('Erro na requisição de bordas');
+            }
+        } catch (error) {
+            // Fallback para dados fixos
+            pizzaBuilderState.borders = [
+                { id: 1, name: 'Tradicional', price: 0.00, description: 'Borda tradicional sem recheio' },
+                { id: 2, name: 'Recheada Catupiry', price: 5.00, description: 'Borda recheada com catupiry' },
+                { id: 3, name: 'Cheddar', price: 6.00, description: 'Borda recheada com cheddar' },
+                { id: 4, name: 'Chocolate', price: 8.00, description: 'Borda recheada com chocolate' }
+            ];
+        }
         
-        pizzaBuilderState.extras = [
-            // Queijos
-            { id: 1, name: 'Mussarela Extra', category: 'queijos', price: 3.00, description: 'Queijo mussarela adicional' },
-            { id: 2, name: 'Catupiry', category: 'queijos', price: 4.00, description: 'Catupiry cremoso' },
-            { id: 3, name: 'ParmesÃ£o', category: 'queijos', price: 3.50, description: 'ParmesÃ£o ralado' },
-            
-            // Carnes
-            { id: 4, name: 'Pepperoni Extra', category: 'carnes', price: 5.00, description: 'Pepperoni adicional' },
-            { id: 5, name: 'Bacon', category: 'carnes', price: 4.50, description: 'Bacon crocante' },
-            { id: 6, name: 'Frango Desfiado', category: 'carnes', price: 4.00, description: 'Frango desfiado' },
-            
-            // Vegetais
-            { id: 7, name: 'Cebola', category: 'vegetais', price: 2.00, description: 'Cebola caramelizada' },
-            { id: 8, name: 'Tomate', category: 'vegetais', price: 1.50, description: 'Tomate fresco' },
-            { id: 9, name: 'PimentÃ£o', category: 'vegetais', price: 2.00, description: 'PimentÃ£o colorido' }
-        ];
+        // Carregar extras de pizza da API
+        try {
+            const extrasResponse = await fetch(CONFIG.API_BASE_URL + 'pizza/extras');
+            if (extrasResponse.ok) {
+                const extrasData = await extrasResponse.json();
+                if (extrasData.success) {
+                    pizzaBuilderState.extras = extrasData.data;
+                } else {
+                    throw new Error('Erro ao carregar extras');
+                }
+            } else {
+                throw new Error('Erro na requisição de extras');
+            }
+        } catch (error) {
+            // Fallback para dados fixos
+            pizzaBuilderState.extras = [
+                // Queijos
+                { id: 1, name: 'Mussarela Extra', category: 'queijos', price: 3.00, description: 'Queijo mussarela adicional' },
+                { id: 2, name: 'Catupiry', category: 'queijos', price: 4.00, description: 'Catupiry cremoso' },
+                { id: 3, name: 'ParmesÃ£o', category: 'queijos', price: 3.50, description: 'ParmesÃ£o ralado' },
+                
+                // Carnes
+                { id: 4, name: 'Pepperoni Extra', category: 'carnes', price: 5.00, description: 'Pepperoni adicional' },
+                { id: 5, name: 'Bacon', category: 'carnes', price: 4.50, description: 'Bacon crocante' },
+                { id: 6, name: 'Frango Desfiado', category: 'carnes', price: 4.00, description: 'Frango desfiado' },
+                
+                // Vegetais
+                { id: 7, name: 'Cebola', category: 'vegetais', price: 2.00, description: 'Cebola caramelizada' },
+                { id: 8, name: 'Tomate', category: 'vegetais', price: 1.50, description: 'Tomate fresco' },
+                { id: 9, name: 'PimentÃ£o', category: 'vegetais', price: 2.00, description: 'PimentÃ£o colorido' }
+            ];
+        }
 
         renderPizzaStep1();
         
@@ -3164,12 +3199,18 @@ function updatePizzaStep() {
             renderPizzaStep2();
             break;
         case 3:
-            renderPizzaStep4();
-            // Esconder botÃ£o de continuar quando nÃ£o estiver no passo 2
+            renderPizzaStep3();
+            // Esconder botão de continuar quando não estiver no passo 2
             const continueBtn3 = document.getElementById('flavorsContinue');
             if (continueBtn3) continueBtn3.style.display = 'none';
             break;
         case 4:
+            renderPizzaStep4();
+            // Esconder botão de continuar quando não estiver no passo 2
+            const continueBtn4a = document.getElementById('flavorsContinue');
+            if (continueBtn4a) continueBtn4a.style.display = 'none';
+            break;
+        case 5:
             renderPizzaStep5();
             // Esconder botÃ£o de continuar quando nÃ£o estiver no passo 2
             const continueBtn4 = document.getElementById('flavorsContinue');
@@ -3412,7 +3453,55 @@ function renderPizzaCircle() {
 /**
  * Renderiza o Step 3 - Bordas
  */
-// Step 3 (Borda) removido
+function renderPizzaStep3() {
+    const bordersGrid = document.getElementById('bordersGrid');
+    
+    // Se temos um produto específico, usar apenas suas bordas
+    let availableBorders = pizzaBuilderState.borders;
+    
+    if (pizzaBuilderState.currentProduct && pizzaBuilderState.currentProduct.product_type === 'pizza' && pizzaBuilderState.currentProduct.pizza_borders) {
+        // Filtrar apenas as bordas disponíveis para este produto
+        const productBorderIds = pizzaBuilderState.currentProduct.pizza_borders.map(pb => pb.id);
+        availableBorders = pizzaBuilderState.borders.filter(border => productBorderIds.includes(border.id));
+    }
+    
+    // Se não temos bordas disponíveis, mostrar todas (fallback)
+    if (availableBorders.length === 0) {
+        availableBorders = pizzaBuilderState.borders;
+    }
+    
+    renderBorderCardsOptimized(bordersGrid, availableBorders);
+}
+
+function renderBorderCardsOptimized(container, borders) {
+    const fragment = document.createDocumentFragment();
+    const newMap = new Map(borders.map(b => [String(b.id), b]));
+    const existing = Array.from(container.querySelectorAll('.border-card'));
+    existing.forEach(node => {
+        const id = node.dataset.borderId;
+        if (!newMap.has(id)) node.remove();
+    });
+    borders.forEach(border => {
+        const id = String(border.id);
+        let card = container.querySelector(`.border-card[data-border-id="${id}"]`);
+        const html = `
+            <div class="border-name">${border.name}</div>
+            <div class="border-description">${border.description}</div>
+            <div class="border-price">+ R$ ${border.price.toFixed(2)}</div>
+        `;
+        if (!card) {
+            card = document.createElement('div');
+            card.className = 'border-card';
+            card.dataset.borderId = id;
+            card.addEventListener('click', () => selectPizzaBorder(border));
+            card.innerHTML = html;
+            fragment.appendChild(card);
+        } else {
+            if (card.innerHTML !== html) card.innerHTML = html;
+        }
+    });
+    if (fragment.childNodes.length > 0) container.appendChild(fragment);
+}
 
 /**
  * Seleciona uma borda
@@ -3433,7 +3522,22 @@ function selectPizzaBorder(border) {
  */
 function renderPizzaStep4() {
     const extrasGrid = document.getElementById('extrasGrid');
-    renderExtraCardsOptimized(extrasGrid, pizzaBuilderState.extras);
+    
+    // Se temos um produto específico, usar apenas seus extras
+    let availableExtras = pizzaBuilderState.extras;
+    
+    if (pizzaBuilderState.currentProduct && pizzaBuilderState.currentProduct.product_type === 'pizza' && pizzaBuilderState.currentProduct.pizza_extras) {
+        // Filtrar apenas os extras disponíveis para este produto
+        const productExtraIds = pizzaBuilderState.currentProduct.pizza_extras.map(pe => pe.id);
+        availableExtras = pizzaBuilderState.extras.filter(extra => productExtraIds.includes(extra.id));
+    }
+    
+    // Se não temos extras disponíveis, mostrar todos (fallback)
+    if (availableExtras.length === 0) {
+        availableExtras = pizzaBuilderState.extras;
+    }
+    
+    renderExtraCardsOptimized(extrasGrid, availableExtras);
 }
 
 function renderExtraCardsOptimized(container, extras) {

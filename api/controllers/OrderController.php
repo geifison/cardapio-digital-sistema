@@ -216,17 +216,30 @@ class OrderController {
                 // Gera número do pedido
                 $order_number = $this->generateOrderNumber();
                 
+                // Recalcula subtotal no servidor (inclui extras por item quando enviados)
+                $server_subtotal = 0.0;
+                foreach ($data['items'] as $it) {
+                    $unit_price = isset($it['product_price']) ? (float)$it['product_price'] : 0.0;
+                    $qty = isset($it['quantity']) ? (int)$it['quantity'] : 1;
+                    $extras_total_unit = 0.0;
+                    if (isset($it['extras']) && is_array($it['extras'])) {
+                        foreach ($it['extras'] as $ex) {
+                            $extras_total_unit += (float)($ex['price'] ?? 0);
+                        }
+                    }
+                    $server_subtotal += ($unit_price + $extras_total_unit) * $qty;
+                }
+                
                 // Calcule valores
-                $subtotal = $data['subtotal'] ?? 0;
                 $delivery_fee = $data['delivery_fee'] ?? 5.00;
                 if ($order_type !== 'delivery') {
                     $delivery_fee = 0.00;
                 }
-                $total_amount = $subtotal + $delivery_fee;
-                $change_amount = 0;
+                $total_amount = (float)$server_subtotal + (float)$delivery_fee;
+                $change_amount = 0.0;
                 
                 if ($data['payment_method'] === 'dinheiro' && isset($data['payment_value']) && $data['payment_value'] > $total_amount) {
-                    $change_amount = $data['payment_value'] - $total_amount;
+                    $change_amount = (float)$data['payment_value'] - (float)$total_amount;
                 }
                 
                 // Insere o pedido
@@ -279,15 +292,33 @@ class OrderController {
                 $item_stmt = $this->db->prepare($item_query);
                 
                 foreach ($data['items'] as $item) {
-                    $item_subtotal = $item['product_price'] * $item['quantity'];
-                    $item_notes = $item['notes'] ?? '';
+                    $unit_price = isset($item['product_price']) ? (float)$item['product_price'] : 0.0;
+                    $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+
+                    // Calcula extras por item (quando enviados)
+                    $extras_total_unit = 0.0;
+                    $extras_desc_parts = [];
+                    if (isset($item['extras']) && is_array($item['extras'])) {
+                        foreach ($item['extras'] as $ex) {
+                            $ex_name = isset($ex['name']) ? (string)$ex['name'] : '';
+                            $ex_price = isset($ex['price']) ? (float)$ex['price'] : 0.0;
+                            $extras_total_unit += $ex_price;
+                            if ($ex_name !== '') {
+                                $extras_desc_parts[] = $ex_name . ' (+' . number_format($ex_price, 2, ',', '.') . ')';
+                            }
+                        }
+                    }
+                    $item_subtotal = ($unit_price + $extras_total_unit) * $quantity;
+                    $base_notes = isset($item['notes']) ? (string)$item['notes'] : '';
+                    $extras_text = !empty($extras_desc_parts) ? ("Extras: " . implode(', ', $extras_desc_parts)) : '';
+                    $item_notes = trim($base_notes . ($base_notes && $extras_text ? "\n" : '') . $extras_text);
                     
                     $item_stmt->bindParam(':order_id', $order_id, PDO::PARAM_INT);
                     $item_stmt->bindParam(':product_id', $item['product_id'], PDO::PARAM_INT);
                     $item_stmt->bindParam(':product_name', $item['product_name']);
-                    $item_stmt->bindParam(':product_price', $item['product_price']);
-                    $item_stmt->bindParam(':quantity', $item['quantity'], PDO::PARAM_INT);
-                    $item_stmt->bindParam(':subtotal', $item_subtotal);
+                    $item_stmt->bindValue(':product_price', number_format($unit_price, 2, '.', ''), PDO::PARAM_STR);
+                    $item_stmt->bindParam(':quantity', $quantity, PDO::PARAM_INT);
+                    $item_stmt->bindValue(':subtotal', number_format($item_subtotal, 2, '.', ''), PDO::PARAM_STR);
                     $item_stmt->bindParam(':notes', $item_notes);
                     
                     $item_stmt->execute();
@@ -534,15 +565,32 @@ class OrderController {
                 
                 $subtotal = 0;
                 foreach ($data['items'] as $item) {
-                    $item_subtotal = floatval($item['product_price'] ?? 0) * intval($item['quantity'] ?? 1);
+                    $product_price = isset($item['product_price']) ? (float)$item['product_price'] : 0.0;
+                    $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
+
+                    // Calcula extras por item (quando enviados)
+                    $extras_total_unit = 0.0;
+                    $extras_desc_parts = [];
+                    if (isset($item['extras']) && is_array($item['extras'])) {
+                        foreach ($item['extras'] as $ex) {
+                            $ex_name = isset($ex['name']) ? (string)$ex['name'] : '';
+                            $ex_price = isset($ex['price']) ? (float)$ex['price'] : 0.0;
+                            $extras_total_unit += $ex_price;
+                            if ($ex_name !== '') {
+                                $extras_desc_parts[] = $ex_name . ' (+' . number_format($ex_price, 2, ',', '.') . ')';
+                            }
+                        }
+                    }
+
+                    $item_subtotal = ($product_price + $extras_total_unit) * $quantity;
                     $subtotal += $item_subtotal;
 
                     // Normaliza valores e tipos
                     $product_id = isset($item['product_id']) ? (int)$item['product_id'] : 0;
                     $product_name = isset($item['product_name']) ? (string)$item['product_name'] : '';
-                    $product_price = isset($item['product_price']) ? (float)$item['product_price'] : 0.0;
-                    $quantity = isset($item['quantity']) ? (int)$item['quantity'] : 1;
                     $notes = isset($item['notes']) ? (string)$item['notes'] : '';
+                    $extras_text = !empty($extras_desc_parts) ? ("Extras: " . implode(', ', $extras_desc_parts)) : '';
+                    $item_notes = trim($notes . ($notes && $extras_text ? "\n" : '') . $extras_text);
 
                     $insert_stmt->bindParam(':order_id', $id, PDO::PARAM_INT);
                     $insert_stmt->bindValue(':product_id', $product_id, PDO::PARAM_INT);
@@ -550,7 +598,7 @@ class OrderController {
                     $insert_stmt->bindValue(':product_price', number_format($product_price, 2, '.', ''), PDO::PARAM_STR);
                     $insert_stmt->bindValue(':quantity', $quantity, PDO::PARAM_INT);
                     $insert_stmt->bindValue(':subtotal', number_format((float)$item_subtotal, 2, '.', ''), PDO::PARAM_STR);
-                    $insert_stmt->bindValue(':notes', $notes, PDO::PARAM_STR);
+                    $insert_stmt->bindValue(':notes', $item_notes, PDO::PARAM_STR);
 
                     $result = $insert_stmt->execute();
                     if (!$result) {
@@ -689,6 +737,48 @@ class OrderController {
             // retorna default
         }
         return $default;
+    }
+    
+    /**
+     * Retorna apenas o status e informações básicas de um pedido para sincronização
+     */
+    public function getStatus($id) {
+        try {
+            $query = "SELECT id, order_number, status, created_at, updated_at, 
+                            accepted_at, production_started_at, delivery_started_at, completed_at,
+                            estimated_delivery_time, total_amount, payment_status 
+                     FROM orders WHERE id = :id";
+            $stmt = $this->db->prepare($query);
+            $stmt->bindParam(':id', $id, PDO::PARAM_INT);
+            $stmt->execute();
+            
+            $order = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($order) {
+                // Converte valores numéricos
+                $order['total_amount'] = (float) $order['total_amount'];
+                $order['payment_status'] = (int) $order['payment_status'];
+                
+                echo json_encode([
+                    'success' => true,
+                    'data' => $order
+                ]);
+            } else {
+                http_response_code(404);
+                echo json_encode([
+                    'error' => true,
+                    'message' => 'Pedido não encontrado'
+                ]);
+            }
+            
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode([
+                'error' => true,
+                'message' => 'Erro ao buscar status do pedido',
+                'details' => $e->getMessage()
+            ]);
+        }
     }
 }
 

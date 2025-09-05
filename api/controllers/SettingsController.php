@@ -582,7 +582,66 @@ class SettingsController {
         }
     }
 
-    // === NOVOS ENDPOINTS: /api/settings/company-info ===
+    // === NOVO ENDPOINT PÚBLICO: /api/settings/company-info-public ===
+    public function getCompanyInfoPublic() {
+        try {
+            // 1) Tentar obter do banco (tabela company_info)
+            if ($this->db) {
+                $stmt = $this->db->query("SELECT id, company_name, logo_url, company_color, latitude, longitude, address, zip_code, phone, cnpj, created_at, updated_at FROM company_info ORDER BY id ASC LIMIT 1");
+                $row = $stmt ? $stmt->fetch() : null;
+                if ($row) {
+                    $row['latitude'] = isset($row['latitude']) ? (float)$row['latitude'] : 0.0;
+                    $row['longitude'] = isset($row['longitude']) ? (float)$row['longitude'] : 0.0;
+                    // Garantir cor válida
+                    $color = isset($row['company_color']) ? (string)$row['company_color'] : '';
+                    if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $color)) { $color = '#ef4444'; }
+                    $row['company_color'] = $color;
+                    echo json_encode(['success' => true, 'data' => $row]);
+                    return;
+                }
+            }
+            // 2) Fallback para arquivo config/company.json
+            $file = $this->configDir . DIRECTORY_SEPARATOR . 'company.json';
+            $default = [
+                'company_name' => '',
+                'logo_url' => '',
+                'company_color' => '#ef4444',
+                'latitude' => 0.0,
+                'longitude' => 0.0,
+                'address' => null,
+                'zip_code' => null,
+                'phone' => '',
+                'cnpj' => ''
+            ];
+            if (is_file($file)) {
+                $content = @file_get_contents($file);
+                $json = $content !== false ? json_decode($content, true) : null;
+                if (is_array($json)) {
+                    $res = [
+                        'company_name' => (string)($json['name'] ?? ''),
+                        'logo_url' => (string)($json['logo_url'] ?? ''),
+                        'company_color' => (string)($json['company_color'] ?? '#ef4444'),
+                        'latitude' => 0.0,
+                        'longitude' => 0.0,
+                        'address' => null,
+                        'zip_code' => (string)($json['address']['zip'] ?? ''),
+                        'phone' => (string)($json['phone'] ?? ''),
+                        'cnpj' => (string)($json['document'] ?? '')
+                    ];
+                    if (!preg_match('/^#[0-9A-Fa-f]{6}$/', $res['company_color'])) { $res['company_color'] = '#ef4444'; }
+                    echo json_encode(['success' => true, 'data' => $res]);
+                    return;
+                }
+            }
+            // 3) Default final
+            echo json_encode(['success' => true, 'data' => $default]);
+        } catch (Exception $e) {
+            http_response_code(500);
+            echo json_encode(['success' => false, 'message' => 'Erro ao obter company info pública', 'details' => $e->getMessage()]);
+        }
+    }
+
+    // === ENDPOINT ADMIN: /api/settings/company-info (requer autenticação admin) ===
     public function getCompanyInfo() {
         try {
             if (session_status() === PHP_SESSION_NONE) { session_start(); }
@@ -604,9 +663,8 @@ class SettingsController {
                 echo json_encode(['success' => false, 'message' => 'Nenhum registro encontrado']);
                 return;
             }
-            // Normaliza tipos
-            $row['latitude'] = (float)$row['latitude'];
-            $row['longitude'] = (float)$row['longitude'];
+            $row['latitude'] = isset($row['latitude']) ? (float)$row['latitude'] : 0.0;
+            $row['longitude'] = isset($row['longitude']) ? (float)$row['longitude'] : 0.0;
             echo json_encode(['success' => true, 'data' => $row]);
         } catch (Exception $e) {
             http_response_code(500);

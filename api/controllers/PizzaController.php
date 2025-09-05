@@ -720,4 +720,43 @@ class PizzaController {
             echo json_encode(['success' => false, 'message' => $e->getMessage()]);
         }
     }
+
+    /**
+     * Busca tamanhos específicos de um produto pizza
+     */
+    public function getProductSizes($product_id) {
+        try {
+            $stmt = $this->pdo->prepare("
+                SELECT 
+                    ps.id,
+                    ps.name,
+                    ps.slices,
+                    ps.max_flavors,
+                    ps.price,
+                    ps.price AS base_price,
+                    ps.price AS final_price,
+                    ps.display_order
+                FROM pizza_sizes ps
+                INNER JOIN product_pizza_sizes pps ON ps.id = pps.pizza_size_id
+                WHERE pps.product_id = :product_id 
+                AND pps.active = 1
+                AND ps.active = 1
+                ORDER BY ps.display_order ASC, ps.name ASC
+            ");
+            
+            $stmt->execute([':product_id' => $product_id]);
+            $sizes = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode([
+                'success' => true,
+                'data' => $sizes
+            ]);
+        } catch (Exception $e) {
+            http_response_code(400);
+            echo json_encode([
+                'success' => false,
+                'message' => $e->getMessage()
+            ]);
+        }
+    }
 }

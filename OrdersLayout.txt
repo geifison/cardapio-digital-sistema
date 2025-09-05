@@ -1,0 +1,329 @@
+import React, { useState, useEffect } from 'react';
+
+// Função auxiliar para combinar classes do Tailwind CSS
+const cn = (...classes) => classes.filter(Boolean).join(' ');
+
+// --- Ícones (estilo lucide-react) ---
+const Clock = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>;
+const Printer = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><polyline points="6 9 6 2 18 2 18 9"></polyline><path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2"></path><rect x="6" y="14" width="12" height="8"></rect></svg>;
+const CheckCircle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>;
+const MoreVertical = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="1"></circle><circle cx="12" cy="5" r="1"></circle><circle cx="12" cy="19" r="1"></circle></svg>;
+const Sparkles = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="m12 3-1.9 5.8-5.8 1.9 5.8 1.9 1.9 5.8 1.9-5.8 5.8-1.9-5.8-1.9z"></path></svg>;
+const LoaderCircle = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={cn("animate-spin", className)}><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>;
+const Sun = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2"></path><path d="M12 20v2"></path><path d="m4.93 4.93 1.41 1.41"></path><path d="m17.66 17.66 1.41 1.41"></path><path d="M2 12h2"></path><path d="M20 12h2"></path><path d="m6.34 17.66-1.41 1.41"></path><path d="m19.07 4.93-1.41 1.41"></path></svg>;
+const Moon = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z"></path></svg>;
+const Trash2 = ({ className }) => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className={className}><path d="M3 6h18"></path><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>;
+
+
+// --- Componentes base (simulando shadcn/ui) ---
+const Card = React.forwardRef(({ className, ...props }, ref) => <div ref={ref} className={cn("rounded-lg border shadow-sm transition-all text-card-foreground", className)} {...props} />);
+const Button = React.forwardRef(({ className, variant = 'default', size = 'default', ...props }, ref) => <button ref={ref} className={cn("inline-flex items-center justify-center rounded-md text-sm font-medium transition-colors disabled:pointer-events-none disabled:opacity-50", variant === 'ghost' ? "hover:bg-accent hover:text-accent-foreground" : "bg-primary text-primary-foreground hover:bg-primary/90", size === 'icon' ? "h-8 w-8" : "h-10 px-4 py-2", className)} {...props} />);
+const Dialog = ({ open, onOpenChange, children }) => open ? <div className="fixed inset-0 z-50 bg-black/80 flex items-center justify-center" onClick={() => onOpenChange(false)}>{children}</div> : null;
+const DialogContent = React.forwardRef(({ className, children, ...props }, ref) => <div ref={ref} className={cn("bg-white rounded-lg shadow-lg p-6 w-full max-w-md dark:bg-slate-900 dark:border-slate-700 border", className)} onClick={e => e.stopPropagation()} {...props}>{children}</div>);
+const DialogHeader = ({ className, ...props }) => <div className={cn("flex flex-col space-y-1.5 text-center sm:text-left", className)} {...props} />;
+const DialogTitle = React.forwardRef(({ className, ...props }, ref) => <h2 ref={ref} className={cn("text-lg font-semibold leading-none tracking-tight dark:text-white", className)} {...props} />);
+const DialogDescription = React.forwardRef(({ className, ...props }, ref) => <p ref={ref} className={cn("text-sm text-muted-foreground", "dark:text-slate-400", className)} {...props} />);
+const DialogFooter = ({ className, ...props }) => <div className={cn("flex flex-col-reverse sm:flex-row sm:justify-end sm:space-x-2 pt-4", className)} {...props} />;
+const Textarea = React.forwardRef(({ className, ...props }, ref) => <textarea ref={ref} className={cn("flex min-h-[80px] w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-slate-800 dark:border-slate-600 dark:text-slate-50", className)} {...props} />);
+
+
+// --- Componente OrderCard ---
+const OrderCard = ({ order, onPrint, onAdvanceStatus, onMoreOptions, onDragStart, currentTime }) => {
+  const { orderNumber, customerName, items, totalPrice, status, statusTimestamp } = order;
+  
+  const statusStyles = {
+    new: { bg: 'bg-yellow-100 dark:bg-yellow-900/50', border: 'border-yellow-200 dark:border-yellow-700/50', text: 'text-yellow-700 dark:text-yellow-300', icon: 'text-yellow-600 dark:text-yellow-400' },
+    cooking_ontime: { bg: 'bg-green-100 dark:bg-green-900/50', border: 'border-green-200 dark:border-green-700/50', text: 'text-green-700 dark:text-green-300', icon: 'text-green-600 dark:text-green-400' },
+    cooking_late: { bg: 'bg-red-100 dark:bg-red-900/50', border: 'border-red-200 dark:border-red-700/50', text: 'text-red-700 dark:text-red-300', icon: 'text-red-600 dark:text-red-400' },
+    delivery: { bg: 'bg-cyan-100 dark:bg-cyan-900/50', border: 'border-cyan-200 dark:border-cyan-700/50', text: 'text-cyan-700 dark:text-cyan-300', icon: 'text-cyan-600 dark:text-cyan-400' },
+    completed: { bg: 'bg-gray-100 dark:bg-slate-800', border: 'border-gray-200 dark:border-slate-700', text: 'text-gray-700 dark:text-slate-300', icon: 'text-gray-500 dark:text-slate-400' },
+    canceled: { bg: 'bg-red-100 dark:bg-red-900/50', border: 'border-red-200 dark:border-red-700/50', text: 'text-red-700 dark:text-red-300', icon: 'text-red-500 dark:text-red-400' }
+  };
+
+  const isCanceled = status === 'canceled';
+  const totalElapsedSeconds = statusTimestamp ? Math.floor((currentTime - statusTimestamp) / 1000) : 0;
+
+  const getStyleForStatus = () => {
+    if (status === 'cooking') {
+        // 25 minutos * 60 segundos = 1500 segundos
+        return totalElapsedSeconds > 1500 ? statusStyles.cooking_late : statusStyles.cooking_ontime;
+    }
+    return statusStyles[status] || statusStyles.completed;
+  };
+  
+  const currentStyle = getStyleForStatus();
+
+  const getElapsedTime = () => {
+      if (!statusTimestamp) return null;
+      const minutes = Math.floor(totalElapsedSeconds / 60);
+      const remainingSeconds = totalElapsedSeconds % 60;
+      return `${String(minutes).padStart(2, '0')}:${String(remainingSeconds).padStart(2, '0')}`;
+  };
+
+  const elapsedTime = getElapsedTime();
+
+  return (
+    <Card 
+      draggable={!isCanceled}
+      onDragStart={(e) => onDragStart(e, order.orderNumber)}
+      className={cn("w-full font-sans cursor-grab active:cursor-grabbing p-4 flex flex-col h-52", currentStyle.bg, currentStyle.border)}
+    >
+      {/* Header */}
+      <div className={cn("flex justify-between items-center pb-2 border-b", currentStyle.border)}>
+        <span className={cn("font-bold", currentStyle.text)}>#{orderNumber}</span>
+        <div className="flex items-center gap-2">
+            { isCanceled ? (
+                <div className={cn("flex items-center gap-1 text-xs font-bold uppercase", currentStyle.icon)}>
+                    <Trash2 className="h-4 w-4" />
+                    <span>Cancelado</span>
+                </div>
+            ) : (
+                elapsedTime && (
+                    <div className={cn("flex items-center gap-1 text-xs font-semibold", currentStyle.icon)}>
+                        <Clock className="h-4 w-4" />
+                        {elapsedTime}
+                    </div>
+                )
+            )}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="flex-grow pt-3">
+        <h3 className={cn("font-bold text-lg", currentStyle.text)}>{customerName}</h3>
+        <div className={cn("text-sm", currentStyle.text, "opacity-70")}>
+          {items.map((item, index) => <p key={index}>{item}</p>)}
+        </div>
+      </div>
+      
+      {/* Footer */}
+      <div className="flex justify-between items-center pt-2">
+        <span className={cn("font-extrabold text-xl", currentStyle.text)}>{totalPrice}</span>
+        <div className="flex items-center">
+          <Button title="Imprimir Pedido" variant="ghost" size="icon" className={cn(currentStyle.icon, "h-7 w-7 hover:bg-black/10")} onClick={() => onPrint(order.orderNumber)}><Printer className="h-5 w-5" /></Button>
+          {!isCanceled && status !== 'completed' && (
+            <>
+              <Button title="Avançar Status" variant="ghost" size="icon" className={cn(currentStyle.icon, "h-7 w-7 hover:bg-black/10")} onClick={() => onAdvanceStatus(order.orderNumber)}><CheckCircle className="h-5 w-5" /></Button>
+              <Button title="Mais Opções" variant="ghost" size="icon" className={cn(currentStyle.icon, "h-7 w-7 hover:bg-black/10")} onClick={() => onMoreOptions(order)}><MoreVertical className="h-5 w-5" /></Button>
+            </>
+          )}
+        </div>
+      </div>
+    </Card>
+  );
+};
+
+// --- Componente OrderColumn ---
+const OrderColumn = ({ title, orders, onDrop, onDragOver, status, children }) => {
+    return (
+        <div 
+            className="flex flex-col space-y-4 w-full"
+            onDrop={(e) => onDrop(e, status)}
+            onDragOver={onDragOver}
+        >
+            <div className="flex justify-between items-center px-2">
+                <h2 className="text-lg font-semibold text-slate-700 dark:text-slate-300">{title}</h2>
+                <div className="text-sm font-medium bg-gray-200 dark:bg-slate-700 dark:text-slate-200 text-gray-600 rounded-full px-2 py-0.5">{orders.length}</div>
+            </div>
+            <div className="min-h-[400px] space-y-3">
+                {orders.map(order => children(order))}
+            </div>
+        </div>
+    );
+};
+
+
+// --- Componente Principal da Aplicação ---
+export default function App() {
+  const [theme, setTheme] = useState('light');
+  const [currentTime, setCurrentTime] = useState(Date.now());
+  
+  useEffect(() => {
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+  }, [theme]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+        setCurrentTime(Date.now());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+
+  const toggleTheme = () => {
+    setTheme(prevTheme => (prevTheme === 'light' ? 'dark' : 'light'));
+  };
+
+  const initialOrders = [
+    { orderNumber: '07', customerName: 'Geifisom Queiroz', items: ['1x Pizza Família', '1x Hambúrguer...'], totalPrice: 'R$ 119,90', status: 'new', statusTimestamp: Date.now() - 120000 },
+    { orderNumber: '04', customerName: 'Carlos Pereira', items: ['1x Calzone', '1x Refrigerante'], totalPrice: 'R$ 55,00', status: 'cooking', statusTimestamp: Date.now() - 1560000 }, // 26 minutos -> Atrasado
+    { orderNumber: '05', customerName: 'Ana Silva', items: ['2x Pizza Média'], totalPrice: 'R$ 79,80', status: 'cooking', statusTimestamp: Date.now() - 300000 }, // 5 minutos -> No tempo
+    { orderNumber: '06', customerName: 'Mariana Costa', items: ['1x Pizza Família'], totalPrice: 'R$ 119,90', status: 'cooking', statusTimestamp: Date.now() - 60000 }, // 1 minuto -> No tempo
+    { orderNumber: '03', customerName: 'Geifisom Queiroz', items: ['1x Pizza Família', '1x Hambúrguer...'], totalPrice: 'R$ 19,90', status: 'delivery', statusTimestamp: Date.now() - 600000 },
+    { orderNumber: '02', customerName: 'Lucas Martins', items: ['1x Lasanha'], totalPrice: '119,90', status: 'completed', statusTimestamp: Date.now() - 1800000 },
+    { orderNumber: '01', customerName: 'Beatriz Almeida', items: ['1x Pizza Grande...'], totalPrice: 'R$ 119,90', status: 'canceled', statusTimestamp: Date.now() - 3600000 },
+  ];
+
+  const [orders, setOrders] = useState(initialOrders);
+  const [selectedOrder, setSelectedOrder] = useState(null);
+  const [isOptionsModalOpen, setOptionsModalOpen] = useState(false);
+  const [isSmartOrderModalOpen, setSmartOrderModalOpen] = useState(false);
+  const [smartOrderPrompt, setSmartOrderPrompt] = useState('');
+  const [generatedMessage, setGeneratedMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+
+  const updateOrderStatus = (orderNumber, newStatus) => {
+    setOrders(p => p.map(o => o.orderNumber === orderNumber ? { ...o, status: newStatus, statusTimestamp: Date.now() } : o));
+  };
+
+  const handleDragStart = (e, orderNumber) => { e.dataTransfer.setData("orderNumber", orderNumber); };
+  const handleDrop = (e, newStatus) => {
+    const orderNumber = e.dataTransfer.getData("orderNumber");
+    updateOrderStatus(orderNumber, newStatus);
+  };
+  const handleDragOver = (e) => { e.preventDefault(); };
+  
+  const advanceStatus = (orderNumber) => {
+      const flow = { new: 'cooking', cooking: 'delivery', delivery: 'completed' };
+      const currentOrder = orders.find(o => o.orderNumber === orderNumber);
+      if (currentOrder && flow[currentOrder.status]) {
+          updateOrderStatus(orderNumber, flow[currentOrder.status]);
+      }
+  };
+
+  const handleMoreOptions = (order) => {
+    setSelectedOrder(order);
+    setGeneratedMessage('');
+    setOptionsModalOpen(true);
+  };
+
+  const cancelOrder = () => {
+    if (selectedOrder) {
+      updateOrderStatus(selectedOrder.orderNumber, 'canceled');
+      setOptionsModalOpen(false);
+    }
+  };
+  
+  // --- Funções da API Gemini ---
+  const generateOrderFromPrompt = async () => {
+    if (!smartOrderPrompt) return;
+    setIsLoading(true);
+    const apiKey = "";
+    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+    const prompt = `Extraia as seguintes informações do texto: nome do cliente, itens do pedido (como uma lista) e o preço total. Se o preço não for mencionado, coloque um valor estimado com base nos itens. O texto é: "${smartOrderPrompt}"`;
+    const payload = { contents: [{ parts: [{ text: prompt }] }], generationConfig: { responseMimeType: "application/json", responseSchema: { type: "OBJECT", properties: { customerName: { type: "STRING" }, items: { type: "ARRAY", items: { type: "STRING" } }, totalPrice: { type: "STRING" } }, required: ["customerName", "items", "totalPrice"] } } };
+    try {
+      const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+      const result = await response.json();
+      if (result.candidates && result.candidates[0].content.parts[0].text) {
+        const newOrderData = JSON.parse(result.candidates[0].content.parts[0].text);
+        const newOrderNumber = String(Math.max(...orders.map(o => parseInt(o.orderNumber))) + 1).padStart(2, '0');
+        const newOrder = { ...newOrderData, orderNumber: newOrderNumber, status: 'new', statusTimestamp: Date.now() };
+        setOrders(prev => [newOrder, ...prev]);
+        setSmartOrderModalOpen(false);
+        setSmartOrderPrompt('');
+      }
+    } catch (error) { console.error("Erro ao gerar pedido com IA:", error); alert("Não foi possível gerar o pedido. Tente novamente."); } finally { setIsLoading(false); }
+  };
+
+  const generateCustomerMessage = async () => {
+      if (!selectedOrder) return;
+      setIsLoading(true);
+      setGeneratedMessage('');
+      const apiKey = "";
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+      const { customerName, items, totalPrice } = selectedOrder;
+      const prompt = `Escreva uma mensagem curta e amigável para WhatsApp confirmando um pedido para o cliente '${customerName}'. O pedido contém: ${items.join(', ')}. O valor total é ${totalPrice}. Use emojis.`;
+      const payload = { contents: [{ parts: [{ text: prompt }] }] };
+      try {
+        const response = await fetch(apiUrl, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) });
+        const result = await response.json();
+        if (result.candidates && result.candidates[0].content.parts[0].text) { setGeneratedMessage(result.candidates[0].content.parts[0].text); }
+      } catch (error) { console.error("Erro ao gerar mensagem:", error); setGeneratedMessage("Erro ao gerar mensagem. Tente novamente."); } finally { setIsLoading(false); }
+  };
+
+  const columns = [ { status: 'new', title: 'Novos' }, { status: 'cooking', title: 'Cozinha' }, { status: 'delivery', title: 'Entrega' }, { status: 'completed', title: 'Concluído' }];
+
+  return (
+    <div className="bg-white text-foreground min-h-screen p-4 sm:p-8 dark:bg-slate-900">
+      <div className="max-w-full mx-auto">
+        <div className="flex justify-between items-center mb-8">
+            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-50">Gestor de pedidos</h1>
+            <div className="flex items-center gap-4">
+                <Button onClick={() => setSmartOrderModalOpen(true)} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+                    <Sparkles className="h-4 w-4" />
+                    Criar Pedido com IA
+                </Button>
+                <Button onClick={toggleTheme} variant="ghost" size="icon" className="text-slate-600 dark:text-slate-400">
+                    <Sun className="h-5 w-5 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+                    <Moon className="absolute h-5 w-5 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+                    <span className="sr-only">Toggle theme</span>
+                </Button>
+            </div>
+        </div>
+        <div className="flex space-x-6 overflow-x-auto pb-4 -mx-4 sm:-mx-8 px-4 sm:px-8">
+          {columns.map(col => {
+            const filteredOrders = orders.filter(o => {
+                if (col.status === 'completed') {
+                    return o.status === 'completed' || o.status === 'canceled';
+                }
+                return o.status === col.status;
+            });
+            return (
+                <div key={col.status} className="w-72 md:w-80 flex-shrink-0">
+                    <OrderColumn title={col.title} status={col.status} orders={filteredOrders} onDrop={handleDrop} onDragOver={handleDragOver}>
+                      {(order) => <OrderCard key={order.orderNumber} order={order} onDragStart={handleDragStart} onPrint={(n) => alert(`Imprimindo pedido #${n}`)} onAdvanceStatus={advanceStatus} onMoreOptions={handleMoreOptions} currentTime={currentTime} />}
+                    </OrderColumn>
+                </div>
+            )
+          })}
+        </div>
+      </div>
+      
+      <Dialog open={isOptionsModalOpen} onOpenChange={setOptionsModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Opções para o Pedido #{selectedOrder?.orderNumber}</DialogTitle>
+          </DialogHeader>
+          <div className="py-4 space-y-4">
+            <Button onClick={generateCustomerMessage} disabled={isLoading} className="w-full bg-green-600 hover:bg-green-700 text-white flex items-center gap-2">
+                {isLoading && !generatedMessage ? <LoaderCircle className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                Gerar Mensagem p/ Cliente
+            </Button>
+            {generatedMessage && (
+                <div className="text-sm bg-slate-100 p-3 rounded-md border border-slate-200 whitespace-pre-wrap dark:bg-slate-800 dark:border-slate-700 dark:text-slate-300">{generatedMessage}</div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setOptionsModalOpen(false)}>Fechar</Button>
+            <Button className="bg-red-600 text-white hover:bg-red-700" onClick={cancelOrder}>Cancelar Pedido</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={isSmartOrderModalOpen} onOpenChange={setSmartOrderModalOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>✨ Criar Pedido com IA</DialogTitle>
+            <DialogDescription>Digite o pedido em linguagem natural. Ex: "uma pizza grande de pepperoni e uma coca para o Carlos, total R$ 95,50"</DialogDescription>
+          </DialogHeader>
+          <div className="py-4">
+            <Textarea placeholder="Digite seu pedido aqui..." value={smartOrderPrompt} onChange={(e) => setSmartOrderPrompt(e.target.value)} />
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setSmartOrderModalOpen(false)}>Cancelar</Button>
+            <Button onClick={generateOrderFromPrompt} disabled={isLoading} className="bg-blue-600 hover:bg-blue-700 text-white flex items-center gap-2">
+                {isLoading ? <LoaderCircle className="h-4 w-4" /> : <Sparkles className="h-4 w-4" />}
+                Gerar Pedido
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+    </div>
+  );
+}

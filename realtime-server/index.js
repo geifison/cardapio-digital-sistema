@@ -7,6 +7,11 @@ const app = express();
 app.use(cors({ origin: '*', methods: ['GET','POST'], allowedHeaders: ['Content-Type','X-REALTIME-SECRET'] }));
 app.use(express.json());
 
+// Healthcheck simples
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', timestamp: Date.now() });
+});
+
 const server = http.createServer(app);
 const io = new Server(server, {
   cors: {
@@ -23,12 +28,19 @@ const REALTIME_SECRET = process.env.REALTIME_SECRET || 'dev-secret';
 const nsAdmin = io.of('/admin');
 const nsClient = io.of('/client');
 
+// Log para conexões no namespace raiz (para debug)
+io.on('connection', (socket) => {
+  console.log('[realtime] ATENÇÃO: conexão no namespace raiz (não deveria acontecer):', socket.id);
+});
+
 nsAdmin.on('connection', (socket) => {
+  console.log('[realtime] admin conectado:', socket.id);
   // Painel se junta à sala "orders" para receber eventos gerais
   socket.join('orders');
 });
 
 nsClient.on('connection', (socket) => {
+  console.log('[realtime] client conectado:', socket.id);
   // Cliente informa qual pedido acompanhar
   socket.on('watch:order', ({ orderId }) => {
     if (!orderId) return;
@@ -55,6 +67,8 @@ app.post('/novo-pedido', requireSecret, (req, res) => {
     status: payload.status || 'novo',
     at: Date.now()
   };
+  console.log('[realtime] Emitindo evento order:new:', event);
+  console.log('[realtime] Clientes admin conectados:', nsAdmin.sockets.size);
   nsAdmin.to('orders').emit('order:new', event);
   if (orderId) nsClient.to(`order:${orderId}`).emit('order:update', event);
   return res.json({ ok: true });

@@ -1,0 +1,106 @@
+name: System Tests (Admin UI)
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  system-tests:
+    runs-on: windows-latest
+    env:
+      VITE_TEST_EMAIL: ${{ secrets.VITE_TEST_EMAIL }}
+      VITE_TEST_PASSWORD: ${{ secrets.VITE_TEST_PASSWORD }}
+      BASE_URL: http://127.0.0.1:5191
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+          extensions: pdo_mysql
+
+      - name: Start MySQL
+        uses: ankane/setup-mysql@v1
+        with:
+          mysql-version: '8.0'
+
+      - name: Create database and import schema
+        shell: pwsh
+        run: |
+          php -v
+          php -r "file_exists('database_schema.sql') or die('schema not found');"
+          php -r "require 'config/database.php'; $db=new Database(); $db->createDatabase('database_schema.sql');"
+
+      - name: Install Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install admin deps and browsers
+        shell: pwsh
+        run: |
+          npm ci --prefix admin
+          npm run playwright:install --prefix admin
+
+      - name: Start servers and run Playwright
+        shell: pwsh
+        run: |
+          # Garantir variáveis de ambiente para o Vite
+          $env:VITE_TEST_EMAIL='${{ secrets.VITE_TEST_EMAIL }}'
+          $env:VITE_TEST_PASSWORD='${{ secrets.VITE_TEST_PASSWORD }}'
+
+          # Inicia API PHP embutida em background com logs
+          $apiLog = Join-Path $PWD 'api_server.log'
+          $api = Start-Process -FilePath php -ArgumentList "-S 127.0.0.1:8000 -t . router.php" -NoNewWindow -PassThru -RedirectStandardOutput $apiLog -RedirectStandardError $apiLog
+
+          # Inicia Vite dev server em background com logs
+          $viteLog = Join-Path $PWD 'vite_server.log'
+          $vite = Start-Process -FilePath npm -ArgumentList "run dev -- --port 5191" -WorkingDirectory "admin" -NoNewWindow -PassThru -RedirectStandardOutput $viteLog -RedirectStandardError $viteLog
+
+          try {
+            # Espera API responder (qualquer status code indica que está de pé)
+            Write-Host "Aguardando API..."
+            for ($i=0; $i -lt 60; $i++) {
+              try { $resp = Invoke-WebRequest -Uri http://127.0.0.1:8000/api/auth/verify -UseBasicParsing -Method GET -TimeoutSec 2; break } catch { Start-Sleep -Seconds 2 }
+            }
+
+            # Espera Vite responder
+            Write-Host "Aguardando Vite..."
+            for ($i=0; $i -lt 60; $i++) {
+              try { $resp = Invoke-WebRequest -Uri http://127.0.0.1:5191/tests -UseBasicParsing -Method GET -TimeoutSec 2; break } catch { Start-Sleep -Seconds 2 }
+            }
+
+            # Executa testes
+            npm run test:system --prefix admin
+          }
+          finally {
+            # Encerra servidores
+            if ($vite -and (Get-Process -Id $vite.Id -ErrorAction SilentlyContinue)) { Stop-Process -Id $vite.Id -Force }
+            if ($api -and (Get-Process -Id $api.Id -ErrorAction SilentlyContinue)) { Stop-Process -Id $api.Id -Force }
+          }
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: admin-system-tests
+          path: |
+            admin/test-results
+            admin/playwright-report
+            admin/tests/**/*.json
+            admin/tests/**/*.csv
+            vite_server.log
+            api_server.log
+
+      - name: Show server logs on failure
+        if: failure()
+        shell: pwsh
+        run: |
+          echo "=== Vite Server Log ==="
+          Get-Content vite_server.log -Raw -ErrorAction SilentlyContinue || echo "sem log"
+          echo "=== API Server Log ==="
+          Get-Content api_server.log -Raw -ErrorAction SilentlyContinue || echo "sem log"

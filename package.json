@@ -1,0 +1,15 @@
+{
+  "name": "cardapio-digital-sistema-root",
+  "private": true,
+  "version": "0.0.1",
+  "type": "module",
+  "scripts": {
+    "dev": "npm --prefix ./admin run dev",
+    "build": "npm --prefix ./admin run build",
+    "preview": "npm --prefix ./admin run preview"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.55.0",
+    "mysql2": "^3.14.4"
+  }
+}

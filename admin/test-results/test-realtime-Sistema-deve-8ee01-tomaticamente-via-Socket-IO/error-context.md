@@ -1,0 +1,332 @@
+# Page snapshot
+
+```yaml
+- generic [ref=e3]:
+  - banner [ref=e4]:
+    - generic [ref=e5]:
+      - generic [ref=e6]:
+        - generic [ref=e7]:
+          - img [ref=e9]
+          - generic [ref=e10]:
+            - paragraph [ref=e11]: Cardápio Digital
+            - heading "Papibu Pizzaria" [level=1] [ref=e12]
+        - generic [ref=e13]:
+          - generic [ref=e14]:
+            - img
+            - text: Conectado
+          - generic [ref=e15]:
+            - img
+            - text: Aberto
+      - generic [ref=e16]:
+        - img [ref=e17]
+        - textbox "Buscar pratos..." [ref=e20]
+  - generic [ref=e22]:
+    - button "Todos" [ref=e23]
+    - button "Pizzas" [ref=e24]
+    - button "Lanches" [ref=e25]
+    - button "Pastel" [ref=e26]
+    - button "Pratos Executivos" [ref=e27]
+    - button "Sobremesas" [ref=e28]
+    - button "Bebidas" [ref=e29]
+  - main [ref=e31]:
+    - generic [ref=e32]:
+      - generic [ref=e33]:
+        - button "Dia doas pais A partir de 34 ,90 Vegetariano Dia doas pais pedido especial dos pais Adicionar" [ref=e34] [cursor=pointer]:
+          - generic [ref=e35] [cursor=pointer]:
+            - img "Dia doas pais" [ref=e36] [cursor=pointer]
+            - generic [ref=e38] [cursor=pointer]:
+              - generic [ref=e39] [cursor=pointer]: A partir de
+              - generic [ref=e40] [cursor=pointer]: R$
+              - generic [ref=e41] [cursor=pointer]: "34"
+              - generic [ref=e42] [cursor=pointer]: ",90"
+          - generic [ref=e43] [cursor=pointer]:
+            - generic [ref=e45] [cursor=pointer]: Vegetariano
+            - heading "Dia doas pais" [level=3] [ref=e47] [cursor=pointer]
+            - paragraph [ref=e48] [cursor=pointer]: pedido especial dos pais
+          - button "Adicionar" [ref=e49]:
+            - img [ref=e50]
+        - button "Média - Margherita, Calabresa 39 ,00 Média - Margherita, Calabresa Pizza Média com Margherita, Calabresa Adicionar" [ref=e51] [cursor=pointer]:
+          - generic [ref=e52] [cursor=pointer]:
+            - img "Média - Margherita, Calabresa" [ref=e53] [cursor=pointer]
+            - generic [ref=e55] [cursor=pointer]:
+              - generic [ref=e56] [cursor=pointer]: R$
+              - generic [ref=e57] [cursor=pointer]: "39"
+              - generic [ref=e58] [cursor=pointer]: ",00"
+          - generic [ref=e59] [cursor=pointer]:
+            - heading "Média - Margherita, Calabresa" [level=3] [ref=e61] [cursor=pointer]
+            - paragraph [ref=e62] [cursor=pointer]: Pizza Média com Margherita, Calabresa
+          - button "Adicionar" [ref=e63]:
+            - img [ref=e64]
+        - button "Monte Sua pizza A partir de 34 ,90 Monte Sua pizza Mote Sua Pizza! A fome bateu? A gente resolve. Peça sua pizza favorita em poucos cliques. Rápido, fácil e delicioso. É só dar o mote! Adicionar" [ref=e65] [cursor=pointer]:
+          - generic [ref=e66] [cursor=pointer]:
+            - img "Monte Sua pizza" [ref=e67] [cursor=pointer]
+            - generic [ref=e69] [cursor=pointer]:
+              - generic [ref=e70] [cursor=pointer]: A partir de
+              - generic [ref=e71] [cursor=pointer]: R$
+              - generic [ref=e72] [cursor=pointer]: "34"
+              - generic [ref=e73] [cursor=pointer]: ",90"
+          - generic [ref=e74] [cursor=pointer]:
+            - heading "Monte Sua pizza" [level=3] [ref=e76] [cursor=pointer]
+            - paragraph [ref=e77] [cursor=pointer]: Mote Sua Pizza! A fome bateu? A gente resolve. Peça sua pizza favorita em poucos cliques. Rápido, fácil e delicioso. É só dar o mote!
+          - button "Adicionar" [ref=e78]:
+            - img [ref=e79]
+        - button "Pizza Calabresa 35 ,90 Pizza Calabresa Molho de tomate, mussarela, calabresa e cebola Adicionar" [ref=e80] [cursor=pointer]:
+          - generic [ref=e81] [cursor=pointer]:
+            - img "Pizza Calabresa" [ref=e82] [cursor=pointer]
+            - generic [ref=e84] [cursor=pointer]:
+              - generic [ref=e85] [cursor=pointer]: R$
+              - generic [ref=e86] [cursor=pointer]: "35"
+              - generic [ref=e87] [cursor=pointer]: ",90"
+          - generic [ref=e88] [cursor=pointer]:
+            - heading "Pizza Calabresa" [level=3] [ref=e90] [cursor=pointer]
+            - paragraph [ref=e91] [cursor=pointer]: Molho de tomate, mussarela, calabresa e cebola
+          - button "Adicionar" [ref=e92]:
+            - img [ref=e93]
+        - button "Pizza de moqueca A partir de 34 ,90 Pizza de moqueca Uma pizza deliciosa de moqueca de camarão Adicionar" [ref=e94] [cursor=pointer]:
+          - generic [ref=e95] [cursor=pointer]:
+            - img "Pizza de moqueca" [ref=e96] [cursor=pointer]
+            - generic [ref=e98] [cursor=pointer]:
+              - generic [ref=e99] [cursor=pointer]: A partir de
+              - generic [ref=e100] [cursor=pointer]: R$
+              - generic [ref=e101] [cursor=pointer]: "34"
+              - generic [ref=e102] [cursor=pointer]: ",90"
+          - generic [ref=e103] [cursor=pointer]:
+            - heading "Pizza de moqueca" [level=3] [ref=e105] [cursor=pointer]
+            - paragraph [ref=e106] [cursor=pointer]: Uma pizza deliciosa de moqueca de camarão
+          - button "Adicionar" [ref=e107]:
+            - img [ref=e108]
+        - button "Pizza Especial da Casa A partir de 34 ,90 Pizza Especial da Casa Pizza personalizada com sabores tradicionais selecionados especialmente pela casa Adicionar" [ref=e109] [cursor=pointer]:
+          - generic [ref=e110] [cursor=pointer]:
+            - img "Pizza Especial da Casa" [ref=e111] [cursor=pointer]
+            - generic [ref=e113] [cursor=pointer]:
+              - generic [ref=e114] [cursor=pointer]: A partir de
+              - generic [ref=e115] [cursor=pointer]: R$
+              - generic [ref=e116] [cursor=pointer]: "34"
+              - generic [ref=e117] [cursor=pointer]: ",90"
+          - generic [ref=e118] [cursor=pointer]:
+            - heading "Pizza Especial da Casa" [level=3] [ref=e120] [cursor=pointer]
+            - paragraph [ref=e121] [cursor=pointer]: Pizza personalizada com sabores tradicionais selecionados especialmente pela casa
+          - button "Adicionar" [ref=e122]:
+            - img [ref=e123]
+        - button "Pizza Margherita 32 ,90 Vegetariano Pizza Margherita Molho de tomate, mussarela, manjericão e azeite Adicionar" [ref=e124] [cursor=pointer]:
+          - generic [ref=e125] [cursor=pointer]:
+            - img "Pizza Margherita" [ref=e126] [cursor=pointer]
+            - generic [ref=e128] [cursor=pointer]:
+              - generic [ref=e129] [cursor=pointer]: R$
+              - generic [ref=e130] [cursor=pointer]: "32"
+              - generic [ref=e131] [cursor=pointer]: ",90"
+          - generic [ref=e132] [cursor=pointer]:
+            - generic [ref=e134] [cursor=pointer]: Vegetariano
+            - heading "Pizza Margherita" [level=3] [ref=e136] [cursor=pointer]
+            - paragraph [ref=e137] [cursor=pointer]: Molho de tomate, mussarela, manjericão e azeite
+          - button "Adicionar" [ref=e138]:
+            - img [ref=e139]
+        - button "Pizza em dobro A partir de 89 ,90 Pizza em dobro Adicionar" [ref=e140] [cursor=pointer]:
+          - generic [ref=e141] [cursor=pointer]:
+            - img "Pizza em dobro" [ref=e142] [cursor=pointer]
+            - generic [ref=e144] [cursor=pointer]:
+              - generic [ref=e145] [cursor=pointer]: A partir de
+              - generic [ref=e146] [cursor=pointer]: R$
+              - generic [ref=e147] [cursor=pointer]: "89"
+              - generic [ref=e148] [cursor=pointer]: ",90"
+          - heading "Pizza em dobro" [level=3] [ref=e151] [cursor=pointer]
+          - button "Adicionar" [ref=e152]:
+            - img [ref=e153]
+        - button "Pizza novo Admin A partir de 34 ,90 Pizza novo Admin Essa pizza e uma delicia Adicionar" [ref=e154] [cursor=pointer]:
+          - generic [ref=e155] [cursor=pointer]:
+            - img "Pizza novo Admin" [ref=e156] [cursor=pointer]
+            - generic [ref=e158] [cursor=pointer]:
+              - generic [ref=e159] [cursor=pointer]: A partir de
+              - generic [ref=e160] [cursor=pointer]: R$
+              - generic [ref=e161] [cursor=pointer]: "34"
+              - generic [ref=e162] [cursor=pointer]: ",90"
+          - generic [ref=e163] [cursor=pointer]:
+            - heading "Pizza novo Admin" [level=3] [ref=e165] [cursor=pointer]
+            - paragraph [ref=e166] [cursor=pointer]: Essa pizza e uma delicia
+          - button "Adicionar" [ref=e167]:
+            - img [ref=e168]
+        - button "Teste de Produto A partir de 34 ,90 Teste de Produto Adicionar" [ref=e169] [cursor=pointer]:
+          - generic [ref=e170] [cursor=pointer]:
+            - img "Teste de Produto" [ref=e171] [cursor=pointer]
+            - generic [ref=e173] [cursor=pointer]:
+              - generic [ref=e174] [cursor=pointer]: A partir de
+              - generic [ref=e175] [cursor=pointer]: R$
+              - generic [ref=e176] [cursor=pointer]: "34"
+              - generic [ref=e177] [cursor=pointer]: ",90"
+          - heading "Teste de Produto" [level=3] [ref=e180] [cursor=pointer]
+          - button "Adicionar" [ref=e181]:
+            - img [ref=e182]
+        - button "Pizza Personalizada A partir de 34 ,90 Pizza Personalizada Monte sua pizza do seu jeito com nossos ingredientes frescos Adicionar" [ref=e183] [cursor=pointer]:
+          - generic [ref=e184] [cursor=pointer]:
+            - img "Pizza Personalizada" [ref=e185] [cursor=pointer]
+            - generic [ref=e187] [cursor=pointer]:
+              - generic [ref=e188] [cursor=pointer]: A partir de
+              - generic [ref=e189] [cursor=pointer]: R$
+              - generic [ref=e190] [cursor=pointer]: "34"
+              - generic [ref=e191] [cursor=pointer]: ",90"
+          - generic [ref=e192] [cursor=pointer]:
+            - heading "Pizza Personalizada" [level=3] [ref=e194] [cursor=pointer]
+            - paragraph [ref=e195] [cursor=pointer]: Monte sua pizza do seu jeito com nossos ingredientes frescos
+          - button "Adicionar" [ref=e196]:
+            - img [ref=e197]
+        - button "teste 20 ,90 teste teste Adicionar" [ref=e198] [cursor=pointer]:
+          - generic [ref=e199] [cursor=pointer]:
+            - img "teste" [ref=e200] [cursor=pointer]
+            - generic [ref=e202] [cursor=pointer]:
+              - generic [ref=e203] [cursor=pointer]: R$
+              - generic [ref=e204] [cursor=pointer]: "20"
+              - generic [ref=e205] [cursor=pointer]: ",90"
+          - generic [ref=e206] [cursor=pointer]:
+            - heading "teste" [level=3] [ref=e208] [cursor=pointer]
+            - paragraph [ref=e209] [cursor=pointer]: teste
+          - button "Adicionar" [ref=e210]:
+            - img [ref=e211]
+        - button "X-Burger Clássico 15 ,90 X-Burger Clássico Hambúrguer bovino, queijo, alface, tomate, cebola e molho especial Adicionar" [ref=e212] [cursor=pointer]:
+          - generic [ref=e213] [cursor=pointer]:
+            - img "X-Burger Clássico" [ref=e214] [cursor=pointer]
+            - generic [ref=e216] [cursor=pointer]:
+              - generic [ref=e217] [cursor=pointer]: R$
+              - generic [ref=e218] [cursor=pointer]: "15"
+              - generic [ref=e219] [cursor=pointer]: ",90"
+          - generic [ref=e220] [cursor=pointer]:
+            - heading "X-Burger Clássico" [level=3] [ref=e222] [cursor=pointer]
+            - paragraph [ref=e223] [cursor=pointer]: Hambúrguer bovino, queijo, alface, tomate, cebola e molho especial
+          - button "Adicionar" [ref=e224]:
+            - img [ref=e225]
+        - button "X-Salada 18 ,90 X-Salada Hambúrguer bovino, queijo, alface, tomate, cebola, ovo e batata palha Adicionar" [ref=e226] [cursor=pointer]:
+          - generic [ref=e227] [cursor=pointer]:
+            - img "X-Salada" [ref=e228] [cursor=pointer]
+            - generic [ref=e230] [cursor=pointer]:
+              - generic [ref=e231] [cursor=pointer]: R$
+              - generic [ref=e232] [cursor=pointer]: "18"
+              - generic [ref=e233] [cursor=pointer]: ",90"
+          - generic [ref=e234] [cursor=pointer]:
+            - heading "X-Salada" [level=3] [ref=e236] [cursor=pointer]
+            - paragraph [ref=e237] [cursor=pointer]: Hambúrguer bovino, queijo, alface, tomate, cebola, ovo e batata palha
+          - button "Adicionar" [ref=e238]:
+            - img [ref=e239]
+        - button "Pastel de Frango 12 ,90 Pastel de Frango Pastel de frango fresquinho feito na hora Adicionar" [ref=e240] [cursor=pointer]:
+          - generic [ref=e241] [cursor=pointer]:
+            - img "Pastel de Frango" [ref=e242] [cursor=pointer]
+            - generic [ref=e244] [cursor=pointer]:
+              - generic [ref=e245] [cursor=pointer]: R$
+              - generic [ref=e246] [cursor=pointer]: "12"
+              - generic [ref=e247] [cursor=pointer]: ",90"
+          - generic [ref=e248] [cursor=pointer]:
+            - heading "Pastel de Frango" [level=3] [ref=e250] [cursor=pointer]
+            - paragraph [ref=e251] [cursor=pointer]: Pastel de frango fresquinho feito na hora
+          - button "Adicionar" [ref=e252]:
+            - img [ref=e253]
+        - button "Filé de Frango Grelhado 19 ,90 Filé de Frango Grelhado Filé de frango grelhado com arroz, feijão e legumes Adicionar" [ref=e254] [cursor=pointer]:
+          - generic [ref=e255] [cursor=pointer]:
+            - img "Filé de Frango Grelhado" [ref=e256] [cursor=pointer]
+            - generic [ref=e258] [cursor=pointer]:
+              - generic [ref=e259] [cursor=pointer]: R$
+              - generic [ref=e260] [cursor=pointer]: "19"
+              - generic [ref=e261] [cursor=pointer]: ",90"
+          - generic [ref=e262] [cursor=pointer]:
+            - heading "Filé de Frango Grelhado" [level=3] [ref=e264] [cursor=pointer]
+            - paragraph [ref=e265] [cursor=pointer]: Filé de frango grelhado com arroz, feijão e legumes
+          - button "Adicionar" [ref=e266]:
+            - img [ref=e267]
+        - button "Prato Feito Completo 22 ,90 Prato Feito Completo Arroz, feijão, bife acebolado, ovo, batata frita e salada Adicionar" [ref=e268] [cursor=pointer]:
+          - generic [ref=e269] [cursor=pointer]:
+            - img "Prato Feito Completo" [ref=e270] [cursor=pointer]
+            - generic [ref=e272] [cursor=pointer]:
+              - generic [ref=e273] [cursor=pointer]: R$
+              - generic [ref=e274] [cursor=pointer]: "22"
+              - generic [ref=e275] [cursor=pointer]: ",90"
+          - generic [ref=e276] [cursor=pointer]:
+            - heading "Prato Feito Completo" [level=3] [ref=e278] [cursor=pointer]
+            - paragraph [ref=e279] [cursor=pointer]: Arroz, feijão, bife acebolado, ovo, batata frita e salada
+          - button "Adicionar" [ref=e280]:
+            - img [ref=e281]
+        - button "Pudim de Leite 8 ,90 Pudim de Leite Pudim caseiro com calda de caramelo Adicionar" [ref=e282] [cursor=pointer]:
+          - generic [ref=e283] [cursor=pointer]:
+            - img "Pudim de Leite" [ref=e284] [cursor=pointer]
+            - generic [ref=e286] [cursor=pointer]:
+              - generic [ref=e287] [cursor=pointer]: R$
+              - generic [ref=e288] [cursor=pointer]: "8"
+              - generic [ref=e289] [cursor=pointer]: ",90"
+          - generic [ref=e290] [cursor=pointer]:
+            - heading "Pudim de Leite" [level=3] [ref=e292] [cursor=pointer]
+            - paragraph [ref=e293] [cursor=pointer]: Pudim caseiro com calda de caramelo
+          - button "Adicionar" [ref=e294]:
+            - img [ref=e295]
+        - button "Água Mineral 500ml 2 ,50 Vegetariano Vegano Sem glúten Água Mineral 500ml Água mineral sem gás Adicionar" [ref=e296] [cursor=pointer]:
+          - generic [ref=e297] [cursor=pointer]:
+            - img "Água Mineral 500ml" [ref=e298] [cursor=pointer]
+            - generic [ref=e300] [cursor=pointer]:
+              - generic [ref=e301] [cursor=pointer]: R$
+              - generic [ref=e302] [cursor=pointer]: "2"
+              - generic [ref=e303] [cursor=pointer]: ",50"
+          - generic [ref=e304] [cursor=pointer]:
+            - generic [ref=e305] [cursor=pointer]:
+              - generic [ref=e306] [cursor=pointer]: Vegetariano
+              - generic [ref=e307] [cursor=pointer]: Vegano
+              - generic [ref=e308] [cursor=pointer]: Sem glúten
+            - heading "Água Mineral 500ml" [level=3] [ref=e310] [cursor=pointer]
+            - paragraph [ref=e311] [cursor=pointer]: Água mineral sem gás
+          - button "Adicionar" [ref=e312]:
+            - img [ref=e313]
+        - button "Coca-Cola 350ml 4 ,50 Vegetariano Coca-Cola 350ml Refrigerante de cola gelado Adicionar" [ref=e314] [cursor=pointer]:
+          - generic [ref=e315] [cursor=pointer]:
+            - img "Coca-Cola 350ml" [ref=e316] [cursor=pointer]
+            - generic [ref=e318] [cursor=pointer]:
+              - generic [ref=e319] [cursor=pointer]: R$
+              - generic [ref=e320] [cursor=pointer]: "4"
+              - generic [ref=e321] [cursor=pointer]: ",50"
+          - generic [ref=e322] [cursor=pointer]:
+            - generic [ref=e324] [cursor=pointer]: Vegetariano
+            - heading "Coca-Cola 350ml" [level=3] [ref=e326] [cursor=pointer]
+            - paragraph [ref=e327] [cursor=pointer]: Refrigerante de cola gelado
+          - button "Adicionar" [ref=e328]:
+            - img [ref=e329]
+        - button "Suco de Laranja Natural 6 ,90 Vegetariano Suco de Laranja Natural Suco natural de laranja 300ml Adicionar" [ref=e330] [cursor=pointer]:
+          - generic [ref=e331] [cursor=pointer]:
+            - img "Suco de Laranja Natural" [ref=e332] [cursor=pointer]
+            - generic [ref=e334] [cursor=pointer]:
+              - generic [ref=e335] [cursor=pointer]: R$
+              - generic [ref=e336] [cursor=pointer]: "6"
+              - generic [ref=e337] [cursor=pointer]: ",90"
+          - generic [ref=e338] [cursor=pointer]:
+            - generic [ref=e340] [cursor=pointer]: Vegetariano
+            - heading "Suco de Laranja Natural" [level=3] [ref=e342] [cursor=pointer]
+            - paragraph [ref=e343] [cursor=pointer]: Suco natural de laranja 300ml
+          - button "Adicionar" [ref=e344]:
+            - img [ref=e345]
+      - generic [ref=e346]:
+        - generic [ref=e347]:
+          - img [ref=e348]
+          - heading "Oferta Especial!" [level=3] [ref=e350]
+          - img [ref=e351]
+        - paragraph [ref=e353]: Frete grátis para pedidos acima de R$ 50,00
+        - generic [ref=e354]: Válido até o final do mês
+  - button [ref=e355]:
+    - img
+  - contentinfo [ref=e356]:
+    - generic [ref=e357]:
+      - generic [ref=e358]:
+        - generic [ref=e359]:
+          - generic [ref=e360]:
+            - img "Papibu Pizzaria logo" [ref=e361]
+            - generic [ref=e362]:
+              - generic [ref=e363]: Papibu Pizzaria
+              - generic [ref=e364]: "CNPJ: 43038033000194"
+          - generic [ref=e365]: "CEP: 42721810"
+          - 'link "WhatsApp: 71993210590" [ref=e367] [cursor=pointer]':
+            - /url: https://wa.me/5571993210590
+        - generic [ref=e369]:
+          - generic:
+            - region "Map" [ref=e370]
+            - img [ref=e372]
+          - generic:
+            - link "Mapbox logo" [ref=e378] [cursor=pointer]:
+              - /url: https://www.mapbox.com/
+            - button "Toggle attribution" [ref=e380] [cursor=pointer]
+          - generic: Use two fingers to move the map
+          - generic: Use ctrl + scroll to zoom the map
+      - generic [ref=e382]:
+        - generic [ref=e383]: © 2025 Papibu Pizzaria. Todos os direitos reservados.
+        - generic [ref=e384]: Feito com ❤
+```

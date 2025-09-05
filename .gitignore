@@ -25,3 +25,9 @@ logs/*.log
 # Ambiente
 .env
 .env.*
+
+# Uploads e artefatos locais
+uploads/
+order-sound2.mp3
+order-sound.mp3
+*.sfk
